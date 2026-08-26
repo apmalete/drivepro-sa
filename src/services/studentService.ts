@@ -1,29 +1,5 @@
 import api from "./api";
-
-// ==========================================
-// STUDENT TYPE
-// ==========================================
-
-export interface Student {
-  id?: number;
-  studentNo: string;
-  fullname: string;
-  idNumber: string;
-  gender: string;
-  phone: string;
-  email: string;
-  address: string;
-  learnerNumber: string;
-  licenceCode: string;
-  instructor: string;
-  vehicle: string;
-  courseFee: number;
-  amountPaid: number;
-  balance: number;
-  photo?: string;
-  status: string;
-  school_id?: number;
-}
+import type { Student } from "../types/Student";
 
 // ==========================================
 // GET ALL STUDENTS
