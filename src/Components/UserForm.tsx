@@ -10,7 +10,7 @@ import {
   MenuItem,
 } from "@mui/material";
 
-import axios from "axios";
+import api from "../services/api";
 
 // =====================================================
 // USER TYPE
@@ -47,13 +47,6 @@ interface Props {
 }
 
 // =====================================================
-// API
-// =====================================================
-
-const SCHOOL_API =
-  "http://localhost:5000/schools";
-
-// =====================================================
 // USER FORM
 // =====================================================
 
@@ -80,15 +73,12 @@ export default function UserForm({
       school_id: 1,
     });
 
-
   // ===================================================
   // GET CURRENT LOGGED-IN USER
   // ===================================================
 
   const getCurrentUser = () => {
-
     try {
-
       const userData =
         localStorage.getItem("user");
 
@@ -97,9 +87,7 @@ export default function UserForm({
       }
 
       return JSON.parse(userData);
-
     } catch (error) {
-
       console.error(
         "ERROR READING CURRENT USER:",
         error
@@ -109,14 +97,12 @@ export default function UserForm({
     }
   };
 
-
   // ===================================================
   // GET CURRENT SCHOOL ID
   // ===================================================
 
   const getCurrentSchoolId =
     (): number => {
-
       const currentUser =
         getCurrentUser();
 
@@ -126,7 +112,6 @@ export default function UserForm({
         ) || 1
       );
     };
-
 
   // ===================================================
   // CHECK SYSTEM ADMINISTRATOR
@@ -158,7 +143,6 @@ export default function UserForm({
           .trim()
           .toLowerCase();
 
-
       // ================================================
       // MAIN SYSTEM ADMIN ACCOUNT
       // ================================================
@@ -168,7 +152,6 @@ export default function UserForm({
       ) {
         return true;
       }
-
 
       // ================================================
       // SYSTEM ADMINISTRATOR ROLE
@@ -181,10 +164,8 @@ export default function UserForm({
         return true;
       }
 
-
       return false;
     };
-
 
   // ===================================================
   // LOAD SCHOOLS
@@ -200,29 +181,15 @@ export default function UserForm({
       return;
     }
 
-
     const loadSchools =
       async () => {
 
         try {
 
-          const token =
-            localStorage.getItem(
-              "token"
-            );
-
-
           const response =
-            await axios.get<School[]>(
-              SCHOOL_API,
-              {
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-                },
-              },
+            await api.get<School[]>(
+              "/schools"
             );
-
 
           setSchools(
             response.data || []
@@ -238,11 +205,9 @@ export default function UserForm({
         }
       };
 
-
     loadSchools();
 
   }, [open]);
-
 
   // ===================================================
   // LOAD USER INTO FORM
@@ -253,7 +218,6 @@ export default function UserForm({
     if (!open) {
       return;
     }
-
 
     // ================================================
     // EDIT USER
@@ -290,7 +254,6 @@ export default function UserForm({
       return;
     }
 
-
     // ================================================
     // ADD USER
     // ================================================
@@ -316,7 +279,6 @@ export default function UserForm({
 
   }, [user, open]);
 
-
   // ===================================================
   // HANDLE FORM CHANGE
   // ===================================================
@@ -329,7 +291,6 @@ export default function UserForm({
       name,
       value,
     } = e.target;
-
 
     setForm(
       (previous) => ({
@@ -344,7 +305,6 @@ export default function UserForm({
       })
     );
   };
-
 
   // ===================================================
   // SAVE
@@ -367,7 +327,6 @@ export default function UserForm({
       return;
     }
 
-
     // ================================================
     // USERNAME
     // ================================================
@@ -382,7 +341,6 @@ export default function UserForm({
 
       return;
     }
-
 
     // ================================================
     // PASSWORD FOR NEW USER
@@ -400,7 +358,6 @@ export default function UserForm({
       return;
     }
 
-
     // ================================================
     // ROLE
     // ================================================
@@ -414,7 +371,6 @@ export default function UserForm({
       return;
     }
 
-
     // ================================================
     // SCHOOL
     // ================================================
@@ -427,7 +383,6 @@ export default function UserForm({
 
       return;
     }
-
 
     // ================================================
     // SEND USER
@@ -444,7 +399,6 @@ export default function UserForm({
 
     });
   };
-
 
   // ===================================================
   // RENDER
@@ -471,7 +425,6 @@ export default function UserForm({
 
       </DialogTitle>
 
-
       <DialogContent>
 
         {/* =========================================
@@ -491,7 +444,6 @@ export default function UserForm({
           }
         />
 
-
         {/* =========================================
             USERNAME
         ========================================== */}
@@ -508,7 +460,6 @@ export default function UserForm({
             handleChange
           }
         />
-
 
         {/* =========================================
             PASSWORD
@@ -531,7 +482,6 @@ export default function UserForm({
             handleChange
           }
         />
-
 
         {/* =========================================
             ROLE
@@ -557,13 +507,11 @@ export default function UserForm({
             Administrator
           </MenuItem>
 
-
           <MenuItem
             value="Receptionist"
           >
             Receptionist
           </MenuItem>
-
 
           <MenuItem
             value="Instructor"
@@ -572,7 +520,6 @@ export default function UserForm({
           </MenuItem>
 
         </TextField>
-
 
         {/* =========================================
             SCHOOL
@@ -655,7 +602,6 @@ export default function UserForm({
 
       </DialogContent>
 
-
       {/* =========================================
           ACTIONS
       ========================================== */}
@@ -670,7 +616,6 @@ export default function UserForm({
           Cancel
         </Button>
 
-
         <Button
           variant="contained"
           onClick={
@@ -683,6 +628,5 @@ export default function UserForm({
       </DialogActions>
 
     </Dialog>
-
   );
 }

@@ -1,7 +1,5 @@
-import axios from "axios";
+import api from "./api";
 import type { Payment } from "../types/Payment";
-
-const API = "http://localhost:5000/payments";
 
 // =====================================================
 // GET LOGGED-IN USER SCHOOL
@@ -18,7 +16,6 @@ const getSchoolId = (): number => {
     const user = JSON.parse(userData);
 
     return Number(user?.school_id || 1);
-
   } catch (error) {
     console.error(
       "ERROR READING USER SCHOOL:",
@@ -34,11 +31,10 @@ const getSchoolId = (): number => {
 // =====================================================
 
 export const getPayments = async (): Promise<Payment[]> => {
-
   const schoolId = getSchoolId();
 
-  const response = await axios.get<Payment[]>(
-    API,
+  const response = await api.get<Payment[]>(
+    "/payments",
     {
       params: {
         school_id: schoolId,
@@ -56,11 +52,10 @@ export const getPayments = async (): Promise<Payment[]> => {
 export const getStudentPayments = async (
   studentId: number
 ): Promise<Payment[]> => {
-
   const schoolId = getSchoolId();
 
-  const response = await axios.get<Payment[]>(
-    `${API}/student/${studentId}`,
+  const response = await api.get<Payment[]>(
+    `/payments/student/${studentId}`,
     {
       params: {
         school_id: schoolId,
@@ -81,11 +76,10 @@ export const addPayment = async (
   success: boolean;
   id: number;
 }> => {
-
   const schoolId = getSchoolId();
 
-  const response = await axios.post(
-    API,
+  const response = await api.post(
+    "/payments",
     {
       ...payment,
       school_id: schoolId,
@@ -105,11 +99,10 @@ export const updatePayment = async (
 ): Promise<{
   success: boolean;
 }> => {
-
   const schoolId = getSchoolId();
 
-  const response = await axios.put(
-    `${API}/${id}`,
+  const response = await api.put(
+    `/payments/${id}`,
     {
       ...payment,
       school_id: schoolId,
@@ -128,11 +121,10 @@ export const deletePayment = async (
 ): Promise<{
   success: boolean;
 }> => {
-
   const schoolId = getSchoolId();
 
-  const response = await axios.delete(
-    `${API}/${id}`,
+  const response = await api.delete(
+    `/payments/${id}`,
     {
       params: {
         school_id: schoolId,

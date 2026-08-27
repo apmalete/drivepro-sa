@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
-
 import {
   Dialog,
   DialogTitle,
@@ -15,6 +13,7 @@ import {
 } from "@mui/material";
 
 import type { Student } from "../types/Student";
+import api from "../services/api";
 
 interface Props {
   open: boolean;
@@ -56,9 +55,7 @@ const getLoggedInUser = () => {
     }
 
     return JSON.parse(userData);
-
   } catch (error) {
-
     console.error(
       "ERROR READING LOGGED-IN USER:",
       error
@@ -68,13 +65,11 @@ const getLoggedInUser = () => {
   }
 };
 
-
 // =====================================================
 // GET SCHOOL ID
 // =====================================================
 
 const getSchoolId = (): number => {
-
   const user =
     getLoggedInUser();
 
@@ -91,7 +86,6 @@ const getSchoolId = (): number => {
   return 0;
 };
 
-
 // =====================================================
 // STUDENT FORM
 // =====================================================
@@ -102,7 +96,6 @@ export default function StudentForm({
   onClose,
   onSave,
 }: Props) {
-
   const [form, setForm] =
     useState<Student>(
       emptyStudent
@@ -111,15 +104,12 @@ export default function StudentForm({
   const [uploading, setUploading] =
     useState(false);
 
-
   // ===================================================
   // LOAD STUDENT
   // ===================================================
 
   useEffect(() => {
-
     if (student) {
-
       setForm({
         ...student,
         school_id:
@@ -128,19 +118,14 @@ export default function StudentForm({
             getSchoolId()
           ),
       });
-
     } else {
-
       setForm({
         ...emptyStudent,
         school_id:
           getSchoolId(),
       });
-
     }
-
   }, [student, open]);
-
 
   // ===================================================
   // HANDLE CHANGE
@@ -149,14 +134,12 @@ export default function StudentForm({
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
-
     const {
       name,
       value,
     } = e.target;
 
     setForm((prev) => ({
-
       ...prev,
 
       [name]:
@@ -165,11 +148,8 @@ export default function StudentForm({
         name === "balance"
           ? Number(value)
           : value,
-
     }));
-
   };
-
 
   // ===================================================
   // PHOTO UPLOAD
@@ -178,17 +158,14 @@ export default function StudentForm({
   const handlePhotoUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
-
     if (
       !e.target.files?.length
     ) {
       return;
     }
 
-
     const file =
       e.target.files[0];
-
 
     const formData =
       new FormData();
@@ -198,52 +175,28 @@ export default function StudentForm({
       file
     );
 
-
     try {
-
       setUploading(true);
 
-
-      const token =
-        localStorage.getItem(
-          "token"
-        );
-
-
       const response =
-        await axios.post(
-          "http://localhost:5000/upload/student-photo",
+        await api.post(
+          "/upload/student-photo",
           formData,
           {
             headers: {
-
               "Content-Type":
                 "multipart/form-data",
-
-              ...(token
-                ? {
-                    Authorization:
-                      `Bearer ${token}`,
-                  }
-                : {}),
-
             },
           }
         );
 
-
       setForm((prev) => ({
-
         ...prev,
 
         photo:
           response.data.path,
-
       }));
-
-
     } catch (error) {
-
       console.error(
         "PHOTO UPLOAD ERROR:",
         error
@@ -252,41 +205,30 @@ export default function StudentForm({
       alert(
         "Photo upload failed."
       );
-
-
     } finally {
-
       setUploading(false);
-
     }
-
   };
-
 
   // ===================================================
   // SAVE STUDENT
   // ===================================================
 
   const handleSave = () => {
-
     const schoolId =
       getSchoolId();
-
 
     // ===============================================
     // CHECK SCHOOL
     // ===============================================
 
     if (!schoolId) {
-
       alert(
         "School information was not found. Please log out and log in again."
       );
 
       return;
-
     }
-
 
     // ===============================================
     // CHECK REQUIRED INFORMATION
@@ -295,42 +237,33 @@ export default function StudentForm({
     if (
       !form.fullname.trim()
     ) {
-
       alert(
         "Please enter the student's full name."
       );
 
       return;
-
     }
-
 
     if (
       !form.studentNo.trim()
     ) {
-
       alert(
         "Please enter the student number."
       );
 
       return;
-
     }
-
 
     // ===============================================
     // CREATE FINAL STUDENT
     // ===============================================
 
     const studentToSave: Student = {
-
       ...form,
 
       school_id:
         schoolId,
-
     };
-
 
     console.log(
       "SAVING STUDENT:",
@@ -343,10 +276,8 @@ export default function StudentForm({
 
         school_id:
           studentToSave.school_id,
-
       }
     );
-
 
     // ===============================================
     // SEND TO PARENT
@@ -355,9 +286,7 @@ export default function StudentForm({
     onSave(
       studentToSave
     );
-
   };
-
 
   // ===================================================
   // RENDER
@@ -370,16 +299,13 @@ export default function StudentForm({
       maxWidth="lg"
       fullWidth
     >
-
       <DialogTitle>
         {student
           ? "Edit Student"
           : "Add Student"}
       </DialogTitle>
 
-
       <DialogContent>
-
         <Grid
           container
           spacing={2}
@@ -396,16 +322,14 @@ export default function StudentForm({
               md: 3,
             }}
           >
-
             <Stack
               spacing={2}
               alignItems="center"
             >
-
               <Avatar
                 src={
                   form.photo
-                    ? `http://localhost:5000${form.photo}`
+                    ? `${api.defaults.baseURL}${form.photo}`
                     : ""
                 }
                 sx={{
@@ -414,17 +338,14 @@ export default function StudentForm({
                 }}
               />
 
-
               <Button
                 variant="contained"
                 component="label"
                 disabled={uploading}
               >
-
                 {uploading
                   ? "Uploading..."
                   : "Choose Photo"}
-
 
                 <input
                   hidden
@@ -434,13 +355,9 @@ export default function StudentForm({
                     handlePhotoUpload
                   }
                 />
-
               </Button>
-
             </Stack>
-
           </Grid>
-
 
           {/* =========================================
               STUDENT INFORMATION
@@ -452,7 +369,6 @@ export default function StudentForm({
               md: 9,
             }}
           >
-
             <Grid
               container
               spacing={2}
@@ -464,7 +380,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   fullWidth
                   label="Student Number"
@@ -476,9 +391,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -486,7 +399,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   fullWidth
                   label="Full Name"
@@ -498,9 +410,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -508,7 +418,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   fullWidth
                   label="ID Number"
@@ -520,9 +429,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -530,7 +437,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   select
                   fullWidth
@@ -543,7 +449,6 @@ export default function StudentForm({
                     handleChange
                   }
                 >
-
                   <MenuItem value="Male">
                     Male
                   </MenuItem>
@@ -551,11 +456,8 @@ export default function StudentForm({
                   <MenuItem value="Female">
                     Female
                   </MenuItem>
-
                 </TextField>
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -563,7 +465,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   fullWidth
                   label="Phone"
@@ -575,9 +476,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -585,7 +484,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   fullWidth
                   label="Email"
@@ -597,12 +495,9 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
 
-
               <Grid size={12}>
-
                 <TextField
                   fullWidth
                   label="Address"
@@ -614,9 +509,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -624,7 +517,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   fullWidth
                   label="Learner Number"
@@ -636,9 +528,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -646,7 +536,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   select
                   fullWidth
@@ -659,7 +548,6 @@ export default function StudentForm({
                     handleChange
                   }
                 >
-
                   <MenuItem value="Code B">
                     Code B
                   </MenuItem>
@@ -675,11 +563,8 @@ export default function StudentForm({
                   <MenuItem value="Code EC">
                     Code EC
                   </MenuItem>
-
                 </TextField>
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -687,7 +572,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   fullWidth
                   label="Instructor"
@@ -699,9 +583,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -709,7 +591,6 @@ export default function StudentForm({
                   md: 6,
                 }}
               >
-
                 <TextField
                   fullWidth
                   label="Vehicle"
@@ -721,9 +602,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -731,7 +610,6 @@ export default function StudentForm({
                   md: 4,
                 }}
               >
-
                 <TextField
                   fullWidth
                   type="number"
@@ -744,9 +622,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -754,7 +630,6 @@ export default function StudentForm({
                   md: 4,
                 }}
               >
-
                 <TextField
                   fullWidth
                   type="number"
@@ -767,9 +642,7 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
@@ -777,7 +650,6 @@ export default function StudentForm({
                   md: 4,
                 }}
               >
-
                 <TextField
                   fullWidth
                   type="number"
@@ -790,16 +662,13 @@ export default function StudentForm({
                     handleChange
                   }
                 />
-
               </Grid>
-
 
               <Grid
                 size={{
                   xs: 12,
                 }}
               >
-
                 <TextField
                   select
                   fullWidth
@@ -812,7 +681,6 @@ export default function StudentForm({
                     handleChange
                   }
                 >
-
                   <MenuItem value="Active">
                     Active
                   </MenuItem>
@@ -824,29 +692,22 @@ export default function StudentForm({
                   <MenuItem value="Inactive">
                     Inactive
                   </MenuItem>
-
                 </TextField>
-
               </Grid>
 
             </Grid>
-
           </Grid>
 
         </Grid>
-
       </DialogContent>
 
-
       <DialogActions>
-
         <Button
           onClick={onClose}
           color="inherit"
         >
           Cancel
         </Button>
-
 
         <Button
           variant="contained"
@@ -859,9 +720,7 @@ export default function StudentForm({
         >
           Save Student
         </Button>
-
       </DialogActions>
-
     </Dialog>
   );
 }

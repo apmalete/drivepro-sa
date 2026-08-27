@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 
 import logo from "../assets/drivepro-logo.png";
+import api from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,8 +17,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await axios.post(
-        "http://localhost:5000/login",
+      const res = await api.post(
+        "/login",
         {
           username,
           password,

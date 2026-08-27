@@ -1,10 +1,4 @@
-import axios from "axios";
-
-// =====================================================
-// API
-// =====================================================
-
-const API = "http://localhost:5000/users";
+import api from "./api";
 
 // =====================================================
 // GET LOGGED-IN USER
@@ -19,9 +13,7 @@ const getCurrentUser = () => {
     }
 
     return JSON.parse(userData);
-
   } catch (error) {
-
     console.error(
       "ERROR READING LOGGED-IN USER:",
       error
@@ -36,11 +28,9 @@ const getCurrentUser = () => {
 // =====================================================
 
 const getSchoolId = (): number => {
-
   const user = getCurrentUser();
 
-  const schoolId =
-    Number(user?.school_id);
+  const schoolId = Number(user?.school_id);
 
   if (
     Number.isInteger(schoolId) &&
@@ -57,18 +47,15 @@ const getSchoolId = (): number => {
 // =====================================================
 
 const isSystemAdministrator = (): boolean => {
-
   const user = getCurrentUser();
 
-  const role =
-    String(user?.role || "")
-      .trim()
-      .toLowerCase();
+  const role = String(user?.role || "")
+    .trim()
+    .toLowerCase();
 
-  const username =
-    String(user?.username || "")
-      .trim()
-      .toLowerCase();
+  const username = String(user?.username || "")
+    .trim()
+    .toLowerCase();
 
   return (
     role === "system administrator" ||
@@ -81,16 +68,16 @@ const isSystemAdministrator = (): boolean => {
 // =====================================================
 
 export const getUsers = async () => {
+  const schoolId = getSchoolId();
 
-  const schoolId =
-    getSchoolId();
-
-  const response =
-    await axios.get(API, {
+  const response = await api.get(
+    "/users",
+    {
       params: {
         school_id: schoolId,
       },
-    });
+    }
+  );
 
   return response.data;
 };
@@ -102,56 +89,30 @@ export const getUsers = async () => {
 export const addUser = async (
   user: any
 ) => {
-
   let schoolId: number;
 
-  // ===================================================
-  // SYSTEM ADMINISTRATOR
-  // Can create a user for ANY school
-  // ===================================================
-
   if (isSystemAdministrator()) {
-
-    schoolId =
-      Number(user?.school_id);
-
+    schoolId = Number(user?.school_id);
   } else {
-
-    // =================================================
-    // NORMAL SCHOOL USER
-    // Must use their own school
-    // =================================================
-
-    schoolId =
-      getSchoolId();
+    schoolId = getSchoolId();
   }
-
-  // ===================================================
-  // VALIDATE SCHOOL
-  // ===================================================
 
   if (
     !Number.isInteger(schoolId) ||
     schoolId <= 0
   ) {
-
     throw new Error(
       "Please select a valid school."
     );
   }
 
-  // ===================================================
-  // SEND USER
-  // ===================================================
-
-  const response =
-    await axios.post(
-      API,
-      {
-        ...user,
-        school_id: schoolId,
-      }
-    );
+  const response = await api.post(
+    "/users",
+    {
+      ...user,
+      school_id: schoolId,
+    }
+  );
 
   return response.data;
 };
@@ -164,39 +125,18 @@ export const updateUser = async (
   id: number,
   user: any
 ) => {
-
   let schoolId: number;
 
-  // ===================================================
-  // SYSTEM ADMINISTRATOR
-  // Can move users between schools
-  // ===================================================
-
   if (isSystemAdministrator()) {
-
-    schoolId =
-      Number(user?.school_id);
-
+    schoolId = Number(user?.school_id);
   } else {
-
-    // =================================================
-    // NORMAL SCHOOL USER
-    // Cannot move user to another school
-    // =================================================
-
-    schoolId =
-      getSchoolId();
+    schoolId = getSchoolId();
   }
-
-  // ===================================================
-  // VALIDATE SCHOOL
-  // ===================================================
 
   if (
     !Number.isInteger(schoolId) ||
     schoolId <= 0
   ) {
-
     throw new Error(
       "Please select a valid school."
     );
@@ -215,22 +155,13 @@ export const updateUser = async (
     }
   );
 
-  // ===================================================
-  // SEND UPDATE
-  // ===================================================
-
-  const response =
-    await axios.put(
-      `${API}/${id}`,
-      {
-        ...user,
-
-        // IMPORTANT:
-        // Selected school is preserved for
-        // System Administrator.
-        school_id: schoolId,
-      }
-    );
+  const response = await api.put(
+    `/users/${id}`,
+    {
+      ...user,
+      school_id: schoolId,
+    }
+  );
 
   return response.data;
 };
@@ -242,19 +173,16 @@ export const updateUser = async (
 export const deleteUser = async (
   id: number
 ) => {
+  const schoolId = getSchoolId();
 
-  const schoolId =
-    getSchoolId();
-
-  const response =
-    await axios.delete(
-      `${API}/${id}`,
-      {
-        params: {
-          school_id: schoolId,
-        },
-      }
-    );
+  const response = await api.delete(
+    `/users/${id}`,
+    {
+      params: {
+        school_id: schoolId,
+      },
+    }
+  );
 
   return response.data;
 };

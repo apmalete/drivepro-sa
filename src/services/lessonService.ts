@@ -1,6 +1,4 @@
-import axios from "axios";
-
-const API = "http://localhost:5000/lessons";
+import api from "./api";
 
 // =====================================================
 // LESSON INTERFACE
@@ -23,22 +21,16 @@ export interface Lesson {
 
 const getSchoolId = (): number => {
   try {
-    const userData =
-      localStorage.getItem("user");
+    const userData = localStorage.getItem("user");
 
     if (!userData) {
       return 1;
     }
 
-    const user =
-      JSON.parse(userData);
+    const user = JSON.parse(userData);
 
-    return Number(
-      user?.school_id || 1
-    );
-
+    return Number(user?.school_id || 1);
   } catch (error) {
-
     console.error(
       "ERROR READING USER SCHOOL:",
       error
@@ -53,16 +45,16 @@ const getSchoolId = (): number => {
 // =====================================================
 
 export const getLessons = async (): Promise<Lesson[]> => {
+  const schoolId = getSchoolId();
 
-  const schoolId =
-    getSchoolId();
-
-  const response =
-    await axios.get<Lesson[]>(API, {
+  const response = await api.get<Lesson[]>(
+    "/lessons",
+    {
       params: {
         school_id: schoolId,
       },
-    });
+    }
+  );
 
   return response.data;
 };
@@ -74,19 +66,16 @@ export const getLessons = async (): Promise<Lesson[]> => {
 export const getStudentLessons = async (
   studentName: string
 ): Promise<Lesson[]> => {
+  const schoolId = getSchoolId();
 
-  const schoolId =
-    getSchoolId();
-
-  const response =
-    await axios.get<Lesson[]>(
-      `${API}/student/${encodeURIComponent(studentName)}`,
-      {
-        params: {
-          school_id: schoolId,
-        },
-      }
-    );
+  const response = await api.get<Lesson[]>(
+    `/lessons/student/${encodeURIComponent(studentName)}`,
+    {
+      params: {
+        school_id: schoolId,
+      },
+    }
+  );
 
   return response.data;
 };
@@ -101,18 +90,15 @@ export const addLesson = async (
   success: boolean;
   id: number;
 }> => {
+  const schoolId = getSchoolId();
 
-  const schoolId =
-    getSchoolId();
-
-  const response =
-    await axios.post(
-      API,
-      {
-        ...lesson,
-        school_id: schoolId,
-      }
-    );
+  const response = await api.post(
+    "/lessons",
+    {
+      ...lesson,
+      school_id: schoolId,
+    }
+  );
 
   return response.data;
 };
@@ -127,18 +113,15 @@ export const updateLesson = async (
 ): Promise<{
   success: boolean;
 }> => {
+  const schoolId = getSchoolId();
 
-  const schoolId =
-    getSchoolId();
-
-  const response =
-    await axios.put(
-      `${API}/${id}`,
-      {
-        ...lesson,
-        school_id: schoolId,
-      }
-    );
+  const response = await api.put(
+    `/lessons/${id}`,
+    {
+      ...lesson,
+      school_id: schoolId,
+    }
+  );
 
   return response.data;
 };
@@ -152,19 +135,16 @@ export const deleteLesson = async (
 ): Promise<{
   success: boolean;
 }> => {
+  const schoolId = getSchoolId();
 
-  const schoolId =
-    getSchoolId();
-
-  const response =
-    await axios.delete(
-      `${API}/${id}`,
-      {
-        params: {
-          school_id: schoolId,
-        },
-      }
-    );
+  const response = await api.delete(
+    `/lessons/${id}`,
+    {
+      params: {
+        school_id: schoolId,
+      },
+    }
+  );
 
   return response.data;
 };

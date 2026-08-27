@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 
 import {
   Box,
@@ -15,6 +14,8 @@ import {
 } from "@mui/material";
 
 import SaveIcon from "@mui/icons-material/Save";
+
+import api from "../services/api";
 
 // ==========================================
 // SETTINGS TYPE
@@ -51,7 +52,9 @@ const defaultSettings: SettingsData = {
 
 export default function Settings() {
   const [settings, setSettings] =
-    useState<SettingsData>(defaultSettings);
+    useState<SettingsData>(
+      defaultSettings
+    );
 
   const [loading, setLoading] =
     useState(true);
@@ -74,9 +77,10 @@ export default function Settings() {
       setLoading(true);
       setErrorMessage("");
 
-      const response = await axios.get(
-        "http://localhost:5000/settings"
-      );
+      const response =
+        await api.get<SettingsData>(
+          "/settings"
+        );
 
       if (response.data) {
         setSettings({
@@ -131,8 +135,8 @@ export default function Settings() {
       setMessage("");
       setErrorMessage("");
 
-      await axios.put(
-        "http://localhost:5000/settings",
+      await api.put(
+        "/settings",
         settings
       );
 
@@ -245,7 +249,10 @@ export default function Settings() {
 
           <Divider sx={{ mb: 3 }} />
 
-          <Grid container spacing={2}>
+          <Grid
+            container
+            spacing={2}
+          >
             {/* SCHOOL NAME */}
 
             <Grid
@@ -257,7 +264,9 @@ export default function Settings() {
               <TextField
                 fullWidth
                 label="Driving School Name"
-                value={settings.schoolName}
+                value={
+                  settings.schoolName
+                }
                 onChange={(e) =>
                   handleChange(
                     "schoolName",
@@ -301,7 +310,9 @@ export default function Settings() {
               <TextField
                 fullWidth
                 label="Phone Number"
-                value={settings.phone}
+                value={
+                  settings.phone
+                }
                 onChange={(e) =>
                   handleChange(
                     "phone",
@@ -323,7 +334,9 @@ export default function Settings() {
                 fullWidth
                 type="email"
                 label="Email Address"
-                value={settings.email}
+                value={
+                  settings.email
+                }
                 onChange={(e) =>
                   handleChange(
                     "email",
@@ -345,7 +358,9 @@ export default function Settings() {
                 multiline
                 minRows={3}
                 label="Business Address"
-                value={settings.address}
+                value={
+                  settings.address
+                }
                 onChange={(e) =>
                   handleChange(
                     "address",
@@ -374,7 +389,10 @@ export default function Settings() {
 
           <Divider sx={{ mb: 3 }} />
 
-          <Grid container spacing={2}>
+          <Grid
+            container
+            spacing={2}
+          >
             {/* LESSON DURATION */}
 
             <Grid
@@ -393,7 +411,9 @@ export default function Settings() {
                 onChange={(e) =>
                   handleChange(
                     "defaultLessonDuration",
-                    Number(e.target.value)
+                    Number(
+                      e.target.value
+                    )
                   )
                 }
                 inputProps={{
@@ -420,7 +440,9 @@ export default function Settings() {
                 onChange={(e) =>
                   handleChange(
                     "defaultLessonPrice",
-                    Number(e.target.value)
+                    Number(
+                      e.target.value
+                    )
                   )
                 }
                 inputProps={{
@@ -446,8 +468,12 @@ export default function Settings() {
         <Button
           variant="contained"
           size="large"
-          startIcon={<SaveIcon />}
-          onClick={handleSave}
+          startIcon={
+            <SaveIcon />
+          }
+          onClick={
+            handleSave
+          }
           disabled={saving}
         >
           {saving

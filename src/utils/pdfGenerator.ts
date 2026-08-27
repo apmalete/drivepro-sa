@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import axios from "axios";
+
+import api from "../services/api";
 
 import type { Student } from "../types/Student";
 import type { Payment } from "../types/Payment";
@@ -29,8 +30,8 @@ const getSchoolSettings =
   async (): Promise<SchoolSettings> => {
     try {
       const response =
-        await axios.get<SchoolSettings>(
-          "http://localhost:5000/settings"
+        await api.get<SchoolSettings>(
+          "/settings"
         );
 
       return {
@@ -51,7 +52,9 @@ const getSchoolSettings =
           response.data.registrationNumber ||
           "",
       };
+
     } catch (error) {
+
       console.error(
         "Could not load school settings:",
         error
@@ -78,7 +81,9 @@ const getSchoolSettings =
 const money = (
   value: number | string | undefined
 ) => {
-  const amount = Number(value || 0);
+
+  const amount =
+    Number(value || 0);
 
   return `R ${amount.toLocaleString(
     "en-ZA",
@@ -99,10 +104,12 @@ export const generateStudentStatement =
     payments: Payment[],
     lessons: Lesson[]
   ) => {
+
     const settings =
       await getSchoolSettings();
 
-    const doc = new jsPDF();
+    const doc =
+      new jsPDF();
 
     // ======================================
     // PAGE SETTINGS
@@ -119,6 +126,7 @@ export const generateStudentStatement =
     // ======================================
 
     doc.setFontSize(22);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -134,6 +142,7 @@ export const generateStudentStatement =
     );
 
     doc.setFontSize(13);
+
     doc.setFont(
       "helvetica",
       "normal"
@@ -153,7 +162,9 @@ export const generateStudentStatement =
     let contactY = 36;
 
     if (settings.phone) {
+
       doc.setFontSize(8);
+
       doc.text(
         `Tel: ${settings.phone}`,
         pageWidth / 2,
@@ -167,6 +178,7 @@ export const generateStudentStatement =
     }
 
     if (settings.email) {
+
       doc.text(
         `Email: ${settings.email}`,
         pageWidth / 2,
@@ -180,6 +192,7 @@ export const generateStudentStatement =
     }
 
     if (settings.registrationNumber) {
+
       doc.text(
         `Reg No: ${settings.registrationNumber}`,
         pageWidth / 2,
@@ -207,6 +220,7 @@ export const generateStudentStatement =
       contactY + 14;
 
     doc.setFontSize(14);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -226,6 +240,7 @@ export const generateStudentStatement =
     );
 
     doc.setFontSize(10);
+
     doc.setFont(
       "helvetica",
       "normal"
@@ -322,6 +337,7 @@ export const generateStudentStatement =
       studentStartY + 58;
 
     doc.setFontSize(14);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -334,7 +350,9 @@ export const generateStudentStatement =
     );
 
     autoTable(doc, {
-      startY: financialY + 5,
+
+      startY:
+        financialY + 5,
 
       head: [
         [
@@ -373,6 +391,7 @@ export const generateStudentStatement =
         .finalY + 12;
 
     doc.setFontSize(14);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -385,7 +404,9 @@ export const generateStudentStatement =
     );
 
     autoTable(doc, {
-      startY: paymentStartY + 5,
+
+      startY:
+        paymentStartY + 5,
 
       head: [
         [
@@ -435,6 +456,7 @@ export const generateStudentStatement =
         .finalY + 12;
 
     doc.setFontSize(14);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -447,7 +469,9 @@ export const generateStudentStatement =
     );
 
     autoTable(doc, {
-      startY: lessonStartY + 5,
+
+      startY:
+        lessonStartY + 5,
 
       head: [
         [
@@ -492,6 +516,7 @@ export const generateStudentStatement =
     // ======================================
 
     doc.setFontSize(8);
+
     doc.setFont(
       "helvetica",
       "normal"
@@ -537,6 +562,7 @@ export const generatePaymentReceipt =
     payment: Payment,
     student: Student | null = null
   ) => {
+
     // ======================================
     // LOAD SETTINGS
     // ======================================
@@ -548,7 +574,8 @@ export const generatePaymentReceipt =
     // CREATE PDF
     // ======================================
 
-    const doc = new jsPDF();
+    const doc =
+      new jsPDF();
 
     const pageWidth =
       doc.internal.pageSize.getWidth();
@@ -561,6 +588,7 @@ export const generatePaymentReceipt =
     // ======================================
 
     doc.setFontSize(22);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -576,6 +604,7 @@ export const generatePaymentReceipt =
     );
 
     doc.setFontSize(14);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -597,12 +626,14 @@ export const generatePaymentReceipt =
     let contactY = 36;
 
     doc.setFontSize(8);
+
     doc.setFont(
       "helvetica",
       "normal"
     );
 
     if (settings.phone) {
+
       doc.text(
         `Tel: ${settings.phone}`,
         pageWidth / 2,
@@ -616,6 +647,7 @@ export const generatePaymentReceipt =
     }
 
     if (settings.email) {
+
       doc.text(
         `Email: ${settings.email}`,
         pageWidth / 2,
@@ -629,6 +661,7 @@ export const generatePaymentReceipt =
     }
 
     if (settings.address) {
+
       doc.text(
         settings.address,
         pageWidth / 2,
@@ -643,6 +676,7 @@ export const generatePaymentReceipt =
     }
 
     if (settings.registrationNumber) {
+
       doc.text(
         `Reg No: ${settings.registrationNumber}`,
         pageWidth / 2,
@@ -670,6 +704,7 @@ export const generatePaymentReceipt =
       contactY + 16;
 
     doc.setFontSize(11);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -722,6 +757,7 @@ export const generatePaymentReceipt =
       receiptY + 20;
 
     doc.setFontSize(14);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -741,6 +777,7 @@ export const generatePaymentReceipt =
     );
 
     doc.setFontSize(10);
+
     doc.setFont(
       "helvetica",
       "normal"
@@ -785,6 +822,7 @@ export const generatePaymentReceipt =
       studentY + 43;
 
     doc.setFontSize(14);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -797,7 +835,9 @@ export const generatePaymentReceipt =
     );
 
     autoTable(doc, {
-      startY: paymentY + 6,
+
+      startY:
+        paymentY + 6,
 
       head: [
         [
@@ -837,6 +877,7 @@ export const generatePaymentReceipt =
         .finalY + 15;
 
     doc.setFontSize(14);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -863,7 +904,9 @@ export const generatePaymentReceipt =
       );
 
     const currentPayment =
-      Number(payment.amount || 0);
+      Number(
+        payment.amount || 0
+      );
 
     // ======================================
     // CALCULATE BALANCE
@@ -882,7 +925,9 @@ export const generatePaymentReceipt =
           );
 
     autoTable(doc, {
-      startY: financialY + 6,
+
+      startY:
+        financialY + 6,
 
       head: [
         [
@@ -896,11 +941,8 @@ export const generatePaymentReceipt =
       body: [
         [
           money(courseFee),
-
           money(amountAlreadyPaid),
-
           money(currentPayment),
-
           money(balance),
         ],
       ],
@@ -927,6 +969,7 @@ export const generatePaymentReceipt =
         .finalY + 15;
 
     doc.setFontSize(12);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -939,6 +982,7 @@ export const generatePaymentReceipt =
     );
 
     doc.setFontSize(10);
+
     doc.setFont(
       "helvetica",
       "normal"
@@ -965,6 +1009,7 @@ export const generatePaymentReceipt =
       notesY + 28;
 
     doc.setFontSize(12);
+
     doc.setFont(
       "helvetica",
       "bold"
@@ -977,6 +1022,7 @@ export const generatePaymentReceipt =
     );
 
     doc.setFontSize(10);
+
     doc.setFont(
       "helvetica",
       "normal"
@@ -993,6 +1039,7 @@ export const generatePaymentReceipt =
     // ======================================
 
     doc.setFontSize(9);
+
     doc.setFont(
       "helvetica",
       "normal"

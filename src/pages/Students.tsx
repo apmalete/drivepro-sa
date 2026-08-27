@@ -34,6 +34,8 @@ import {
   addLesson,
 } from "../services/lessonService";
 
+import api from "../services/api";
+
 // ==========================================
 // EMPTY PAYMENT
 // ==========================================
@@ -129,20 +131,11 @@ export default function Students() {
 
   const loadInstructors = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:5000/instructors"
+      const response = await api.get(
+        "/instructors"
       );
 
-      if (!response.ok) {
-        throw new Error(
-          "Failed to load instructors"
-        );
-      }
-
-      const data =
-        await response.json();
-
-      setInstructors(data);
+      setInstructors(response.data);
     } catch (error) {
       console.error(
         "Error loading instructors:",
@@ -157,20 +150,11 @@ export default function Students() {
 
   const loadVehicles = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:5000/vehicles"
+      const response = await api.get(
+        "/vehicles"
       );
 
-      if (!response.ok) {
-        throw new Error(
-          "Failed to load vehicles"
-        );
-      }
-
-      const data =
-        await response.json();
-
-      setVehicles(data);
+      setVehicles(response.data);
     } catch (error) {
       console.error(
         "Error loading vehicles:",

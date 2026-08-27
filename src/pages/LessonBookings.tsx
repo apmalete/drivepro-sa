@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 
 import {
   Button,
@@ -15,6 +14,8 @@ import LessonCalendar from "../Components/LessonCalendar";
 import LessonTable from "../Components/LessonTable";
 
 import type { Lesson } from "../Components/LessonForm";
+
+import api from "../services/api";
 
 // ==========================================
 // TYPES
@@ -70,7 +71,6 @@ const getSchoolId = (): number => {
 // ==========================================
 
 function LessonBookings() {
-
   // ==========================================
   // LESSONS
   // ==========================================
@@ -109,7 +109,6 @@ function LessonBookings() {
   const [selectedLesson, setSelectedLesson] =
     useState<Lesson | null>(null);
 
-
   // ==========================================
   // LOAD DATA
   // ==========================================
@@ -121,21 +120,18 @@ function LessonBookings() {
     loadVehicles();
   }, []);
 
-
   // ==========================================
   // LOAD LESSONS
   // ==========================================
 
   async function loadLessons() {
-
     try {
-
       const schoolId =
         getSchoolId();
 
       const response =
-        await axios.get(
-          "http://localhost:5000/lessons",
+        await api.get(
+          "/lessons",
           {
             params: {
               school_id: schoolId,
@@ -146,9 +142,7 @@ function LessonBookings() {
       setLessons(
         response.data
       );
-
     } catch (error) {
-
       console.error(
         "Error loading lessons:",
         error
@@ -156,21 +150,18 @@ function LessonBookings() {
     }
   }
 
-
   // ==========================================
   // LOAD STUDENTS
   // ==========================================
 
   async function loadStudents() {
-
     try {
-
       const schoolId =
         getSchoolId();
 
       const response =
-        await axios.get(
-          "http://localhost:5000/students",
+        await api.get(
+          "/students",
           {
             params: {
               school_id: schoolId,
@@ -181,9 +172,7 @@ function LessonBookings() {
       setStudents(
         response.data
       );
-
     } catch (error) {
-
       console.error(
         "Error loading students:",
         error
@@ -191,21 +180,18 @@ function LessonBookings() {
     }
   }
 
-
   // ==========================================
   // LOAD INSTRUCTORS
   // ==========================================
 
   async function loadInstructors() {
-
     try {
-
       const schoolId =
         getSchoolId();
 
       const response =
-        await axios.get(
-          "http://localhost:5000/instructors",
+        await api.get(
+          "/instructors",
           {
             params: {
               school_id: schoolId,
@@ -216,9 +202,7 @@ function LessonBookings() {
       setInstructors(
         response.data
       );
-
     } catch (error) {
-
       console.error(
         "Error loading instructors:",
         error
@@ -226,21 +210,18 @@ function LessonBookings() {
     }
   }
 
-
   // ==========================================
   // LOAD VEHICLES
   // ==========================================
 
   async function loadVehicles() {
-
     try {
-
       const schoolId =
         getSchoolId();
 
       const response =
-        await axios.get(
-          "http://localhost:5000/vehicles",
+        await api.get(
+          "/vehicles",
           {
             params: {
               school_id: schoolId,
@@ -249,21 +230,19 @@ function LessonBookings() {
         );
 
       console.log(
-  "SCHOOL ID:",
-  schoolId
-);
+        "SCHOOL ID:",
+        schoolId
+      );
 
-console.log(
-  "VEHICLES RECEIVED:",
-  response.data
-);
+      console.log(
+        "VEHICLES RECEIVED:",
+        response.data
+      );
 
-setVehicles(
-  response.data
-);
-
+      setVehicles(
+        response.data
+      );
     } catch (error) {
-
       console.error(
         "Error loading vehicles:",
         error
@@ -271,18 +250,15 @@ setVehicles(
     }
   }
 
-
   // ==========================================
   // OPEN NEW LESSON
   // ==========================================
 
   function handleAddLesson() {
-
     setSelectedLesson(null);
 
     setLessonFormOpen(true);
   }
-
 
   // ==========================================
   // SAVE NEW OR UPDATED LESSON
@@ -291,21 +267,17 @@ setVehicles(
   async function handleLessonSave(
     lesson: Lesson
   ) {
-
     try {
-
       const schoolId =
         getSchoolId();
-
 
       // ======================================
       // UPDATE EXISTING LESSON
       // ======================================
 
       if (lesson.id) {
-
-        await axios.put(
-          `http://localhost:5000/lessons/${lesson.id}`,
+        await api.put(
+          `/lessons/${lesson.id}`,
           {
             ...lesson,
             school_id: schoolId,
@@ -317,15 +289,13 @@ setVehicles(
         );
       }
 
-
       // ======================================
       // ADD NEW LESSON
       // ======================================
 
       else {
-
-        await axios.post(
-          "http://localhost:5000/lessons",
+        await api.post(
+          "/lessons",
           {
             ...lesson,
             school_id: schoolId,
@@ -337,7 +307,6 @@ setVehicles(
         );
       }
 
-
       // ======================================
       // CLOSE FORM
       // ======================================
@@ -346,7 +315,6 @@ setVehicles(
 
       setSelectedLesson(null);
 
-
       // ======================================
       // REFRESH LESSONS
       // ======================================
@@ -354,7 +322,6 @@ setVehicles(
       await loadLessons();
 
     } catch (error: any) {
-
       console.error(
         "Error saving lesson:",
         error
@@ -370,7 +337,6 @@ setVehicles(
     }
   }
 
-
   // ==========================================
   // EDIT LESSON
   // ==========================================
@@ -378,7 +344,6 @@ setVehicles(
   function editLesson(
     id: number
   ) {
-
     const lesson =
       lessons.find(
         (item) =>
@@ -386,7 +351,6 @@ setVehicles(
       );
 
     if (!lesson) {
-
       alert(
         "Lesson could not be found."
       );
@@ -403,7 +367,6 @@ setVehicles(
     );
   }
 
-
   // ==========================================
   // DELETE LESSON
   // ==========================================
@@ -411,7 +374,6 @@ setVehicles(
   async function deleteLesson(
     id: number
   ) {
-
     const confirmed =
       window.confirm(
         "Are you sure you want to delete this lesson?"
@@ -422,12 +384,11 @@ setVehicles(
     }
 
     try {
-
       const schoolId =
         getSchoolId();
 
-      await axios.delete(
-        `http://localhost:5000/lessons/${id}`,
+      await api.delete(
+        `/lessons/${id}`,
         {
           params: {
             school_id: schoolId,
@@ -442,7 +403,6 @@ setVehicles(
       await loadLessons();
 
     } catch (error) {
-
       console.error(
         "Error deleting lesson:",
         error
@@ -454,14 +414,12 @@ setVehicles(
     }
   }
 
-
   // ==========================================
   // CALENDAR EVENTS
   // ==========================================
 
   const calendarEvents =
     lessons.map((lesson) => {
-
       const start =
         new Date(
           `${lesson.lesson_date}T${lesson.lesson_time}`
@@ -486,13 +444,11 @@ setVehicles(
       };
     });
 
-
   // ==========================================
   // PAGE
   // ==========================================
 
   return (
-
     <Box
       sx={{
         p: 3,
@@ -530,7 +486,6 @@ setVehicles(
             📅 Lesson Bookings
           </Typography>
 
-
           <Button
             variant="contained"
             startIcon={
@@ -546,7 +501,6 @@ setVehicles(
         </Box>
 
       </Paper>
-
 
       {/* =====================================
           CALENDAR
@@ -569,7 +523,6 @@ setVehicles(
           📅 Lesson Calendar
         </Typography>
 
-
         <LessonCalendar
           lessons={
             calendarEvents
@@ -577,7 +530,6 @@ setVehicles(
         />
 
       </Paper>
-
 
       {/* =====================================
           LESSON LIST
@@ -600,7 +552,6 @@ setVehicles(
           📋 Lesson List
         </Typography>
 
-
         <LessonTable
           lessons={
             lessons
@@ -614,7 +565,6 @@ setVehicles(
         />
 
       </Paper>
-
 
       {/* =====================================
           LESSON FORM
@@ -642,7 +592,6 @@ setVehicles(
         }
 
         onClose={() => {
-
           setLessonFormOpen(
             false
           );
@@ -650,7 +599,6 @@ setVehicles(
           setSelectedLesson(
             null
           );
-
         }}
 
         onSave={

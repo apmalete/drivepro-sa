@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 
 import {
   Box,
@@ -28,6 +27,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 
+import api from "../services/api";
 
 // ==========================================
 // SCHOOL TYPE
@@ -43,7 +43,6 @@ type School = {
   status: string;
 };
 
-
 // ==========================================
 // EMPTY SCHOOL
 // ==========================================
@@ -56,15 +55,6 @@ const emptySchool: School = {
   registrationNumber: "",
   status: "Active",
 };
-
-
-// ==========================================
-// API
-// ==========================================
-
-const API =
-  "http://localhost:5000/schools";
-
 
 // ==========================================
 // PAGE
@@ -91,15 +81,17 @@ export default function Schools() {
   const [loading, setLoading] =
     useState(false);
 
-
   // ========================================
-  // LOAD SCHOOLS
+  // LOAD SCHOOLS ON PAGE OPEN
   // ========================================
 
   useEffect(() => {
     loadSchools();
   }, []);
 
+  // ========================================
+  // LOAD SCHOOLS
+  // ========================================
 
   async function loadSchools() {
 
@@ -108,10 +100,12 @@ export default function Schools() {
       setLoading(true);
 
       const response =
-        await axios.get(API);
+        await api.get<School[]>(
+          "/schools"
+        );
 
       setSchools(
-        response.data
+        response.data || []
       );
 
     } catch (error) {
@@ -128,9 +122,9 @@ export default function Schools() {
     } finally {
 
       setLoading(false);
+
     }
   }
-
 
   // ========================================
   // OPEN ADD FORM
@@ -146,7 +140,6 @@ export default function Schools() {
 
     setOpen(true);
   }
-
 
   // ========================================
   // OPEN EDIT FORM
@@ -166,7 +159,6 @@ export default function Schools() {
 
     setOpen(true);
   }
-
 
   // ========================================
   // HANDLE CHANGE
@@ -190,7 +182,6 @@ export default function Schools() {
     });
   }
 
-
   // ========================================
   // SAVE SCHOOL
   // ========================================
@@ -208,13 +199,12 @@ export default function Schools() {
       return;
     }
 
-
     try {
 
       if (editingId) {
 
-        await axios.put(
-          `${API}/${editingId}`,
+        await api.put(
+          `/schools/${editingId}`,
           school
         );
 
@@ -224,8 +214,8 @@ export default function Schools() {
 
       } else {
 
-        await axios.post(
-          API,
+        await api.post(
+          "/schools",
           school
         );
 
@@ -233,7 +223,6 @@ export default function Schools() {
           "School added successfully."
         );
       }
-
 
       setOpen(false);
 
@@ -259,7 +248,6 @@ export default function Schools() {
     }
   }
 
-
   // ========================================
   // CHANGE STATUS
   // ========================================
@@ -271,8 +259,8 @@ export default function Schools() {
 
     try {
 
-      await axios.patch(
-        `${API}/${id}/status`,
+      await api.patch(
+        `/schools/${id}/status`,
         {
           status,
         }
@@ -292,7 +280,6 @@ export default function Schools() {
       );
     }
   }
-
 
   // ========================================
   // PAGE
@@ -350,7 +337,6 @@ export default function Schools() {
 
             </Box>
 
-
             <Button
               variant="contained"
               startIcon={
@@ -368,7 +354,6 @@ export default function Schools() {
         </CardContent>
 
       </Card>
-
 
       {/* ====================================
           SCHOOL TABLE
@@ -416,7 +401,6 @@ export default function Schools() {
 
           </TableHead>
 
-
           <TableBody>
 
             {schools.map(
@@ -435,13 +419,11 @@ export default function Schools() {
                   </TableCell>
 
                   <TableCell>
-                    {item.phone ||
-                      "-"}
+                    {item.phone || "-"}
                   </TableCell>
 
                   <TableCell>
-                    {item.email ||
-                      "-"}
+                    {item.email || "-"}
                   </TableCell>
 
                   <TableCell>
@@ -473,8 +455,7 @@ export default function Schools() {
                           )
                         }
                         sx={{
-                          minWidth:
-                            120,
+                          minWidth: 120,
                         }}
                       >
 
@@ -501,9 +482,7 @@ export default function Schools() {
                         <EditIcon />
                       }
                       onClick={() =>
-                        handleEdit(
-                          item
-                        )
+                        handleEdit(item)
                       }
                     >
                       Edit
@@ -515,7 +494,6 @@ export default function Schools() {
 
               )
             )}
-
 
             {!loading &&
               schools.length === 0 && (
@@ -539,7 +517,6 @@ export default function Schools() {
 
       </TableContainer>
 
-
       {/* ====================================
           ADD / EDIT DIALOG
       ==================================== */}
@@ -560,7 +537,6 @@ export default function Schools() {
             : "Add Driving School"}
 
         </DialogTitle>
-
 
         <DialogContent>
 
@@ -633,7 +609,6 @@ export default function Schools() {
           />
 
         </DialogContent>
-
 
         <DialogActions>
 
