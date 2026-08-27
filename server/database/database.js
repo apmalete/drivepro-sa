@@ -1208,7 +1208,144 @@ db.run(
 );
 
 // ======================================
+// DEFAULT ADMIN
+// ======================================
+
+const setupDefaultAdmin = () => {
+
+  // First check whether the admin account already exists
+  db.get(
+    `
+    SELECT id
+    FROM users
+    WHERE username = ?
+    LIMIT 1
+    `,
+    ["admin"],
+    (err, row) => {
+
+      if (err) {
+        console.error(
+          "DEFAULT ADMIN CHECK ERROR:",
+          err.message
+        );
+
+        return;
+      }
+
+      // ======================================
+      // ADMIN ALREADY EXISTS
+      // ======================================
+
+      if (row) {
+
+        db.run(
+          `
+          UPDATE users
+          SET
+            fullname = ?,
+            password = ?,
+            role = ?,
+            status = ?,
+            school_id = ?
+          WHERE username = ?
+          `,
+          [
+            "Administrator",
+            "1234",
+            "Administrator",
+            "Active",
+            1,
+            "admin"
+          ],
+          (updateErr) => {
+
+            if (updateErr) {
+
+              console.error(
+                "DEFAULT ADMIN UPDATE ERROR:",
+                updateErr.message
+              );
+
+              return;
+            }
+
+            console.log(
+              "✅ Default admin account updated"
+            );
+
+          }
+        );
+
+        return;
+      }
+
+      // ======================================
+      // ADMIN DOES NOT EXIST - CREATE IT
+      // ======================================
+
+      db.run(
+        `
+        INSERT INTO users
+        (
+          fullname,
+          username,
+          password,
+          role,
+          status,
+          school_id
+        )
+        VALUES
+        (
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?
+        )
+        `,
+        [
+          "Administrator",
+          "admin",
+          "1234",
+          "Administrator",
+          "Active",
+          1
+        ],
+        (insertErr) => {
+
+          if (insertErr) {
+
+            console.error(
+              "DEFAULT ADMIN INSERT ERROR:",
+              insertErr.message
+            );
+
+            return;
+          }
+
+          console.log(
+            "✅ Default admin account created"
+          );
+
+        }
+      );
+    }
+  );
+};
+
+
+// ======================================
+// RUN DEFAULT ADMIN SETUP
+// ======================================
+
+setupDefaultAdmin();
+
+
+// ======================================
 // EXPORT DATABASE
 // ======================================
 
+export default db;
 export default db;
