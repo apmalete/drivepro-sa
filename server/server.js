@@ -16,6 +16,7 @@ import {
   requireSystemAdministrator,
   requireAdministrator,
 } from "./middleware/authMiddleware.js";
+
 // =====================================
 // DASHBOARD
 // =====================================
@@ -142,12 +143,41 @@ const __dirname =
   path.dirname(__filename);
 
 // =====================================
-// MIDDLEWARE
+// CORS
 // =====================================
 
-app.use(cors());
+app.use(
+  cors({
+    origin:
+      "https://drivepro-sa-production.up.railway.app",
+
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+    ],
+
+    optionsSuccessStatus: 204,
+  })
+);
+
+// =====================================
+// JSON
+// =====================================
 
 app.use(express.json());
+
+// =====================================
+// UPLOADS
+// =====================================
 
 app.use(
   "/uploads",
@@ -500,7 +530,6 @@ const storage =
       file,
       cb
     ) => {
-
       cb(
         null,
         studentUploadDirectory
@@ -559,6 +588,7 @@ app.post(
       success: true,
       filename:
         req.file.filename,
+
       path:
         `/uploads/students/${req.file.filename}`,
     });
@@ -584,7 +614,8 @@ app.use(
 // SERVER
 // =====================================
 
-const PORT = process.env.PORT || 5000;
+const PORT =
+  process.env.PORT || 5000;
 
 app.listen(
   PORT,
