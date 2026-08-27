@@ -1348,4 +1348,3 @@ setupDefaultAdmin();
 // ======================================
 
 export default db;
-export default db;
