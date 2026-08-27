@@ -24,7 +24,7 @@ const databasePath = path.join(
 );
 
 console.log(
-  "📁 DATABASE PATH:",
+  "DATABASE PATH:",
   databasePath
 );
 
@@ -37,22 +37,23 @@ const db = new sqlite3.Database(
   (err) => {
     if (err) {
       console.error(
-        "❌ Database connection failed:",
+        "Database connection failed:",
         err.message
       );
     } else {
       console.log(
-        "✅ Database Connected"
+        "Database Connected"
       );
     }
   }
 );
 
 // ======================================
-// STUDENTS
+// CREATE STUDENTS TABLE
 // ======================================
 
-db.run(`
+db.run(
+  `
   CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     studentNo TEXT UNIQUE,
@@ -71,753 +72,27 @@ db.run(`
     balance REAL DEFAULT 0,
     photo TEXT,
     status TEXT DEFAULT 'Active',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-// ======================================
-// STUDENT UPGRADES
-// ======================================
-
-db.run(
-  `ALTER TABLE students
-   ADD COLUMN courseFee REAL DEFAULT 0`,
-  (err) => {
-    if (
-      err &&
-      !err.message.includes(
-        "duplicate column name"
-      )
-    ) {
-      console.error(
-        "courseFee upgrade:",
-        err.message
-      );
-    }
-  }
-);
-
-db.run(
-  `ALTER TABLE students
-   ADD COLUMN amountPaid REAL DEFAULT 0`,
-  (err) => {
-    if (
-      err &&
-      !err.message.includes(
-        "duplicate column name"
-      )
-    ) {
-      console.error(
-        "amountPaid upgrade:",
-        err.message
-      );
-    }
-  }
-);
-
-db.run(
-  `ALTER TABLE students
-   ADD COLUMN balance REAL DEFAULT 0`,
-  (err) => {
-    if (
-      err &&
-      !err.message.includes(
-        "duplicate column name"
-      )
-    ) {
-      console.error(
-        "balance upgrade:",
-        err.message
-      );
-    }
-  }
-);
-
-db.run(
-  `ALTER TABLE students
-   ADD COLUMN photo TEXT`,
-  (err) => {
-    if (
-      err &&
-      !err.message.includes(
-        "duplicate column name"
-      )
-    ) {
-      console.error(
-        "photo upgrade:",
-        err.message
-      );
-    }
-  }
-);
-
-// ======================================
-// STUDENT SCHOOL UPGRADE
-// ======================================
-
-db.all(
-  `PRAGMA table_info(students)`,
-  [],
-  (err, columns) => {
-
-    if (err) {
-      console.error(
-        "STUDENTS COLUMN CHECK ERROR:",
-        err.message
-      );
-
-      return;
-    }
-
-    const columnNames =
-      columns.map(
-        (column) => column.name
-      );
-
-    // ==================================
-    // ASSIGN EXISTING STUDENTS
-    // ==================================
-
-    const assignStudentsToSchool = () => {
-
-      db.run(
-        `
-        UPDATE students
-        SET school_id = 1
-        WHERE school_id IS NULL
-           OR school_id = 0
-        `,
-        [],
-        (err) => {
-
-          if (err) {
-            console.error(
-              "STUDENT SCHOOL UPDATE ERROR:",
-              err.message
-            );
-
-            return;
-          }
-
-          console.log(
-            "✅ Existing students assigned to School 1"
-          );
-        }
-      );
-    };
-
-    // ==================================
-    // CHECK school_id
-    // ==================================
-
-    if (
-      columnNames.includes(
-        "school_id"
-      )
-    ) {
-
-      console.log(
-        "✅ Students school_id already exists"
-      );
-
-      assignStudentsToSchool();
-
-      return;
-    }
-
-    // ==================================
-    // ADD school_id
-    // ==================================
-
-    db.run(
-      `
-      ALTER TABLE students
-      ADD COLUMN school_id INTEGER DEFAULT 1
-      `,
-      [],
-      (err) => {
-
-        if (err) {
-          console.error(
-            "student school_id upgrade error:",
-            err.message
-          );
-
-          return;
-        }
-
-        console.log(
-          "✅ Students school_id column added"
-        );
-
-        assignStudentsToSchool();
-      }
-    );
-  }
-);
-
-// ======================================
-// LESSONS
-// ======================================
-
-db.run(`
-  CREATE TABLE IF NOT EXISTS lessons (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student TEXT NOT NULL,
-    instructor TEXT NOT NULL,
-    vehicle TEXT NOT NULL,
-    lesson_date TEXT NOT NULL,
-    lesson_time TEXT NOT NULL,
-    status TEXT DEFAULT 'Booked'
-  )
-`);
-// ======================================
-// LESSON SCHOOL UPGRADE
-// ======================================
-
-db.all(
-  `PRAGMA table_info(lessons)`,
-  [],
-  (err, columns) => {
-
-    if (err) {
-      console.error(
-        "LESSONS COLUMN CHECK ERROR:",
-        err.message
-      );
-
-      return;
-    }
-
-    const columnNames =
-      columns.map(
-        (column) => column.name
-      );
-
-    // ==================================
-    // ASSIGN EXISTING LESSONS
-    // ==================================
-
-    const assignLessonsToSchool = () => {
-
-      db.run(
-        `
-        UPDATE lessons
-        SET school_id = 1
-        WHERE school_id IS NULL
-           OR school_id = 0
-        `,
-        [],
-        (err) => {
-
-          if (err) {
-            console.error(
-              "LESSON SCHOOL UPDATE ERROR:",
-              err.message
-            );
-
-            return;
-          }
-
-          console.log(
-            "✅ Existing lessons assigned to School 1"
-          );
-        }
-      );
-    };
-
-    // ==================================
-    // CHECK school_id
-    // ==================================
-
-    if (
-      columnNames.includes(
-        "school_id"
-      )
-    ) {
-
-      console.log(
-        "✅ Lessons school_id already exists"
-      );
-
-      assignLessonsToSchool();
-
-      return;
-    }
-
-    // ==================================
-    // ADD school_id
-    // ==================================
-
-    db.run(
-      `
-      ALTER TABLE lessons
-      ADD COLUMN school_id INTEGER DEFAULT 1
-      `,
-      [],
-      (err) => {
-
-        if (err) {
-          console.error(
-            "lesson school_id upgrade error:",
-            err.message
-          );
-
-          return;
-        }
-
-        console.log(
-          "✅ Lessons school_id column added"
-        );
-
-        assignLessonsToSchool();
-      }
-    );
-  }
-);
-
-// ======================================
-// INSTRUCTORS
-// ======================================
-
-db.run(`
-  CREATE TABLE IF NOT EXISTS instructors (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    licence TEXT NOT NULL,
-    experience TEXT NOT NULL,
-    status TEXT DEFAULT 'Active'
-  )
-`);
-// ======================================
-// INSTRUCTOR SCHOOL UPGRADE
-// ======================================
-
-db.all(
-  `PRAGMA table_info(instructors)`,
-  [],
-  (err, columns) => {
-
-    if (err) {
-      console.error(
-        "INSTRUCTORS COLUMN CHECK ERROR:",
-        err.message
-      );
-
-      return;
-    }
-
-    const columnNames =
-      columns.map(
-        (column) => column.name
-      );
-
-    // ==================================
-    // ASSIGN EXISTING INSTRUCTORS
-    // ==================================
-
-    const assignInstructorsToSchool = () => {
-
-      db.run(
-        `
-        UPDATE instructors
-        SET school_id = 1
-        WHERE school_id IS NULL
-           OR school_id = 0
-        `,
-        [],
-        (err) => {
-
-          if (err) {
-            console.error(
-              "INSTRUCTOR SCHOOL UPDATE ERROR:",
-              err.message
-            );
-
-            return;
-          }
-
-          console.log(
-            "✅ Existing instructors assigned to School 1"
-          );
-        }
-      );
-    };
-
-    // ==================================
-    // CHECK school_id
-    // ==================================
-
-    if (
-      columnNames.includes(
-        "school_id"
-      )
-    ) {
-
-      console.log(
-        "✅ Instructors school_id already exists"
-      );
-
-      assignInstructorsToSchool();
-
-      return;
-    }
-
-    // ==================================
-    // ADD school_id
-    // ==================================
-
-    db.run(
-      `
-      ALTER TABLE instructors
-      ADD COLUMN school_id INTEGER DEFAULT 1
-      `,
-      [],
-      (err) => {
-
-        if (err) {
-          console.error(
-            "instructor school_id upgrade error:",
-            err.message
-          );
-
-          return;
-        }
-
-        console.log(
-          "✅ Instructors school_id column added"
-        );
-
-        assignInstructorsToSchool();
-      }
-    );
-  }
-);
-
-// ======================================
-// VEHICLES
-// ======================================
-
-db.run(`
-  CREATE TABLE IF NOT EXISTS vehicles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    registration TEXT NOT NULL,
-    make TEXT NOT NULL,
-    model TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    transmission TEXT NOT NULL,
-    fuel TEXT NOT NULL,
-    status TEXT DEFAULT 'Available'
-  )
-`);
-// ======================================
-// VEHICLE SCHOOL UPGRADE
-// ======================================
-
-db.all(
-  `PRAGMA table_info(vehicles)`,
-  [],
-  (err, columns) => {
-
-    if (err) {
-      console.error(
-        "VEHICLES COLUMN CHECK ERROR:",
-        err.message
-      );
-
-      return;
-    }
-
-    const columnNames =
-      columns.map(
-        (column) => column.name
-      );
-
-    // ==================================
-    // ASSIGN EXISTING VEHICLES
-    // ==================================
-
-    const assignVehiclesToSchool = () => {
-
-      db.run(
-        `
-        UPDATE vehicles
-        SET school_id = 1
-        WHERE school_id IS NULL
-           OR school_id = 0
-        `,
-        [],
-        (err) => {
-
-          if (err) {
-            console.error(
-              "VEHICLE SCHOOL UPDATE ERROR:",
-              err.message
-            );
-
-            return;
-          }
-
-          console.log(
-            "✅ Existing vehicles assigned to School 1"
-          );
-        }
-      );
-    };
-
-    // ==================================
-    // CHECK school_id
-    // ==================================
-
-    if (
-      columnNames.includes(
-        "school_id"
-      )
-    ) {
-
-      console.log(
-        "✅ Vehicles school_id already exists"
-      );
-
-      assignVehiclesToSchool();
-
-      return;
-    }
-
-    // ==================================
-    // ADD school_id
-    // ==================================
-
-    db.run(
-      `
-      ALTER TABLE vehicles
-      ADD COLUMN school_id INTEGER DEFAULT 1
-      `,
-      [],
-      (err) => {
-
-        if (err) {
-          console.error(
-            "vehicle school_id upgrade error:",
-            err.message
-          );
-
-          return;
-        }
-
-        console.log(
-          "✅ Vehicles school_id column added"
-        );
-
-        assignVehiclesToSchool();
-      }
-    );
-  }
-);
-
-// ======================================
-// PAYMENTS
-// ======================================
-
-db.run(`
-  CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    receiptNo TEXT UNIQUE NOT NULL,
-    studentId INTEGER NOT NULL,
-    studentName TEXT NOT NULL,
-    paymentDate TEXT NOT NULL,
-    paymentMethod TEXT NOT NULL,
-    amount REAL NOT NULL,
-    reference TEXT,
-    notes TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-// ======================================
-// PAYMENTS SCHOOL UPGRADE
-// ======================================
-
-db.all(
-  `PRAGMA table_info(payments)`,
-  [],
-  (err, columns) => {
-
-    if (err) {
-      console.error(
-        "PAYMENTS COLUMN CHECK ERROR:",
-        err.message
-      );
-
-      return;
-    }
-
-    const columnNames =
-      columns.map(
-        (column) => column.name
-      );
-
-    // ==================================
-    // ASSIGN EXISTING PAYMENTS
-    // ==================================
-
-    const assignPaymentsToSchool = () => {
-
-      db.run(
-        `
-        UPDATE payments
-        SET school_id = 1
-        WHERE school_id IS NULL
-           OR school_id = 0
-        `,
-        [],
-        (err) => {
-
-          if (err) {
-            console.error(
-              "PAYMENT SCHOOL UPDATE ERROR:",
-              err.message
-            );
-
-            return;
-          }
-
-          console.log(
-            "✅ Existing payments assigned to School 1"
-          );
-        }
-      );
-    };
-
-    // ==================================
-    // CHECK school_id
-    // ==================================
-
-    if (
-      columnNames.includes(
-        "school_id"
-      )
-    ) {
-
-      console.log(
-        "✅ Payments school_id already exists"
-      );
-
-      assignPaymentsToSchool();
-
-      return;
-    }
-
-    // ==================================
-    // ADD school_id
-    // ==================================
-
-    db.run(
-      `
-      ALTER TABLE payments
-      ADD COLUMN school_id INTEGER DEFAULT 1
-      `,
-      [],
-      (err) => {
-
-        if (err) {
-          console.error(
-            "payment school_id upgrade error:",
-            err.message
-          );
-
-          return;
-        }
-
-        console.log(
-          "✅ Payments school_id column added"
-        );
-
-        assignPaymentsToSchool();
-      }
-    );
-  }
-);
-
-// ======================================
-// SCHOOLS
-// ======================================
-
-db.run(
-  `
-  CREATE TABLE IF NOT EXISTS schools (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    schoolName TEXT NOT NULL,
-    phone TEXT DEFAULT '',
-    email TEXT DEFAULT '',
-    address TEXT DEFAULT '',
-    registrationNumber TEXT DEFAULT '',
-    status TEXT DEFAULT 'Active',
+    school_id INTEGER DEFAULT 1,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   )
   `,
+  [],
   (err) => {
-
     if (err) {
       console.error(
-        "SCHOOLS TABLE ERROR:",
+        "STUDENTS TABLE ERROR:",
         err.message
       );
-
-      return;
+    } else {
+      console.log(
+        "Students table ready"
+      );
     }
-
-    console.log(
-      "✅ Schools table ready"
-    );
-
-    // ====================================
-    // CREATE FIRST SCHOOL
-    // ====================================
-
-    db.run(
-      `
-      INSERT OR IGNORE INTO schools
-      (
-        id,
-        schoolName,
-        phone,
-        email,
-        address,
-        registrationNumber,
-        status
-      )
-      VALUES
-      (
-        1,
-        'DrivePro-SA',
-        '',
-        '',
-        '',
-        '',
-        'Active'
-      )
-      `,
-      [],
-      (err) => {
-
-        if (err) {
-          console.error(
-            "DEFAULT SCHOOL ERROR:",
-            err.message
-          );
-        } else {
-          console.log(
-            "✅ Default school ready"
-          );
-        }
-      }
-    );
   }
 );
 
 // ======================================
-// USERS
+// CREATE USERS TABLE
 // ======================================
 
 db.run(
@@ -835,144 +110,394 @@ db.run(
   `,
   [],
   (err) => {
-
     if (err) {
       console.error(
         "USERS TABLE ERROR:",
         err.message
       );
-
-      return;
+    } else {
+      console.log(
+        "Users table ready"
+      );
     }
-
-    console.log(
-      "✅ Users table ready"
-    );
-
-    // ====================================
-    // CHECK USERS COLUMNS
-    // ====================================
-
-    db.all(
-      `PRAGMA table_info(users)`,
-      [],
-      (err, columns) => {
-
-        if (err) {
-          console.error(
-            "USERS COLUMN CHECK ERROR:",
-            err.message
-          );
-
-          return;
-        }
-
-        const columnNames =
-          columns.map(
-            (column) => column.name
-          );
-
-        // ==================================
-        // UPDATE EXISTING USERS
-        // ==================================
-
-        const updateUsers = () => {
-
-          db.run(
-            `
-            UPDATE users
-            SET school_id = 1
-            WHERE school_id IS NULL
-               OR school_id = 0
-            `,
-            [],
-            (err) => {
-
-              if (err) {
-                console.error(
-                  "USER SCHOOL UPDATE ERROR:",
-                  err.message
-                );
-
-                return;
-              }
-
-              console.log(
-                "✅ Existing users assigned to School 1"
-              );
-            }
-          );
-        };
-
-        // ==================================
-        // SCHOOL_ID EXISTS
-        // ==================================
-
-        if (
-          columnNames.includes(
-            "school_id"
-          )
-        ) {
-
-          console.log(
-            "✅ school_id already exists"
-          );
-
-          updateUsers();
-
-          return;
-        }
-
-        // ==================================
-        // ADD SCHOOL_ID
-        // ==================================
-
-        db.run(
-          `
-          ALTER TABLE users
-          ADD COLUMN school_id INTEGER DEFAULT 1
-          `,
-          [],
-          (err) => {
-
-            if (err) {
-              console.error(
-                "school_id upgrade error:",
-                err.message
-              );
-
-              return;
-            }
-
-            console.log(
-              "✅ school_id column added"
-            );
-
-            updateUsers();
-          }
-        );
-      }
-    );
   }
 );
 
 // ======================================
-// SETTINGS
+// CREATE SCHOOLS TABLE
+// ======================================
+
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS schools (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    address TEXT,
+    phone TEXT,
+    email TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "SCHOOLS TABLE ERROR:",
+        err.message
+      );
+    } else {
+      console.log(
+        "Schools table ready"
+      );
+    }
+  }
+);
+// ======================================
+// CREATE INSTRUCTORS TABLE
+// ======================================
+
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS instructors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fullname TEXT NOT NULL,
+    phone TEXT,
+    email TEXT,
+    licenceCode TEXT,
+    status TEXT DEFAULT 'Active',
+    school_id INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "INSTRUCTORS TABLE ERROR:",
+        err.message
+      );
+    } else {
+      console.log(
+        "Instructors table ready"
+      );
+    }
+  }
+);
+
+// ======================================
+// CREATE VEHICLES TABLE
+// ======================================
+
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS vehicles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    registration TEXT,
+    make TEXT,
+    model TEXT,
+    year TEXT,
+    instructor TEXT,
+    status TEXT DEFAULT 'Active',
+    school_id INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "VEHICLES TABLE ERROR:",
+        err.message
+      );
+    } else {
+      console.log(
+        "Vehicles table ready"
+      );
+    }
+  }
+);
+
+// ======================================
+// CREATE LESSONS TABLE
+// ======================================
+
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS lessons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id INTEGER,
+    instructor_id INTEGER,
+    vehicle_id INTEGER,
+    lesson_date TEXT,
+    lesson_time TEXT,
+    duration INTEGER DEFAULT 60,
+    status TEXT DEFAULT 'Booked',
+    notes TEXT,
+    school_id INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "LESSONS TABLE ERROR:",
+        err.message
+      );
+    } else {
+      console.log(
+        "Lessons table ready"
+      );
+    }
+  }
+);
+
+// ======================================
+// CREATE PAYMENTS TABLE
+// ======================================
+
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id INTEGER,
+    amount REAL DEFAULT 0,
+    payment_date TEXT,
+    payment_method TEXT,
+    reference TEXT,
+    notes TEXT,
+    school_id INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "PAYMENTS TABLE ERROR:",
+        err.message
+      );
+    } else {
+      console.log(
+        "Payments table ready"
+      );
+    }
+  }
+);
+// ======================================
+// CREATE SETTINGS TABLE
 // ======================================
 
 db.run(
   `
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    schoolName TEXT DEFAULT 'DrivePro-SA',
-    phone TEXT DEFAULT '',
-    email TEXT DEFAULT '',
-    address TEXT DEFAULT '',
-    registrationNumber TEXT DEFAULT '',
-    lessonDuration INTEGER DEFAULT 60,
-    lessonPrice REAL DEFAULT 0,
+    setting_key TEXT UNIQUE NOT NULL,
+    setting_value TEXT,
+    school_id INTEGER DEFAULT 1,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "SETTINGS TABLE ERROR:",
+        err.message
+      );
+    } else {
+      console.log(
+        "Settings table ready"
+      );
+    }
+  }
+);
+
+// ======================================
+// CREATE SQLITE SEQUENCE SUPPORT
+// ======================================
+
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS sqlite_sequence (
+    name TEXT,
+    seq INTEGER
+  )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      // SQLite normally creates this automatically.
+      // This error can safely be ignored.
+    }
+  }
+);
+
+// ======================================
+// STUDENTS INDEXES
+// ======================================
+
+db.run(
+  `
+  CREATE INDEX IF NOT EXISTS idx_students_school
+  ON students(school_id)
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "STUDENTS SCHOOL INDEX ERROR:",
+        err.message
+      );
+    }
+  }
+);
+
+db.run(
+  `
+  CREATE INDEX IF NOT EXISTS idx_students_status
+  ON students(status)
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "STUDENTS STATUS INDEX ERROR:",
+        err.message
+      );
+    }
+  }
+);
+
+// ======================================
+// USERS INDEXES
+// ======================================
+
+db.run(
+  `
+  CREATE INDEX IF NOT EXISTS idx_users_school
+  ON users(school_id)
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "USERS SCHOOL INDEX ERROR:",
+        err.message
+      );
+    }
+  }
+);
+
+db.run(
+  `
+  CREATE INDEX IF NOT EXISTS idx_users_username
+  ON users(username)
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "USERS USERNAME INDEX ERROR:",
+        err.message
+      );
+    }
+  }
+);
+
+// ======================================
+// LESSON INDEXES
+// ======================================
+
+db.run(
+  `
+  CREATE INDEX IF NOT EXISTS idx_lessons_student
+  ON lessons(student_id)
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "LESSONS STUDENT INDEX ERROR:",
+        err.message
+      );
+    }
+  }
+);
+
+db.run(
+  `
+  CREATE INDEX IF NOT EXISTS idx_lessons_instructor
+  ON lessons(instructor_id)
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "LESSONS INSTRUCTOR INDEX ERROR:",
+        err.message
+      );
+    }
+  }
+);
+
+db.run(
+  `
+  CREATE INDEX IF NOT EXISTS idx_lessons_date
+  ON lessons(lesson_date)
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "LESSONS DATE INDEX ERROR:",
+        err.message
+      );
+    }
+  }
+);
+
+// ======================================
+// PAYMENTS INDEX
+// ======================================
+
+db.run(
+  `
+  CREATE INDEX IF NOT EXISTS idx_payments_student
+  ON payments(student_id)
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "PAYMENTS STUDENT INDEX ERROR:",
+        err.message
+      );
+    }
+  }
+);
+// ======================================
+// DEFAULT SCHOOL
+// ======================================
+
+db.run(
+  `
+  INSERT OR IGNORE INTO schools
+  (
+    id,
+    name,
+    address,
+    phone,
+    email
+  )
+  VALUES
+  (
+    1,
+    'DrivePro-SA',
+    '',
+    '',
+    ''
   )
   `,
   [],
@@ -980,7 +505,7 @@ db.run(
 
     if (err) {
       console.error(
-        "SETTINGS TABLE ERROR:",
+        "DEFAULT SCHOOL ERROR:",
         err.message
       );
 
@@ -988,224 +513,11 @@ db.run(
     }
 
     console.log(
-      "✅ Settings table ready"
-    );
-
-    // ====================================
-    // CHECK SETTINGS COLUMNS
-    // ====================================
-
-    db.all(
-      `PRAGMA table_info(settings)`,
-      [],
-      (err, columns) => {
-
-        if (err) {
-          console.error(
-            "SETTINGS COLUMN CHECK ERROR:",
-            err.message
-          );
-
-          return;
-        }
-
-        const columnNames =
-          columns.map(
-            (column) => column.name
-          );
-
-        // ==================================
-        // ADD lessonDuration
-        // ==================================
-
-        const addLessonDuration = () => {
-
-          if (
-            columnNames.includes(
-              "lessonDuration"
-            )
-          ) {
-
-            console.log(
-              "✅ lessonDuration already exists"
-            );
-
-            addLessonPrice();
-
-            return;
-          }
-
-          db.run(
-            `
-            ALTER TABLE settings
-            ADD COLUMN lessonDuration
-            INTEGER DEFAULT 60
-            `,
-            [],
-            (err) => {
-
-              if (err) {
-                console.error(
-                  "lessonDuration upgrade error:",
-                  err.message
-                );
-
-                return;
-              }
-
-              console.log(
-                "✅ lessonDuration column added"
-              );
-
-              addLessonPrice();
-            }
-          );
-        };
-
-        // ==================================
-        // ADD lessonPrice
-        // ==================================
-
-        const addLessonPrice = () => {
-
-          if (
-            columnNames.includes(
-              "lessonPrice"
-            )
-          ) {
-
-            console.log(
-              "✅ lessonPrice already exists"
-            );
-
-            insertDefaultSettings();
-
-            return;
-          }
-
-          db.run(
-            `
-            ALTER TABLE settings
-            ADD COLUMN lessonPrice
-            REAL DEFAULT 0
-            `,
-            [],
-            (err) => {
-
-              if (err) {
-                console.error(
-                  "lessonPrice upgrade error:",
-                  err.message
-                );
-
-                return;
-              }
-
-              console.log(
-                "✅ lessonPrice column added"
-              );
-
-              insertDefaultSettings();
-            }
-          );
-        };
-
-        // ==================================
-        // DEFAULT SETTINGS
-        // ==================================
-
-        const insertDefaultSettings = () => {
-
-          db.run(
-            `
-            INSERT OR IGNORE INTO settings
-            (
-              id,
-              schoolName,
-              phone,
-              email,
-              address,
-              registrationNumber,
-              lessonDuration,
-              lessonPrice
-            )
-            VALUES
-            (
-              1,
-              'DrivePro-SA',
-              '',
-              '',
-              '',
-              '',
-              60,
-              0
-            )
-            `,
-            [],
-            (err) => {
-
-              if (err) {
-                console.error(
-                  "DEFAULT SETTINGS ERROR:",
-                  err.message
-                );
-
-                return;
-              }
-
-              console.log(
-                "✅ Default settings ready"
-              );
-            }
-          );
-        };
-
-        addLessonDuration();
-      }
+      "Default school ready"
     );
   }
 );
 
-// ======================================
-// DEFAULT ADMIN
-// ======================================
-
-db.run(
-  `
-  INSERT OR IGNORE INTO users
-  (
-    id,
-    fullname,
-    username,
-    password,
-    role,
-    school_id
-  )
-  VALUES
-  (
-    1,
-    'Administrator',
-    'admin',
-    '1234',
-    'Administrator',
-    1
-  )
-  `,
-  [],
-  (err) => {
-
-    if (err) {
-      console.error(
-        "DEFAULT ADMIN ERROR:",
-        err.message
-      );
-    } else {
-      console.log(
-        "✅ Default admin ready"
-      );
-    }
-  }
-);
 
 // ======================================
 // DEFAULT ADMIN
@@ -1213,122 +525,159 @@ db.run(
 
 const setupDefaultAdmin = () => {
 
-  // First check whether the admin account already exists
-  db.get(
+  // Make sure the users table exists
+  // before checking or creating the admin.
+  db.run(
     `
-    SELECT id
-    FROM users
-    WHERE username = ?
-    LIMIT 1
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      fullname TEXT NOT NULL,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT NOT NULL,
+      status TEXT DEFAULT 'Active',
+      school_id INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
     `,
-    ["admin"],
-    (err, row) => {
+    [],
+    (tableErr) => {
 
-      if (err) {
+      if (tableErr) {
         console.error(
-          "DEFAULT ADMIN CHECK ERROR:",
-          err.message
+          "DEFAULT ADMIN TABLE ERROR:",
+          tableErr.message
         );
 
         return;
       }
 
-      // ======================================
-      // ADMIN ALREADY EXISTS
-      // ======================================
+      console.log(
+        "Users table confirmed for admin setup"
+      );
 
-      if (row) {
-
-        db.run(
-          `
-          UPDATE users
-          SET
-            fullname = ?,
-            password = ?,
-            role = ?,
-            status = ?,
-            school_id = ?
-          WHERE username = ?
-          `,
-          [
-            "Administrator",
-            "1234",
-            "Administrator",
-            "Active",
-            1,
-            "admin"
-          ],
-          (updateErr) => {
-
-            if (updateErr) {
-
-              console.error(
-                "DEFAULT ADMIN UPDATE ERROR:",
-                updateErr.message
-              );
-
-              return;
-            }
-
-            console.log(
-              "✅ Default admin account updated"
-            );
-
-          }
-        );
-
-        return;
-      }
 
       // ======================================
-      // ADMIN DOES NOT EXIST - CREATE IT
+      // CHECK ADMIN ACCOUNT
       // ======================================
 
-      db.run(
+      db.get(
         `
-        INSERT INTO users
-        (
-          fullname,
-          username,
-          password,
-          role,
-          status,
-          school_id
-        )
-        VALUES
-        (
-          ?,
-          ?,
-          ?,
-          ?,
-          ?,
-          ?
-        )
+        SELECT id
+        FROM users
+        WHERE username = ?
+        LIMIT 1
         `,
-        [
-          "Administrator",
-          "admin",
-          "1234",
-          "Administrator",
-          "Active",
-          1
-        ],
-        (insertErr) => {
+        ["admin"],
+        (err, row) => {
 
-          if (insertErr) {
-
+          if (err) {
             console.error(
-              "DEFAULT ADMIN INSERT ERROR:",
-              insertErr.message
+              "DEFAULT ADMIN CHECK ERROR:",
+              err.message
             );
 
             return;
           }
 
-          console.log(
-            "✅ Default admin account created"
-          );
 
+          // ======================================
+          // ADMIN EXISTS
+          // ======================================
+
+          if (row) {
+
+            db.run(
+              `
+              UPDATE users
+              SET
+                fullname = ?,
+                password = ?,
+                role = ?,
+                status = ?,
+                school_id = ?
+              WHERE username = ?
+              `,
+              [
+                "Administrator",
+                "1234",
+                "Administrator",
+                "Active",
+                1,
+                "admin"
+              ],
+              (updateErr) => {
+
+                if (updateErr) {
+
+                  console.error(
+                    "DEFAULT ADMIN UPDATE ERROR:",
+                    updateErr.message
+                  );
+
+                  return;
+                }
+
+                console.log(
+                  "Default admin account updated"
+                );
+              }
+            );
+
+            return;
+          }
+
+
+          // ======================================
+          // CREATE ADMIN ACCOUNT
+          // ======================================
+
+          db.run(
+            `
+            INSERT INTO users
+            (
+              fullname,
+              username,
+              password,
+              role,
+              status,
+              school_id
+            )
+            VALUES
+            (
+              ?,
+              ?,
+              ?,
+              ?,
+              ?,
+              ?
+            )
+            `,
+            [
+              "Administrator",
+              "admin",
+              "1234",
+              "Administrator",
+              "Active",
+              1
+            ],
+            (insertErr) => {
+
+              if (insertErr) {
+
+                console.error(
+                  "DEFAULT ADMIN INSERT ERROR:",
+                  insertErr.message
+                );
+
+                return;
+              }
+
+              console.log(
+                "Default admin account created"
+              );
+            }
+          );
         }
       );
     }
@@ -1341,6 +690,75 @@ const setupDefaultAdmin = () => {
 // ======================================
 
 setupDefaultAdmin();
+// ======================================
+// DATABASE READY CHECK
+// ======================================
+
+db.serialize(() => {
+
+  db.get(
+    `SELECT COUNT(*) AS count FROM users`,
+    [],
+    (err, row) => {
+
+      if (err) {
+        console.error(
+          "DATABASE READY CHECK ERROR:",
+          err.message
+        );
+
+        return;
+      }
+
+      console.log(
+        `Users in database: ${row.count}`
+      );
+    }
+  );
+
+
+  db.get(
+    `SELECT COUNT(*) AS count FROM students`,
+    [],
+    (err, row) => {
+
+      if (err) {
+        console.error(
+          "STUDENTS READY CHECK ERROR:",
+          err.message
+        );
+
+        return;
+      }
+
+      console.log(
+        `Students in database: ${row.count}`
+      );
+    }
+  );
+
+
+  db.get(
+    `SELECT COUNT(*) AS count FROM schools`,
+    [],
+    (err, row) => {
+
+      if (err) {
+        console.error(
+          "SCHOOLS READY CHECK ERROR:",
+          err.message
+        );
+
+        return;
+      }
+
+      console.log(
+        `Schools in database: ${row.count}`
+      );
+    }
+  );
+
+});
 
 
 // ======================================
