@@ -1,439 +1,680 @@
 import db from "../database/database.js";
 
-// =====================================================
-// GET SCHOOL ID
-// =====================================================
+// ======================================
+// DASHBOARD CONTROLLER
+// ======================================
 
+// Helper function to safely get the school ID
 const getSchoolId = (req) => {
-  return Number(req.query.school_id) || 1;
+  const schoolId =
+    req.query.school_id ||
+    req.user?.school_id ||
+    req.body?.school_id ||
+    1;
+
+  return Number(schoolId) || 1;
 };
 
 
-// =====================================================
-// GET DASHBOARD SUMMARY
-// =====================================================
+// ======================================
+// DASHBOARD SUMMARY
+// ======================================
 
 export const getDashboard = (req, res) => {
 
   const schoolId = getSchoolId(req);
 
-  console.log(
-    "DASHBOARD SCHOOL ID:",
-    schoolId
-  );
+  const dashboard = {
+    totalStudents: 0,
+    activeStudents: 0,
+    totalInstructors: 0,
+    activeInstructors: 0,
+    totalVehicles: 0,
+    activeVehicles: 0,
+    todayLessons: 0,
+    monthlyIncome: 0
+  };
 
-  const dashboard = {};
 
-  // ===================================================
+  // ====================================
   // TOTAL STUDENTS
-  // ===================================================
+  // ====================================
 
   db.get(
     `
-    SELECT COUNT(*) AS totalStudents
+    SELECT COUNT(*) AS count
     FROM students
     WHERE school_id = ?
     `,
     [schoolId],
-    (err, studentRow) => {
+    (err, row) => {
 
       if (err) {
         console.error(
           "DASHBOARD STUDENTS ERROR:",
           err.message
         );
-
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
+      } else {
+        dashboard.totalStudents =
+          row?.count || 0;
       }
 
-      dashboard.totalStudents =
-        Number(
-          studentRow?.totalStudents || 0
-        );
 
-      // ===============================================
-      // TOTAL INSTRUCTORS
-      // ===============================================
+      // ==================================
+      // ACTIVE STUDENTS
+      // ==================================
 
       db.get(
         `
-        SELECT COUNT(*) AS totalInstructors
-        FROM instructors
+        SELECT COUNT(*) AS count
+        FROM students
         WHERE school_id = ?
+        AND status = 'Active'
         `,
         [schoolId],
-        (err, instructorRow) => {
+        (err, row) => {
 
           if (err) {
             console.error(
-              "DASHBOARD INSTRUCTORS ERROR:",
+              "DASHBOARD ACTIVE STUDENTS ERROR:",
               err.message
             );
-
-            return res.status(500).json({
-              success: false,
-              message: err.message,
-            });
+          } else {
+            dashboard.activeStudents =
+              row?.count || 0;
           }
 
-          dashboard.totalInstructors =
-            Number(
-              instructorRow?.totalInstructors || 0
-            );
 
-          // =============================================
-          // TOTAL VEHICLES
-          // =============================================
+          // ================================
+          // TOTAL INSTRUCTORS
+          // ================================
 
           db.get(
             `
-            SELECT COUNT(*) AS totalVehicles
-            FROM vehicles
+            SELECT COUNT(*) AS count
+            FROM instructors
             WHERE school_id = ?
             `,
             [schoolId],
-            (err, vehicleRow) => {
+            (err, row) => {
 
               if (err) {
                 console.error(
-                  "DASHBOARD VEHICLES ERROR:",
+                  "DASHBOARD INSTRUCTORS ERROR:",
                   err.message
                 );
-
-                return res.status(500).json({
-                  success: false,
-                  message: err.message,
-                });
+              } else {
+                dashboard.totalInstructors =
+                  row?.count || 0;
               }
 
-              dashboard.totalVehicles =
-                Number(
-                  vehicleRow?.totalVehicles || 0
-                );
 
-              // =========================================
-              // TOTAL LESSONS
-              // =========================================
+              // ==============================
+              // ACTIVE INSTRUCTORS
+              // ==============================
 
               db.get(
                 `
-                SELECT COUNT(*) AS totalLessons
-                FROM lessons
+                SELECT COUNT(*) AS count
+                FROM instructors
                 WHERE school_id = ?
+                AND status = 'Active'
                 `,
                 [schoolId],
-                (err, lessonRow) => {
+                (err, row) => {
 
                   if (err) {
                     console.error(
-                      "DASHBOARD LESSONS ERROR:",
+                      "DASHBOARD ACTIVE INSTRUCTORS ERROR:",
                       err.message
                     );
-
-                    return res.status(500).json({
-                      success: false,
-                      message: err.message,
-                    });
+                  } else {
+                    dashboard.activeInstructors =
+                      row?.count || 0;
                   }
 
-                  dashboard.totalLessons =
-                    Number(
-                      lessonRow?.totalLessons || 0
-                    );
 
-                  // =======================================
-                  // TODAY'S LESSONS
-                  // =======================================
+                  // ============================
+                  // TOTAL VEHICLES
+                  // ============================
 
                   db.get(
                     `
-                    SELECT COUNT(*) AS todaysLessons
-                    FROM lessons
-                    WHERE lesson_date =
-                      DATE('now', 'localtime')
-                    AND school_id = ?
+                    SELECT COUNT(*) AS count
+                    FROM vehicles
+                    WHERE school_id = ?
                     `,
                     [schoolId],
-                    (err, todayRow) => {
+                    (err, row) => {
 
                       if (err) {
                         console.error(
-                          "DASHBOARD TODAY LESSONS ERROR:",
+                          "DASHBOARD VEHICLES ERROR:",
                           err.message
                         );
-
-                        return res.status(500).json({
-                          success: false,
-                          message: err.message,
-                        });
+                      } else {
+                        dashboard.totalVehicles =
+                          row?.count || 0;
                       }
 
-                      dashboard.todaysLessons =
-                        Number(
-                          todayRow?.todaysLessons || 0
-                        );
 
-                      // ===================================
-                      // BOOKED LESSONS
-                      // ===================================
+                      // ==========================
+                      // ACTIVE VEHICLES
+                      // ==========================
 
                       db.get(
                         `
-                        SELECT COUNT(*) AS bookedLessons
-                        FROM lessons
-                        WHERE status = 'Booked'
-                        AND school_id = ?
+                        SELECT COUNT(*) AS count
+                        FROM vehicles
+                        WHERE school_id = ?
+                        AND status = 'Active'
                         `,
                         [schoolId],
-                        (err, bookedRow) => {
+                        (err, row) => {
 
                           if (err) {
                             console.error(
-                              "DASHBOARD BOOKED LESSONS ERROR:",
+                              "DASHBOARD ACTIVE VEHICLES ERROR:",
                               err.message
                             );
-
-                            return res.status(500).json({
-                              success: false,
-                              message: err.message,
-                            });
+                          } else {
+                            dashboard.activeVehicles =
+                              row?.count || 0;
                           }
 
-                          dashboard.bookedLessons =
-                            Number(
-                              bookedRow?.bookedLessons || 0
-                            );
 
-                          // ================================
-                          // COMPLETED LESSONS
-                          // ================================
+                          // ========================
+                          // TODAY'S LESSONS COUNT
+                          // ========================
+
+                          const today =
+                            new Date()
+                              .toISOString()
+                              .split("T")[0];
 
                           db.get(
                             `
-                            SELECT COUNT(*) AS completedLessons
+                            SELECT COUNT(*) AS count
                             FROM lessons
-                            WHERE status = 'Completed'
-                            AND school_id = ?
+                            WHERE school_id = ?
+                            AND lesson_date = ?
                             `,
-                            [schoolId],
-                            (err, completedRow) => {
+                            [
+                              schoolId,
+                              today
+                            ],
+                            (err, row) => {
 
                               if (err) {
                                 console.error(
-                                  "DASHBOARD COMPLETED LESSONS ERROR:",
+                                  "DASHBOARD TODAY LESSONS COUNT ERROR:",
                                   err.message
                                 );
-
-                                return res.status(500).json({
-                                  success: false,
-                                  message: err.message,
-                                });
+                              } else {
+                                dashboard.todayLessons =
+                                  row?.count || 0;
                               }
 
-                              dashboard.completedLessons =
-                                Number(
-                                  completedRow?.completedLessons || 0
-                                );
 
-                              // ==============================
-                              // CANCELLED LESSONS
-                              // ==============================
+                              // ======================
+                              // MONTHLY INCOME
+                              // ======================
+
+                              const month =
+                                today.substring(0, 7);
 
                               db.get(
                                 `
-                                SELECT COUNT(*) AS cancelledLessons
-                                FROM lessons
-                                WHERE status = 'Cancelled'
-                                AND school_id = ?
+                                SELECT
+                                  COALESCE(
+                                    SUM(amount),
+                                    0
+                                  ) AS total
+                                FROM payments
+                                WHERE school_id = ?
+                                AND payment_date LIKE ?
                                 `,
-                                [schoolId],
-                                (err, cancelledRow) => {
+                                [
+                                  schoolId,
+                                  `${month}%`
+                                ],
+                                (err, row) => {
 
                                   if (err) {
                                     console.error(
-                                      "DASHBOARD CANCELLED LESSONS ERROR:",
+                                      "DASHBOARD MONTHLY INCOME ERROR:",
                                       err.message
                                     );
-
-                                    return res.status(500).json({
-                                      success: false,
-                                      message: err.message,
-                                    });
+                                  } else {
+                                    dashboard.monthlyIncome =
+                                      row?.total || 0;
                                   }
 
-                                  dashboard.cancelledLessons =
-                                    Number(
-                                      cancelledRow?.cancelledLessons || 0
-                                    );
 
-                                  // ============================
-                                  // UPCOMING LESSONS
-                                  // ============================
+                                  // ====================
+                                  // SEND DASHBOARD
+                                  // ====================
 
-                                  db.get(
-                                    `
-                                    SELECT COUNT(*) AS upcomingLessons
-                                    FROM lessons
-                                    WHERE lesson_date >
-                                      DATE('now', 'localtime')
-                                    AND status = 'Booked'
-                                    AND school_id = ?
-                                    `,
-                                    [schoolId],
-                                    (err, upcomingRow) => {
+                                  res.json({
+                                    success: true,
+                                    data: dashboard
+                                  });
 
-                                      if (err) {
-                                        console.error(
-                                          "DASHBOARD UPCOMING LESSONS ERROR:",
-                                          err.message
-                                        );
+                                }
+                              );
 
-                                        return res.status(500).json({
-                                          success: false,
-                                          message: err.message,
-                                        });
-                                      }
+                            }
+                          );
 
-                                      dashboard.upcomingLessons =
-                                        Number(
-                                          upcomingRow?.upcomingLessons || 0
-                                        );
+                        }
+                      );
 
-                                      // ==========================
-                                      // MONTHLY INCOME
-                                      // ==========================
+                    }
+                  );
 
-                                      db.get(
-                                        `
-                                        SELECT
-                                          IFNULL(
-                                            SUM(amount),
-                                            0
-                                          ) AS monthlyIncome
-                                        FROM payments
-                                        WHERE strftime(
-                                          '%Y-%m',
-                                          paymentDate
-                                        ) =
-                                        strftime(
-                                          '%Y-%m',
-                                          'now',
-                                          'localtime'
-                                        )
-                                        AND school_id = ?
-                                        `,
-                                        [schoolId],
-                                        (err, incomeRow) => {
+                }
+              );
 
-                                          if (err) {
-                                            console.error(
-                                              "DASHBOARD MONTHLY INCOME ERROR:",
-                                              err.message
-                                            );
+            }
+          );
 
-                                            return res.status(500).json({
-                                              success: false,
-                                              message: err.message,
-                                            });
-                                          }
+        }
+      );
 
-                                          dashboard.monthlyIncome =
-                                            Number(
-                                              incomeRow?.monthlyIncome || 0
-                                            );
+    }
+  );
+};
+// ======================================
+// TODAY'S LESSONS
+// ======================================
 
-                                          // ========================
-                                          // OUTSTANDING BALANCE
-                                          // ========================
+export const getTodayLessons = (req, res) => {
 
-                                          db.get(
-                                            `
-                                            SELECT
-                                              IFNULL(
-                                                SUM(
-                                                  CASE
-                                                    WHEN balance > 0
-                                                    THEN balance
-                                                    ELSE 0
-                                                  END
-                                                ),
-                                                0
-                                              ) AS outstandingBalance
-                                            FROM students
-                                            WHERE school_id = ?
-                                            `,
-                                            [schoolId],
-                                            (err, balanceRow) => {
+  const schoolId = Number(
+    req.query.school_id ||
+    req.user?.school_id ||
+    1
+  ) || 1;
 
-                                              if (err) {
-                                                console.error(
-                                                  "DASHBOARD BALANCE ERROR:",
-                                                  err.message
-                                                );
+  const today =
+    new Date()
+      .toISOString()
+      .split("T")[0];
 
-                                                return res.status(500).json({
-                                                  success: false,
-                                                  message: err.message,
-                                                });
-                                              }
+  db.all(
+    `
+    SELECT
+      lessons.id,
+      lessons.student_id,
+      lessons.instructor_id,
+      lessons.vehicle_id,
+      lessons.lesson_date,
+      lessons.lesson_time,
+      lessons.duration,
+      lessons.status,
+      lessons.notes,
 
-                                              dashboard.outstandingBalance =
-                                                Number(
-                                                  balanceRow?.outstandingBalance || 0
-                                                );
+      students.fullname AS student_name,
+      students.studentNo AS student_number,
 
-                                              // ======================
-                                              // SEND DASHBOARD
-                                              // ======================
+      instructors.fullname AS instructor_name,
 
-                                              res.json({
-                                                success: true,
+      vehicles.registration AS vehicle_registration,
+      vehicles.make AS vehicle_make,
+      vehicles.model AS vehicle_model
 
-                                                school_id:
-                                                  schoolId,
+    FROM lessons
 
-                                                totalStudents:
-                                                  dashboard.totalStudents,
+    LEFT JOIN students
+      ON students.id = lessons.student_id
 
-                                                totalInstructors:
-                                                  dashboard.totalInstructors,
+    LEFT JOIN instructors
+      ON instructors.id = lessons.instructor_id
 
-                                                totalVehicles:
-                                                  dashboard.totalVehicles,
+    LEFT JOIN vehicles
+      ON vehicles.id = lessons.vehicle_id
 
-                                                totalLessons:
-                                                  dashboard.totalLessons,
+    WHERE lessons.school_id = ?
+      AND lessons.lesson_date = ?
 
-                                                todaysLessons:
-                                                  dashboard.todaysLessons,
+    ORDER BY lessons.lesson_time ASC
+    `,
+    [
+      schoolId,
+      today
+    ],
+    (err, rows) => {
 
-                                                bookedLessons:
-                                                  dashboard.bookedLessons,
+      if (err) {
 
-                                                completedLessons:
-                                                  dashboard.completedLessons,
+        console.error(
+          "TODAY'S LESSONS ERROR:",
+          err.message
+        );
 
-                                                cancelledLessons:
-                                                  dashboard.cancelledLessons,
+        return res.status(500).json({
+          success: false,
+          message: "Failed to load today's lessons",
+          error: err.message
+        });
+      }
 
-                                                upcomingLessons:
-                                                  dashboard.upcomingLessons,
+      res.json({
+        success: true,
+        data: rows || []
+      });
+    }
+  );
+};
 
-                                                monthlyIncome:
-                                                  dashboard.monthlyIncome,
 
-                                                outstandingBalance:
-                                                  dashboard.outstandingBalance,
-                                              });
-                                            }
-                                          );
-                                        }
-                                      );
-                                    }
+// ======================================
+// MONTHLY INCOME
+// ======================================
+
+export const getMonthlyIncome = (req, res) => {
+
+  const schoolId = Number(
+    req.query.school_id ||
+    req.user?.school_id ||
+    1
+  ) || 1;
+
+  const today =
+    new Date()
+      .toISOString()
+      .split("T")[0];
+
+  const month =
+    today.substring(0, 7);
+
+  db.get(
+    `
+    SELECT
+      COALESCE(
+        SUM(amount),
+        0
+      ) AS total
+
+    FROM payments
+
+    WHERE school_id = ?
+      AND payment_date LIKE ?
+    `,
+    [
+      schoolId,
+      `${month}%`
+    ],
+    (err, row) => {
+
+      if (err) {
+
+        console.error(
+          "MONTHLY INCOME ERROR:",
+          err.message
+        );
+
+        return res.status(500).json({
+          success: false,
+          message: "Failed to load monthly income",
+          error: err.message
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          total: Number(
+            row?.total || 0
+          )
+        }
+      });
+    }
+  );
+};
+// ======================================
+// DASHBOARD STATISTICS
+// ======================================
+
+export const getDashboardStats = (req, res) => {
+
+  const schoolId = Number(
+    req.query.school_id ||
+    req.user?.school_id ||
+    1
+  ) || 1;
+
+  const stats = {
+    totalStudents: 0,
+    activeStudents: 0,
+    totalInstructors: 0,
+    activeInstructors: 0,
+    totalVehicles: 0,
+    activeVehicles: 0,
+    todayLessons: 0,
+    monthlyIncome: 0
+  };
+
+  // ====================================
+  // TOTAL STUDENTS
+  // ====================================
+
+  db.get(
+    `
+    SELECT COUNT(*) AS count
+    FROM students
+    WHERE school_id = ?
+    `,
+    [schoolId],
+    (err, row) => {
+
+      if (err) {
+        console.error(
+          "TOTAL STUDENTS ERROR:",
+          err.message
+        );
+      } else {
+        stats.totalStudents =
+          Number(row?.count || 0);
+      }
+
+      // ==================================
+      // ACTIVE STUDENTS
+      // ==================================
+
+      db.get(
+        `
+        SELECT COUNT(*) AS count
+        FROM students
+        WHERE school_id = ?
+          AND status = 'Active'
+        `,
+        [schoolId],
+        (err, row) => {
+
+          if (err) {
+            console.error(
+              "ACTIVE STUDENTS ERROR:",
+              err.message
+            );
+          } else {
+            stats.activeStudents =
+              Number(row?.count || 0);
+          }
+
+          // ================================
+          // TOTAL INSTRUCTORS
+          // ================================
+
+          db.get(
+            `
+            SELECT COUNT(*) AS count
+            FROM instructors
+            WHERE school_id = ?
+            `,
+            [schoolId],
+            (err, row) => {
+
+              if (err) {
+                console.error(
+                  "TOTAL INSTRUCTORS ERROR:",
+                  err.message
+                );
+              } else {
+                stats.totalInstructors =
+                  Number(row?.count || 0);
+              }
+
+              // ==============================
+              // ACTIVE INSTRUCTORS
+              // ==============================
+
+              db.get(
+                `
+                SELECT COUNT(*) AS count
+                FROM instructors
+                WHERE school_id = ?
+                  AND status = 'Active'
+                `,
+                [schoolId],
+                (err, row) => {
+
+                  if (err) {
+                    console.error(
+                      "ACTIVE INSTRUCTORS ERROR:",
+                      err.message
+                    );
+                  } else {
+                    stats.activeInstructors =
+                      Number(row?.count || 0);
+                  }
+
+                  // ============================
+                  // TOTAL VEHICLES
+                  // ============================
+
+                  db.get(
+                    `
+                    SELECT COUNT(*) AS count
+                    FROM vehicles
+                    WHERE school_id = ?
+                    `,
+                    [schoolId],
+                    (err, row) => {
+
+                      if (err) {
+                        console.error(
+                          "TOTAL VEHICLES ERROR:",
+                          err.message
+                        );
+                      } else {
+                        stats.totalVehicles =
+                          Number(row?.count || 0);
+                      }
+
+                      // ==========================
+                      // ACTIVE VEHICLES
+                      // ==========================
+
+                      db.get(
+                        `
+                        SELECT COUNT(*) AS count
+                        FROM vehicles
+                        WHERE school_id = ?
+                          AND status = 'Active'
+                        `,
+                        [schoolId],
+                        (err, row) => {
+
+                          if (err) {
+                            console.error(
+                              "ACTIVE VEHICLES ERROR:",
+                              err.message
+                            );
+                          } else {
+                            stats.activeVehicles =
+                              Number(row?.count || 0);
+                          }
+
+                          // ========================
+                          // TODAY'S LESSONS
+                          // ========================
+
+                          const today =
+                            new Date()
+                              .toISOString()
+                              .split("T")[0];
+
+                          db.get(
+                            `
+                            SELECT COUNT(*) AS count
+                            FROM lessons
+                            WHERE school_id = ?
+                              AND lesson_date = ?
+                            `,
+                            [
+                              schoolId,
+                              today
+                            ],
+                            (err, row) => {
+
+                              if (err) {
+                                console.error(
+                                  "TODAY LESSONS STATS ERROR:",
+                                  err.message
+                                );
+                              } else {
+                                stats.todayLessons =
+                                  Number(
+                                    row?.count || 0
                                   );
+                              }
+
+                              // ======================
+                              // MONTHLY INCOME
+                              // ======================
+
+                              const month =
+                                today.substring(0, 7);
+
+                              db.get(
+                                `
+                                SELECT
+                                  COALESCE(
+                                    SUM(amount),
+                                    0
+                                  ) AS total
+                                FROM payments
+                                WHERE school_id = ?
+                                  AND payment_date LIKE ?
+                                `,
+                                [
+                                  schoolId,
+                                  `${month}%`
+                                ],
+                                (err, row) => {
+
+                                  if (err) {
+                                    console.error(
+                                      "MONTHLY INCOME STATS ERROR:",
+                                      err.message
+                                    );
+                                  } else {
+                                    stats.monthlyIncome =
+                                      Number(
+                                        row?.total || 0
+                                      );
+                                  }
+
+                                  // ==================
+                                  // SEND STATISTICS
+                                  // ==================
+
+                                  res.json({
+                                    success: true,
+                                    data: stats
+                                  });
+
                                 }
                               );
                             }
@@ -451,232 +692,15 @@ export const getDashboard = (req, res) => {
     }
   );
 };
+// ======================================
+// DASHBOARD SUMMARY ALIASES
+// ======================================
 
+// Some parts of the application may use
+// these controller names. Keep them available
+// so existing routes continue working.
 
-// =====================================================
-// GET TODAY'S LESSONS
-// =====================================================
-
-export const getTodaysLessons = (req, res) => {
-
-  const schoolId =
-    getSchoolId(req);
-
-  db.all(
-    `
-    SELECT
-      student,
-      instructor,
-      vehicle,
-      lesson_time,
-      status
-    FROM lessons
-    WHERE lesson_date =
-      DATE('now', 'localtime')
-    AND school_id = ?
-    ORDER BY lesson_time
-    `,
-    [schoolId],
-    (err, rows) => {
-
-      if (err) {
-        console.error(
-          "TODAY'S LESSONS ERROR:",
-          err.message
-        );
-
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      res.json(rows || []);
-    }
-  );
-};
-
-
-// =====================================================
-// GET DASHBOARD ALERTS
-// =====================================================
-
-export const getDashboardAlerts = (req, res) => {
-
-  const schoolId =
-    getSchoolId(req);
-
-  const alerts = {};
-
-  // ===================================================
-  // STUDENTS WITH OUTSTANDING BALANCES
-  // ===================================================
-
-  db.all(
-    `
-    SELECT
-      id,
-      studentNo,
-      fullname,
-      balance
-    FROM students
-    WHERE balance > 0
-    AND school_id = ?
-    ORDER BY balance DESC
-    LIMIT 10
-    `,
-    [schoolId],
-    (err, outstandingStudents) => {
-
-      if (err) {
-        console.error(
-          "DASHBOARD OUTSTANDING STUDENTS ERROR:",
-          err.message
-        );
-
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      alerts.outstandingStudents =
-        outstandingStudents || [];
-
-      // ===============================================
-      // CANCELLED LESSONS TODAY
-      // ===============================================
-
-      db.all(
-        `
-        SELECT
-          student,
-          instructor,
-          vehicle,
-          lesson_time,
-          status
-        FROM lessons
-        WHERE lesson_date =
-          DATE('now', 'localtime')
-        AND status = 'Cancelled'
-        AND school_id = ?
-        ORDER BY lesson_time
-        `,
-        [schoolId],
-        (err, cancelledLessons) => {
-
-          if (err) {
-            console.error(
-              "DASHBOARD CANCELLED LESSONS ERROR:",
-              err.message
-            );
-
-            return res.status(500).json({
-              success: false,
-              message: err.message,
-            });
-          }
-
-          alerts.cancelledLessons =
-            cancelledLessons || [];
-
-          // =============================================
-          // UNAVAILABLE VEHICLES
-          // =============================================
-
-          db.all(
-            `
-            SELECT
-              id,
-              registration,
-              make,
-              model,
-              status
-            FROM vehicles
-            WHERE status != 'Available'
-            AND school_id = ?
-            ORDER BY registration
-            `,
-            [schoolId],
-            (err, unavailableVehicles) => {
-
-              if (err) {
-                console.error(
-                  "DASHBOARD VEHICLES ERROR:",
-                  err.message
-                );
-
-                return res.status(500).json({
-                  success: false,
-                  message: err.message,
-                });
-              }
-
-              alerts.unavailableVehicles =
-                unavailableVehicles || [];
-
-              // =========================================
-              // INACTIVE INSTRUCTORS
-              // =========================================
-
-              db.all(
-                `
-                SELECT
-                  id,
-                  name,
-                  phone,
-                  status
-                FROM instructors
-                WHERE status != 'Active'
-                AND school_id = ?
-                ORDER BY name
-                `,
-                [schoolId],
-                (err, inactiveInstructors) => {
-
-                  if (err) {
-                    console.error(
-                      "DASHBOARD INSTRUCTORS ERROR:",
-                      err.message
-                    );
-
-                    return res.status(500).json({
-                      success: false,
-                      message: err.message,
-                    });
-                  }
-
-                  alerts.inactiveInstructors =
-                    inactiveInstructors || [];
-
-                  // ======================================
-                  // SEND ALERTS
-                  // ======================================
-
-                  res.json({
-                    success: true,
-
-                    school_id:
-                      schoolId,
-
-                    outstandingStudents:
-                      alerts.outstandingStudents,
-
-                    cancelledLessons:
-                      alerts.cancelledLessons,
-
-                    unavailableVehicles:
-                      alerts.unavailableVehicles,
-
-                    inactiveInstructors:
-                      alerts.inactiveInstructors,
-                  });
-                }
-              );
-            }
-          );
-        }
-      );
-    }
-  );
-};
+export const dashboard = getDashboard;
+export const todayLessons = getTodayLessons;
+export const monthlyIncome = getMonthlyIncome;
+export const dashboardStats = getDashboardStats;
