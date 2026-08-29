@@ -35,7 +35,7 @@ interface DashboardData {
   totalInstructors: number;
   totalVehicles: number;
   totalLessons: number;
-  todaysLessons: number;
+  todayLessons: number;
 
   bookedLessons: number;
   completedLessons: number;
@@ -73,7 +73,7 @@ function Dashboard() {
       totalInstructors: 0,
       totalVehicles: 0,
       totalLessons: 0,
-      todaysLessons: 0,
+      todayLessons: 0,
 
       bookedLessons: 0,
       completedLessons: 0,
@@ -387,7 +387,7 @@ function Dashboard() {
             <DashboardCard
               title="📆 Today's Lessons"
               value={
-                dashboard.todaysLessons
+                dashboard.todayLessons
               }
             />
 

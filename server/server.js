@@ -23,7 +23,7 @@ import {
 
 import {
   getDashboard,
-  getTodaysLessons,
+  getTodayLessons,
   getDashboardAlerts,
 } from "./controllers/dashboardController.js";
 
@@ -148,8 +148,7 @@ const __dirname =
 
 app.use(
   cors({
-    origin:
-      "https://drivepro-sa-production.up.railway.app",
+    origin: ["http://localhost:5173", "https://drivepro-sa-production.up.railway.app"],
 
     methods: [
       "GET",
@@ -223,7 +222,7 @@ app.get(
 app.get(
   "/dashboard/today-lessons",
   authenticateUser,
-  getTodaysLessons
+  getTodayLessons
 );
 
 app.get(

@@ -59,7 +59,7 @@ export const getDashboard = async () => {
     }
   );
 
-  return response.data;
+  return response.data?.data || {};
 };
 
 // =====================================================
@@ -80,7 +80,7 @@ export const getTodaysLessons = async () => {
     }
   );
 
-  return response.data;
+  return response.data?.data || [];
 };
 
 // =====================================================

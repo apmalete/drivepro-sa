@@ -31,7 +31,12 @@ export const getDashboard = (req, res) => {
     activeInstructors: 0,
     totalVehicles: 0,
     activeVehicles: 0,
+    totalLessons: 0,
     todayLessons: 0,
+    bookedLessons: 0,
+    completedLessons: 0,
+    cancelledLessons: 0,
+    upcomingLessons: 0,
     monthlyIncome: 0
   };
 
@@ -184,13 +189,85 @@ export const getDashboard = (req, res) => {
 
 
                           // ========================
-                          // TODAY'S LESSONS COUNT
+                          // TOTAL LESSONS COUNT
                           // ========================
 
+                          db.get(
+                            `
+                            SELECT COUNT(*) AS count
+                            FROM lessons
+                            WHERE school_id = ?
+                            `,
+                            [
+                              schoolId
+                            ],
+                            (err, row) => {
+
+                              if (err) {
+                                console.error(
+                                  "DASHBOARD TOTAL LESSONS ERROR:",
+                                  err.message
+                                );
+                              } else {
+                                dashboard.totalLessons =
+                                  row?.count || 0;
+                              }
+
+                            }
+                          );
+
+                          // ========================
                           const today =
                             new Date()
                               .toISOString()
                               .split("T")[0];
+
+                          // LESSON STATUS COUNTS
+                          // ========================
+
+                          db.get(
+                            `
+                            SELECT
+                              SUM(CASE WHEN status = 'Booked' THEN 1 ELSE 0 END) AS bookedLessons,
+                              SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completedLessons,
+                              SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelledLessons,
+                              SUM(CASE WHEN lesson_date > ? THEN 1 ELSE 0 END) AS upcomingLessons
+                            FROM lessons
+                            WHERE school_id = ?
+                            `,
+                            [
+                              today,
+                              schoolId
+                            ],
+                            (err, row) => {
+
+                              if (err) {
+                                console.error(
+                                  "DASHBOARD LESSON STATUS COUNTS ERROR:",
+                                  err.message
+                                );
+                              } else {
+                                dashboard.bookedLessons =
+                                  Number(row?.bookedLessons || 0);
+
+                                dashboard.completedLessons =
+                                  Number(row?.completedLessons || 0);
+
+                                dashboard.cancelledLessons =
+                                  Number(row?.cancelledLessons || 0);
+
+                                dashboard.upcomingLessons =
+                                  Number(row?.upcomingLessons || 0);
+                              }
+
+                            }
+                          );
+
+
+                          // ========================
+                          // TODAY'S LESSONS COUNT
+                          // ========================
+                          // ========================
 
                           db.get(
                             `
@@ -232,7 +309,7 @@ export const getDashboard = (req, res) => {
                                   ) AS total
                                 FROM payments
                                 WHERE school_id = ?
-                                AND payment_date LIKE ?
+                                AND paymentDate LIKE ?
                                 `,
                                 [
                                   schoolId,
@@ -290,58 +367,40 @@ export const getDashboard = (req, res) => {
 
 export const getTodayLessons = (req, res) => {
 
-  const schoolId = Number(
-    req.query.school_id ||
-    req.user?.school_id ||
-    1
-  ) || 1;
-
   const today =
     new Date()
       .toISOString()
       .split("T")[0];
 
+  const schoolId =
+    Number(
+      req.query.school_id ||
+      req.user?.school_id ||
+      1
+    ) || 1;
+
   db.all(
+
     `
     SELECT
-      lessons.id,
-      lessons.student_id,
-      lessons.instructor_id,
-      lessons.vehicle_id,
-      lessons.lesson_date,
-      lessons.lesson_time,
-      lessons.duration,
-      lessons.status,
-      lessons.notes,
-
-      students.fullname AS student_name,
-      students.studentNo AS student_number,
-
-      instructors.fullname AS instructor_name,
-
-      vehicles.registration AS vehicle_registration,
-      vehicles.make AS vehicle_make,
-      vehicles.model AS vehicle_model
-
+      id,
+      student,
+      instructor,
+      vehicle,
+      lesson_date,
+      lesson_time,
+      status,
+      student AS student_name,
+      student AS student_number,
+      instructor AS instructor_name,
+      vehicle AS vehicle_registration
     FROM lessons
-
-    LEFT JOIN students
-      ON students.id = lessons.student_id
-
-    LEFT JOIN instructors
-      ON instructors.id = lessons.instructor_id
-
-    LEFT JOIN vehicles
-      ON vehicles.id = lessons.vehicle_id
-
-    WHERE lessons.school_id = ?
-      AND lessons.lesson_date = ?
-
-    ORDER BY lessons.lesson_time ASC
+    WHERE school_id = ?
+      AND lesson_date = DATE('now', 'localtime')
+    ORDER BY lesson_time ASC
     `,
     [
-      schoolId,
-      today
+      schoolId
     ],
     (err, rows) => {
 
@@ -366,8 +425,6 @@ export const getTodayLessons = (req, res) => {
     }
   );
 };
-
-
 // ======================================
 // MONTHLY INCOME
 // ======================================
@@ -379,11 +436,6 @@ export const getMonthlyIncome = (req, res) => {
     req.user?.school_id ||
     1
   ) || 1;
-
-  const today =
-    new Date()
-      .toISOString()
-      .split("T")[0];
 
   const month =
     today.substring(0, 7);
@@ -399,7 +451,7 @@ export const getMonthlyIncome = (req, res) => {
     FROM payments
 
     WHERE school_id = ?
-      AND payment_date LIKE ?
+      AND paymentDate LIKE ?
     `,
     [
       schoolId,
@@ -451,7 +503,12 @@ export const getDashboardStats = (req, res) => {
     activeInstructors: 0,
     totalVehicles: 0,
     activeVehicles: 0,
+    totalLessons: 0,
     todayLessons: 0,
+    bookedLessons: 0,
+    completedLessons: 0,
+    cancelledLessons: 0,
+    upcomingLessons: 0,
     monthlyIncome: 0
   };
 
@@ -600,11 +657,6 @@ export const getDashboardStats = (req, res) => {
                           // TODAY'S LESSONS
                           // ========================
 
-                          const today =
-                            new Date()
-                              .toISOString()
-                              .split("T")[0];
-
                           db.get(
                             `
                             SELECT COUNT(*) AS count
@@ -646,7 +698,7 @@ export const getDashboardStats = (req, res) => {
                                   ) AS total
                                 FROM payments
                                 WHERE school_id = ?
-                                  AND payment_date LIKE ?
+                                  AND paymentDate LIKE ?
                                 `,
                                 [
                                   schoolId,
@@ -704,3 +756,189 @@ export const dashboard = getDashboard;
 export const todayLessons = getTodayLessons;
 export const monthlyIncome = getMonthlyIncome;
 export const dashboardStats = getDashboardStats;
+
+
+
+// =====================================================
+// GET DASHBOARD ALERTS
+// =====================================================
+
+export const getDashboardAlerts = (req, res) => {
+
+  const schoolId =
+    getSchoolId(req);
+
+  const alerts = {};
+
+  // ===================================================
+  // STUDENTS WITH OUTSTANDING BALANCES
+  // ===================================================
+
+  db.all(
+    `
+    SELECT
+      id,
+      studentNo,
+      fullname,
+      balance
+    FROM students
+    WHERE balance > 0
+    AND school_id = ?
+    ORDER BY balance DESC
+    LIMIT 10
+    `,
+    [schoolId],
+    (err, outstandingStudents) => {
+
+      if (err) {
+        console.error(
+          "DASHBOARD OUTSTANDING STUDENTS ERROR:",
+          err.message
+        );
+
+        return res.status(500).json({
+          success: false,
+          message: err.message,
+        });
+      }
+
+      alerts.outstandingStudents =
+        outstandingStudents || [];
+
+      // ===============================================
+      // CANCELLED LESSONS TODAY
+      // ===============================================
+
+      db.all(
+        `
+        SELECT
+          student,
+          instructor,
+          vehicle,
+          lesson_time,
+          status
+        FROM lessons
+        WHERE lesson_date =
+          DATE('now', 'localtime')
+        AND status = 'Cancelled'
+        AND school_id = ?
+        ORDER BY lesson_time
+        `,
+        [schoolId],
+        (err, cancelledLessons) => {
+
+          if (err) {
+            console.error(
+              "DASHBOARD CANCELLED LESSONS ERROR:",
+              err.message
+            );
+
+            return res.status(500).json({
+              success: false,
+              message: err.message,
+            });
+          }
+
+          alerts.cancelledLessons =
+            cancelledLessons || [];
+
+          // =============================================
+          // UNAVAILABLE VEHICLES
+          // =============================================
+
+          db.all(
+            `
+            SELECT
+              id,
+              registration,
+              make,
+              model,
+              status
+            FROM vehicles
+            WHERE status != 'Available'
+            AND school_id = ?
+            ORDER BY registration
+            `,
+            [schoolId],
+            (err, unavailableVehicles) => {
+
+              if (err) {
+                console.error(
+                  "DASHBOARD VEHICLES ERROR:",
+                  err.message
+                );
+
+                return res.status(500).json({
+                  success: false,
+                  message: err.message,
+                });
+              }
+
+              alerts.unavailableVehicles =
+                unavailableVehicles || [];
+
+              // =========================================
+              // INACTIVE INSTRUCTORS
+              // =========================================
+
+              db.all(
+                `
+                SELECT
+                  id,
+                  name,
+                  phone,
+                  status
+                FROM instructors
+                WHERE status != 'Active'
+                AND school_id = ?
+                ORDER BY name
+                `,
+                [schoolId],
+                (err, inactiveInstructors) => {
+
+                  if (err) {
+                    console.error(
+                      "DASHBOARD INSTRUCTORS ERROR:",
+                      err.message
+                    );
+
+                    return res.status(500).json({
+                      success: false,
+                      message: err.message,
+                    });
+                  }
+
+                  alerts.inactiveInstructors =
+                    inactiveInstructors || [];
+
+                  // ======================================
+                  // SEND ALERTS
+                  // ======================================
+
+                  res.json({
+                    success: true,
+
+                    school_id:
+                      schoolId,
+
+                    outstandingStudents:
+                      alerts.outstandingStudents,
+
+                    cancelledLessons:
+                      alerts.cancelledLessons,
+
+                    unavailableVehicles:
+                      alerts.unavailableVehicles,
+
+                    inactiveInstructors:
+                      alerts.inactiveInstructors,
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
+};

@@ -413,7 +413,7 @@ db.run(
 db.run(
   `
   CREATE INDEX IF NOT EXISTS idx_lessons_student
-  ON lessons(student_id)
+  ON lessons(student)
   `,
   [],
   (err) => {
@@ -429,7 +429,7 @@ db.run(
 db.run(
   `
   CREATE INDEX IF NOT EXISTS idx_lessons_instructor
-  ON lessons(instructor_id)
+  ON lessons(instructor)
   `,
   [],
   (err) => {
@@ -465,7 +465,7 @@ db.run(
 db.run(
   `
   CREATE INDEX IF NOT EXISTS idx_payments_student
-  ON payments(student_id)
+  ON payments(studentId)
   `,
   [],
   (err) => {
@@ -486,7 +486,7 @@ db.run(
   INSERT OR IGNORE INTO schools
   (
     id,
-    name,
+    schoolName,
     address,
     phone,
     email
