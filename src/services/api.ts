@@ -7,7 +7,7 @@ import axios from "axios";
 // Railway production backend
 const api = axios.create({
   baseURL:
-    "https://drivepro-sa-production.up.railway.app/api",
+    "https://drivepro-sa-production.up.railway.app",
 });
 
 // ==========================================
