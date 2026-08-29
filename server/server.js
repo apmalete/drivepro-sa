@@ -148,8 +148,12 @@ const __dirname =
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://drivepro-sa-production.up.railway.app"],
-
+    origin: [
+  "http://localhost:5173",
+  "https://drivepro-sa-production.up.railway.app",
+  "https://drivepro-sa.co.za",
+  "https://www.drivepro-sa.co.za",
+],
     methods: [
       "GET",
       "POST",
