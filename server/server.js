@@ -193,12 +193,32 @@ app.use(
 );
 
 // =====================================
+// FRONTEND
+// =====================================
+
+const frontendPath =
+  path.join(
+    __dirname,
+    "..",
+    "dist"
+  );
+
+app.use(
+  express.static(
+    frontendPath
+  )
+);
+
+// =====================================
 // HOME
 // =====================================
 
 app.get("/", (req, res) => {
-  res.send(
-    "🚗 DrivePro-SA API Running..."
+  res.sendFile(
+    path.join(
+      frontendPath,
+      "index.html"
+    )
   );
 });
 
