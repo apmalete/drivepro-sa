@@ -159,15 +159,14 @@ db.run(
 db.run(
   `
   CREATE TABLE IF NOT EXISTS instructors (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fullname TEXT NOT NULL,
-    phone TEXT,
-    email TEXT,
-    licenceCode TEXT,
-    status TEXT DEFAULT 'Active',
-    school_id INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  )
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  licence TEXT NOT NULL,
+  experience TEXT NOT NULL,
+  status TEXT DEFAULT 'Active',
+  school_id INTEGER DEFAULT 1
+)
   `,
   [],
   (err) => {
@@ -184,23 +183,7 @@ db.run(
   }
 );
 
-// ======================================
-// CREATE VEHICLES TABLE
-// ======================================
 
-db.run(
-  `
-  CREATE TABLE IF NOT EXISTS vehicles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    registration TEXT,
-    make TEXT,
-    model TEXT,
-    year TEXT,
-    instructor TEXT,
-    status TEXT DEFAULT 'Active',
-    school_id INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  )
   `,
   [],
   (err) => {
@@ -218,24 +201,37 @@ db.run(
 );
 
 // ======================================
-// CREATE LESSONS TABLE
+// CREATE VEHICLES TABLE
 // ======================================
 
 db.run(
   `
-  CREATE TABLE IF NOT EXISTS lessons (
+  CREATE TABLE IF NOT EXISTS vehicles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER,
-    instructor_id INTEGER,
-    vehicle_id INTEGER,
-    lesson_date TEXT,
-    lesson_time TEXT,
-    duration INTEGER DEFAULT 60,
-    status TEXT DEFAULT 'Booked',
-    notes TEXT,
-    school_id INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    registration TEXT NOT NULL,
+    make TEXT NOT NULL,
+    model TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    transmission TEXT NOT NULL,
+    fuel TEXT NOT NULL,
+    status TEXT DEFAULT 'Available',
+    school_id INTEGER DEFAULT 1
   )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "VEHICLES TABLE ERROR:",
+        err.message
+      );
+    } else {
+      console.log(
+        "Vehicles table ready"
+      );
+    }
+  }
+);
   `,
   [],
   (err) => {
@@ -260,15 +256,32 @@ db.run(
   `
   CREATE TABLE IF NOT EXISTS payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER,
-    amount REAL DEFAULT 0,
-    payment_date TEXT,
-    payment_method TEXT,
+    receiptNo TEXT UNIQUE NOT NULL,
+    studentId INTEGER NOT NULL,
+    studentName TEXT NOT NULL,
+    paymentDate TEXT NOT NULL,
+    paymentMethod TEXT NOT NULL,
+    amount REAL NOT NULL,
     reference TEXT,
     notes TEXT,
-    school_id INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    school_id INTEGER DEFAULT 1
   )
+  `,
+  [],
+  (err) => {
+    if (err) {
+      console.error(
+        "PAYMENTS TABLE ERROR:",
+        err.message
+      );
+    } else {
+      console.log(
+        "Payments table ready"
+      );
+    }
+  }
+);
   `,
   [],
   (err) => {
@@ -486,7 +499,7 @@ db.run(
   INSERT OR IGNORE INTO schools
   (
     id,
-    schoolName,
+    name,
     address,
     phone,
     email
