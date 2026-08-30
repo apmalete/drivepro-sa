@@ -152,6 +152,7 @@ db.run(
     }
   }
 );
+
 // ======================================
 // CREATE INSTRUCTORS TABLE
 // ======================================
@@ -159,14 +160,14 @@ db.run(
 db.run(
   `
   CREATE TABLE IF NOT EXISTS instructors (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  licence TEXT NOT NULL,
-  experience TEXT NOT NULL,
-  status TEXT DEFAULT 'Active',
-  school_id INTEGER DEFAULT 1
-)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    licence TEXT NOT NULL,
+    experience TEXT NOT NULL,
+    status TEXT DEFAULT 'Active',
+    school_id INTEGER DEFAULT 1
+  )
   `,
   [],
   (err) => {
@@ -178,23 +179,6 @@ db.run(
     } else {
       console.log(
         "Instructors table ready"
-      );
-    }
-  }
-);
-
-
-  `,
-  [],
-  (err) => {
-    if (err) {
-      console.error(
-        "VEHICLES TABLE ERROR:",
-        err.message
-      );
-    } else {
-      console.log(
-        "Vehicles table ready"
       );
     }
   }
@@ -232,6 +216,23 @@ db.run(
     }
   }
 );
+
+// ======================================
+// CREATE LESSONS TABLE
+// ======================================
+
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS lessons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student TEXT NOT NULL,
+    instructor TEXT NOT NULL,
+    vehicle TEXT NOT NULL,
+    lesson_date TEXT NOT NULL,
+    lesson_time TEXT NOT NULL,
+    status TEXT DEFAULT 'Booked',
+    school_id INTEGER DEFAULT 1
+  )
   `,
   [],
   (err) => {
@@ -282,21 +283,7 @@ db.run(
     }
   }
 );
-  `,
-  [],
-  (err) => {
-    if (err) {
-      console.error(
-        "PAYMENTS TABLE ERROR:",
-        err.message
-      );
-    } else {
-      console.log(
-        "Payments table ready"
-      );
-    }
-  }
-);
+
 // ======================================
 // CREATE SETTINGS TABLE
 // ======================================
@@ -323,26 +310,6 @@ db.run(
       console.log(
         "Settings table ready"
       );
-    }
-  }
-);
-
-// ======================================
-// CREATE SQLITE SEQUENCE SUPPORT
-// ======================================
-
-db.run(
-  `
-  CREATE TABLE IF NOT EXISTS sqlite_sequence (
-    name TEXT,
-    seq INTEGER
-  )
-  `,
-  [],
-  (err) => {
-    if (err) {
-      // SQLite normally creates this automatically.
-      // This error can safely be ignored.
     }
   }
 );
@@ -490,6 +457,7 @@ db.run(
     }
   }
 );
+
 // ======================================
 // DEFAULT SCHOOL
 // ======================================
@@ -515,7 +483,6 @@ db.run(
   `,
   [],
   (err) => {
-
     if (err) {
       console.error(
         "DEFAULT SCHOOL ERROR:",
@@ -531,15 +498,12 @@ db.run(
   }
 );
 
-
 // ======================================
 // DEFAULT ADMIN
 // ======================================
 
 const setupDefaultAdmin = () => {
 
-  // Make sure the users table exists
-  // before checking or creating the admin.
   db.run(
     `
     CREATE TABLE IF NOT EXISTS users (
@@ -569,11 +533,6 @@ const setupDefaultAdmin = () => {
         "Users table confirmed for admin setup"
       );
 
-
-      // ======================================
-      // CHECK ADMIN ACCOUNT
-      // ======================================
-
       db.get(
         `
         SELECT id
@@ -592,11 +551,6 @@ const setupDefaultAdmin = () => {
 
             return;
           }
-
-
-          // ======================================
-          // ADMIN EXISTS
-          // ======================================
 
           if (row) {
 
@@ -622,7 +576,6 @@ const setupDefaultAdmin = () => {
               (updateErr) => {
 
                 if (updateErr) {
-
                   console.error(
                     "DEFAULT ADMIN UPDATE ERROR:",
                     updateErr.message
@@ -639,11 +592,6 @@ const setupDefaultAdmin = () => {
 
             return;
           }
-
-
-          // ======================================
-          // CREATE ADMIN ACCOUNT
-          // ======================================
 
           db.run(
             `
@@ -677,7 +625,6 @@ const setupDefaultAdmin = () => {
             (insertErr) => {
 
               if (insertErr) {
-
                 console.error(
                   "DEFAULT ADMIN INSERT ERROR:",
                   insertErr.message
@@ -697,12 +644,12 @@ const setupDefaultAdmin = () => {
   );
 };
 
-
 // ======================================
 // RUN DEFAULT ADMIN SETUP
 // ======================================
 
 setupDefaultAdmin();
+
 // ======================================
 // DATABASE READY CHECK
 // ======================================
@@ -729,7 +676,6 @@ db.serialize(() => {
     }
   );
 
-
   db.get(
     `SELECT COUNT(*) AS count FROM students`,
     [],
@@ -749,7 +695,6 @@ db.serialize(() => {
       );
     }
   );
-
 
   db.get(
     `SELECT COUNT(*) AS count FROM schools`,
@@ -772,7 +717,6 @@ db.serialize(() => {
   );
 
 });
-
 
 // ======================================
 // EXPORT DATABASE
