@@ -10,18 +10,34 @@ sqlite3.verbose();
 // SERVER DIRECTORY
 // ======================================
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename =
+  fileURLToPath(import.meta.url);
+
+const __dirname =
+  path.dirname(__filename);
 
 // ======================================
 // DATABASE PATH
 // ======================================
+//
+// LOCAL:
+//   server/drivepro.db
+//
+// RAILWAY:
+//   /app/data/drivepro.db
+//
+// The Railway path is the persistent
+// volume we created.
+// ======================================
 
-const databasePath = path.join(
-  __dirname,
-  "..",
-  "drivepro.db"
-);
+const databasePath =
+  process.env.NODE_ENV === "production"
+    ? "/app/data/drivepro.db"
+    : path.join(
+        __dirname,
+        "..",
+        "drivepro.db"
+      );
 
 console.log(
   "DATABASE PATH:",
@@ -32,21 +48,28 @@ console.log(
 // DATABASE CONNECTION
 // ======================================
 
-const db = new sqlite3.Database(
-  databasePath,
-  (err) => {
-    if (err) {
-      console.error(
-        "Database connection failed:",
-        err.message
-      );
-    } else {
-      console.log(
-        "Database Connected"
-      );
+const db =
+  new sqlite3.Database(
+    databasePath,
+    (err) => {
+
+      if (err) {
+
+        console.error(
+          "Database connection failed:",
+          err.message
+        );
+
+      } else {
+
+        console.log(
+          "Database Connected"
+        );
+
+      }
+
     }
-  }
-);
+  );
 
 // ======================================
 // CREATE STUDENTS TABLE
@@ -78,16 +101,22 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "STUDENTS TABLE ERROR:",
         err.message
       );
+
     } else {
+
       console.log(
         "Students table ready"
       );
+
     }
+
   }
 );
 
@@ -110,46 +139,65 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "USERS TABLE ERROR:",
         err.message
       );
+
     } else {
+
       console.log(
         "Users table ready"
       );
+
     }
+
   }
 );
 
 // ======================================
 // CREATE SCHOOLS TABLE
 // ======================================
+//
+// IMPORTANT:
+// These column names match the
+// schoolsController and usersController.
+// ======================================
 
 db.run(
   `
   CREATE TABLE IF NOT EXISTS schools (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    address TEXT,
-    phone TEXT,
-    email TEXT,
+    schoolName TEXT NOT NULL,
+    phone TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    address TEXT DEFAULT '',
+    registrationNumber TEXT DEFAULT '',
+    status TEXT DEFAULT 'Active',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   )
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "SCHOOLS TABLE ERROR:",
         err.message
       );
+
     } else {
+
       console.log(
         "Schools table ready"
       );
+
     }
+
   }
 );
 
@@ -171,16 +219,22 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "INSTRUCTORS TABLE ERROR:",
         err.message
       );
+
     } else {
+
       console.log(
         "Instructors table ready"
       );
+
     }
+
   }
 );
 
@@ -204,16 +258,22 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "VEHICLES TABLE ERROR:",
         err.message
       );
+
     } else {
+
       console.log(
         "Vehicles table ready"
       );
+
     }
+
   }
 );
 
@@ -236,16 +296,22 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "LESSONS TABLE ERROR:",
         err.message
       );
+
     } else {
+
       console.log(
         "Lessons table ready"
       );
+
     }
+
   }
 );
 
@@ -271,46 +337,66 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "PAYMENTS TABLE ERROR:",
         err.message
       );
+
     } else {
+
       console.log(
         "Payments table ready"
       );
+
     }
+
   }
 );
 
 // ======================================
 // CREATE SETTINGS TABLE
 // ======================================
+//
+// These columns match the
+// settingsController.
+// ======================================
 
 db.run(
   `
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    setting_key TEXT UNIQUE NOT NULL,
-    setting_value TEXT,
-    school_id INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    schoolName TEXT NOT NULL DEFAULT 'DrivePro-SA',
+    phone TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    address TEXT DEFAULT '',
+    registrationNumber TEXT DEFAULT '',
+    defaultLessonDuration INTEGER DEFAULT 60,
+    defaultLessonPrice REAL DEFAULT 0,
+    lessonDuration INTEGER DEFAULT 60,
+    lessonPrice REAL DEFAULT 0
   )
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "SETTINGS TABLE ERROR:",
         err.message
       );
+
     } else {
+
       console.log(
         "Settings table ready"
       );
+
     }
+
   }
 );
 
@@ -325,12 +411,16 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "STUDENTS SCHOOL INDEX ERROR:",
         err.message
       );
+
     }
+
   }
 );
 
@@ -341,12 +431,16 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "STUDENTS STATUS INDEX ERROR:",
         err.message
       );
+
     }
+
   }
 );
 
@@ -361,12 +455,16 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "USERS SCHOOL INDEX ERROR:",
         err.message
       );
+
     }
+
   }
 );
 
@@ -377,12 +475,16 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "USERS USERNAME INDEX ERROR:",
         err.message
       );
+
     }
+
   }
 );
 
@@ -397,12 +499,16 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "LESSONS STUDENT INDEX ERROR:",
         err.message
       );
+
     }
+
   }
 );
 
@@ -413,12 +519,16 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "LESSONS INSTRUCTOR INDEX ERROR:",
         err.message
       );
+
     }
+
   }
 );
 
@@ -429,12 +539,16 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "LESSONS DATE INDEX ERROR:",
         err.message
       );
+
     }
+
   }
 );
 
@@ -449,12 +563,16 @@ db.run(
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "PAYMENTS STUDENT INDEX ERROR:",
         err.message
       );
+
     }
+
   }
 );
 
@@ -467,10 +585,12 @@ db.run(
   INSERT OR IGNORE INTO schools
   (
     id,
-    name,
-    address,
+    schoolName,
     phone,
-    email
+    email,
+    address,
+    registrationNumber,
+    status
   )
   VALUES
   (
@@ -478,23 +598,29 @@ db.run(
     'DrivePro-SA',
     '',
     '',
-    ''
+    '',
+    '',
+    'Active'
   )
   `,
   [],
   (err) => {
+
     if (err) {
+
       console.error(
         "DEFAULT SCHOOL ERROR:",
         err.message
       );
 
-      return;
+    } else {
+
+      console.log(
+        "Default school ready"
+      );
+
     }
 
-    console.log(
-      "Default school ready"
-    );
   }
 );
 
@@ -521,12 +647,14 @@ const setupDefaultAdmin = () => {
     (tableErr) => {
 
       if (tableErr) {
+
         console.error(
           "DEFAULT ADMIN TABLE ERROR:",
           tableErr.message
         );
 
         return;
+
       }
 
       console.log(
@@ -544,12 +672,14 @@ const setupDefaultAdmin = () => {
         (err, row) => {
 
           if (err) {
+
             console.error(
               "DEFAULT ADMIN CHECK ERROR:",
               err.message
             );
 
             return;
+
           }
 
           if (row) {
@@ -568,7 +698,7 @@ const setupDefaultAdmin = () => {
               [
                 "Administrator",
                 "1234",
-                "Administrator",
+                "System Administrator",
                 "Active",
                 1,
                 "admin"
@@ -576,21 +706,25 @@ const setupDefaultAdmin = () => {
               (updateErr) => {
 
                 if (updateErr) {
+
                   console.error(
                     "DEFAULT ADMIN UPDATE ERROR:",
                     updateErr.message
                   );
 
                   return;
+
                 }
 
                 console.log(
                   "Default admin account updated"
                 );
+
               }
             );
 
             return;
+
           }
 
           db.run(
@@ -618,30 +752,36 @@ const setupDefaultAdmin = () => {
               "Administrator",
               "admin",
               "1234",
-              "Administrator",
+              "System Administrator",
               "Active",
               1
             ],
             (insertErr) => {
 
               if (insertErr) {
+
                 console.error(
                   "DEFAULT ADMIN INSERT ERROR:",
                   insertErr.message
                 );
 
                 return;
+
               }
 
               console.log(
                 "Default admin account created"
               );
+
             }
           );
+
         }
       );
+
     }
   );
+
 };
 
 // ======================================
@@ -662,17 +802,20 @@ db.serialize(() => {
     (err, row) => {
 
       if (err) {
+
         console.error(
           "DATABASE READY CHECK ERROR:",
           err.message
         );
 
         return;
+
       }
 
       console.log(
         `Users in database: ${row.count}`
       );
+
     }
   );
 
@@ -682,17 +825,20 @@ db.serialize(() => {
     (err, row) => {
 
       if (err) {
+
         console.error(
           "STUDENTS READY CHECK ERROR:",
           err.message
         );
 
         return;
+
       }
 
       console.log(
         `Students in database: ${row.count}`
       );
+
     }
   );
 
@@ -702,17 +848,20 @@ db.serialize(() => {
     (err, row) => {
 
       if (err) {
+
         console.error(
           "SCHOOLS READY CHECK ERROR:",
           err.message
         );
 
         return;
+
       }
 
       console.log(
         `Schools in database: ${row.count}`
       );
+
     }
   );
 
