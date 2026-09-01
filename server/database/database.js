@@ -23,8 +23,6 @@ const __dirname = path.dirname(__filename);
 // RAILWAY:
 //   /app/data/drivepro.db
 //
-// The Railway database is stored on the
-// persistent Railway volume.
 // =====================================================
 
 const databasePath =
@@ -75,7 +73,7 @@ const createTables = (callback) => {
     `
     CREATE TABLE IF NOT EXISTS students (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      studentNo TEXT UNIQUE,
+      studentNo TEXT,
       fullname TEXT NOT NULL,
       idNumber TEXT,
       gender TEXT,
@@ -355,22 +353,6 @@ const createTables = (callback) => {
 // =====================================================
 // MIGRATE SCHOOLS TABLE
 // =====================================================
-//
-// IMPORTANT:
-//
-// Older Railway databases may contain:
-//
-//   name
-//
-// while the current application expects:
-//
-//   schoolName
-//   registrationNumber
-//   status
-//
-// This migration preserves the existing table and
-// existing school data.
-// =====================================================
 
 const migrateSchoolsTable = (callback) => {
 
@@ -460,15 +442,6 @@ const migrateSchoolsTable = (callback) => {
           )
         ) {
           return next(null);
-        }
-
-        if (
-          !existingColumns.has(
-            "schoolName"
-          )
-        ) {
-          // schoolName was added above.
-          // Continue with the update.
         }
 
         db.run(
@@ -586,6 +559,380 @@ const migrateSchoolsTable = (callback) => {
           });
         });
       });
+    }
+  );
+};
+
+// =====================================================
+// MIGRATE STUDENT NUMBERS
+// =====================================================
+//
+// OLD DATABASE:
+//   studentNo TEXT UNIQUE
+//
+// PROBLEM:
+//   Student numbers were globally unique.
+//
+// CORRECT DATABASE:
+//   studentNo TEXT
+//
+//   UNIQUE(school_id, studentNo)
+//
+// This allows:
+//
+//   School 1 + Student 1 -> allowed
+//   School 2 + Student 1 -> allowed
+//
+// But:
+//
+//   School 2 + Student 1
+//   School 2 + Student 1 -> NOT allowed
+//
+// =====================================================
+
+const migrateStudentNumbers = (callback) => {
+
+  console.log(
+    "***** STARTING STUDENT NUMBER MIGRATION *****"
+  );
+
+  // ===================================================
+  // CHECK IF NEW INDEX ALREADY EXISTS
+  // ===================================================
+
+  db.get(
+    `
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'index'
+      AND name = 'idx_students_school_studentNo'
+    `,
+    [],
+    (err, existingIndex) => {
+
+      if (err) {
+
+        console.error(
+          "STUDENT NUMBER MIGRATION CHECK ERROR:",
+          err.message
+        );
+
+        return callback(err);
+      }
+
+      // -------------------------------------------------
+      // If already migrated, stop here.
+      // -------------------------------------------------
+
+      if (existingIndex) {
+
+        console.log(
+          "Student number migration already complete"
+        );
+
+        return callback(null);
+      }
+
+      // =================================================
+      // CHECK FOR DUPLICATES WITHIN THE SAME SCHOOL
+      // =================================================
+
+      db.all(
+        `
+        SELECT
+          school_id,
+          studentNo,
+          COUNT(*) AS count
+        FROM students
+        WHERE studentNo IS NOT NULL
+          AND TRIM(studentNo) <> ''
+        GROUP BY
+          school_id,
+          studentNo
+        HAVING COUNT(*) > 1
+        `,
+        [],
+        (duplicateErr, duplicates) => {
+
+          if (duplicateErr) {
+
+            console.error(
+              "STUDENT NUMBER DUPLICATE CHECK ERROR:",
+              duplicateErr.message
+            );
+
+            return callback(
+              duplicateErr
+            );
+          }
+
+          // ------------------------------------------------
+          // Do not change the database if existing records
+          // already contain a duplicate within one school.
+          // ------------------------------------------------
+
+          if (
+            duplicates &&
+            duplicates.length > 0
+          ) {
+
+            console.error(
+              "STUDENT NUMBER MIGRATION STOPPED."
+            );
+
+            console.error(
+              "Duplicate student numbers found within the same school:",
+              duplicates
+            );
+
+            return callback(
+              new Error(
+                "Duplicate student numbers exist within the same school. Migration stopped to protect existing data."
+              )
+            );
+          }
+
+          // =================================================
+          // CREATE TEMPORARY TABLE
+          // =================================================
+
+          db.serialize(() => {
+
+            console.log(
+              "Creating temporary students table..."
+            );
+
+            db.run(
+              `
+              CREATE TABLE students_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                studentNo TEXT,
+                fullname TEXT NOT NULL,
+                idNumber TEXT,
+                gender TEXT,
+                phone TEXT NOT NULL,
+                email TEXT,
+                address TEXT,
+                learnerNumber TEXT,
+                licenceCode TEXT,
+                instructor TEXT,
+                vehicle TEXT,
+                courseFee REAL DEFAULT 0,
+                amountPaid REAL DEFAULT 0,
+                balance REAL DEFAULT 0,
+                photo TEXT,
+                status TEXT DEFAULT 'Active',
+                school_id INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+              )
+              `,
+              [],
+              (createErr) => {
+
+                if (createErr) {
+
+                  console.error(
+                    "STUDENTS NEW TABLE ERROR:",
+                    createErr.message
+                  );
+
+                  return callback(
+                    createErr
+                  );
+                }
+
+                console.log(
+                  "Temporary students table created"
+                );
+
+                // =================================================
+                // COPY EXISTING STUDENTS
+                // =================================================
+
+                db.run(
+                  `
+                  INSERT INTO students_new
+                  (
+                    id,
+                    studentNo,
+                    fullname,
+                    idNumber,
+                    gender,
+                    phone,
+                    email,
+                    address,
+                    learnerNumber,
+                    licenceCode,
+                    instructor,
+                    vehicle,
+                    courseFee,
+                    amountPaid,
+                    balance,
+                    photo,
+                    status,
+                    school_id,
+                    created_at
+                  )
+                  SELECT
+                    id,
+                    studentNo,
+                    fullname,
+                    idNumber,
+                    gender,
+                    phone,
+                    email,
+                    address,
+                    learnerNumber,
+                    licenceCode,
+                    instructor,
+                    vehicle,
+                    courseFee,
+                    amountPaid,
+                    balance,
+                    photo,
+                    status,
+                    school_id,
+                    created_at
+                  FROM students
+                  `,
+                  [],
+                  (copyErr) => {
+
+                    if (copyErr) {
+
+                      console.error(
+                        "STUDENTS DATA COPY ERROR:",
+                        copyErr.message
+                      );
+
+                      db.run(
+                        `
+                        DROP TABLE IF EXISTS students_new
+                        `,
+                        [],
+                        () => {
+                          callback(copyErr);
+                        }
+                      );
+
+                      return;
+                    }
+
+                    console.log(
+                      "Existing students copied successfully"
+                    );
+
+                    // =================================================
+                    // DROP OLD STUDENTS TABLE
+                    // =================================================
+
+                    db.run(
+                      `
+                      DROP TABLE students
+                      `,
+                      [],
+                      (dropErr) => {
+
+                        if (dropErr) {
+
+                          console.error(
+                            "OLD STUDENTS TABLE DROP ERROR:",
+                            dropErr.message
+                          );
+
+                          db.run(
+                            `
+                            DROP TABLE IF EXISTS students_new
+                            `,
+                            [],
+                            () => {
+                              callback(dropErr);
+                            }
+                          );
+
+                          return;
+                        }
+
+                        console.log(
+                          "Old students table removed"
+                        );
+
+                        // =================================================
+                        // RENAME NEW TABLE
+                        // =================================================
+
+                        db.run(
+                          `
+                          ALTER TABLE students_new
+                          RENAME TO students
+                          `,
+                          [],
+                          (renameErr) => {
+
+                            if (renameErr) {
+
+                              console.error(
+                                "STUDENTS TABLE RENAME ERROR:",
+                                renameErr.message
+                              );
+
+                              return callback(
+                                renameErr
+                              );
+                            }
+
+                            console.log(
+                              "Students table rebuilt successfully"
+                            );
+
+                            // =================================================
+                            // CREATE SCHOOL-SPECIFIC UNIQUE INDEX
+                            // =================================================
+
+                            db.run(
+                              `
+                              CREATE UNIQUE INDEX IF NOT EXISTS
+                              idx_students_school_studentNo
+                              ON students
+                              (
+                                school_id,
+                                studentNo
+                              )
+                              `,
+                              [],
+                              (indexErr) => {
+
+                                if (indexErr) {
+
+                                  console.error(
+                                    "STUDENT NUMBER UNIQUE INDEX ERROR:",
+                                    indexErr.message
+                                  );
+
+                                  return callback(
+                                    indexErr
+                                  );
+                                }
+
+                                console.log(
+                                  "Student number migration complete"
+                                );
+
+                                callback(null);
+                              }
+                            );
+                          }
+                        );
+                      }
+                    );
+                  }
+                );
+              }
+            );
+
+          });
+        }
+      );
     }
   );
 };
@@ -967,18 +1314,14 @@ const databaseReadyCheck = () => {
 // INITIALIZE DATABASE
 // =====================================================
 //
-// IMPORTANT:
-// Everything runs in this order:
-//
 // 1. Create tables
-// 2. Migrate old schools table
-// 3. Create indexes
-// 4. Create default school
-// 5. Create/update admin
-// 6. Run ready checks
+// 2. Migrate schools
+// 3. Migrate student numbers
+// 4. Create indexes
+// 5. Create default school
+// 6. Create/update admin
+// 7. Run ready checks
 //
-// This prevents the old schools schema from causing
-// the DEFAULT SCHOOL ERROR.
 // =====================================================
 
 createTables((err) => {
@@ -998,50 +1341,64 @@ createTables((err) => {
     if (err) {
 
       console.error(
-        "DATABASE MIGRATION FAILED:",
+        "DATABASE SCHOOLS MIGRATION FAILED:",
         err.message
       );
 
       return;
     }
 
-    createIndexes((err) => {
+    migrateStudentNumbers((err) => {
 
       if (err) {
 
         console.error(
-          "DATABASE INDEX CREATION FAILED:",
+          "DATABASE STUDENT NUMBER MIGRATION FAILED:",
           err.message
         );
 
         return;
       }
 
-      setupDefaultSchool((err) => {
+      createIndexes((err) => {
 
         if (err) {
 
           console.error(
-            "DEFAULT SCHOOL SETUP FAILED:",
+            "DATABASE INDEX CREATION FAILED:",
             err.message
           );
 
           return;
         }
 
-        setupDefaultAdmin((err) => {
+        setupDefaultSchool((err) => {
 
           if (err) {
 
             console.error(
-              "DEFAULT ADMIN SETUP FAILED:",
+              "DEFAULT SCHOOL SETUP FAILED:",
               err.message
             );
 
             return;
           }
 
-          databaseReadyCheck();
+          setupDefaultAdmin((err) => {
+
+            if (err) {
+
+              console.error(
+                "DEFAULT ADMIN SETUP FAILED:",
+                err.message
+              );
+
+              return;
+            }
+
+            databaseReadyCheck();
+
+          });
 
         });
 
