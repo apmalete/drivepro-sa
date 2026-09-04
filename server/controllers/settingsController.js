@@ -5,14 +5,25 @@ import db from "../database/database.js";
 // ======================================
 
 export const getSettings = (req, res) => {
-  db.all(
+  db.get(
     `
-    SELECT setting_key, setting_value
+    SELECT
+      id,
+      schoolName,
+      phone,
+      email,
+      address,
+      registrationNumber,
+      defaultLessonDuration,
+      defaultLessonPrice,
+      lessonDuration,
+      lessonPrice
     FROM settings
-    WHERE school_id = 1
+    WHERE id = 1
+    LIMIT 1
     `,
     [],
-    (err, rows) => {
+    (err, row) => {
       if (err) {
         console.error(
           "GET SETTINGS ERROR:",
@@ -25,7 +36,10 @@ export const getSettings = (req, res) => {
         });
       }
 
-      // Default settings
+      // ======================================
+      // DEFAULT SETTINGS
+      // ======================================
+
       const settings = {
         id: 1,
         schoolName: "DrivePro-SA",
@@ -35,42 +49,52 @@ export const getSettings = (req, res) => {
         registrationNumber: "",
         defaultLessonDuration: 60,
         defaultLessonPrice: 0,
+        lessonDuration: 60,
+        lessonPrice: 0,
       };
 
-      // Convert database key/value rows
-      // into the format expected by the frontend
-      rows.forEach((row) => {
-        if (row.setting_key === "schoolName") {
-          settings.schoolName = row.setting_value;
-        }
+      // ======================================
+      // RETURN DATABASE SETTINGS
+      // ======================================
 
-        if (row.setting_key === "phone") {
-          settings.phone = row.setting_value;
-        }
+      if (row) {
+        settings.id = row.id || 1;
 
-        if (row.setting_key === "email") {
-          settings.email = row.setting_value;
-        }
+        settings.schoolName =
+          row.schoolName || "DrivePro-SA";
 
-        if (row.setting_key === "address") {
-          settings.address = row.setting_value;
-        }
+        settings.phone =
+          row.phone || "";
 
-        if (row.setting_key === "registrationNumber") {
-          settings.registrationNumber =
-            row.setting_value;
-        }
+        settings.email =
+          row.email || "";
 
-        if (row.setting_key === "defaultLessonDuration") {
-          settings.defaultLessonDuration =
-            Number(row.setting_value) || 60;
-        }
+        settings.address =
+          row.address || "";
 
-        if (row.setting_key === "defaultLessonPrice") {
-          settings.defaultLessonPrice =
-            Number(row.setting_value) || 0;
-        }
-      });
+        settings.registrationNumber =
+          row.registrationNumber || "";
+
+        settings.defaultLessonDuration =
+          Number(
+            row.defaultLessonDuration
+          ) || 60;
+
+        settings.defaultLessonPrice =
+          Number(
+            row.defaultLessonPrice
+          ) || 0;
+
+        settings.lessonDuration =
+          Number(
+            row.lessonDuration
+          ) || 60;
+
+        settings.lessonPrice =
+          Number(
+            row.lessonPrice
+          ) || 0;
+      }
 
       res.json(settings);
     }
@@ -92,6 +116,10 @@ export const updateSettings = (req, res) => {
     defaultLessonPrice,
   } = req.body;
 
+  // ======================================
+  // VALIDATE SCHOOL NAME
+  // ======================================
+
   if (
     !schoolName ||
     !String(schoolName).trim()
@@ -103,88 +131,156 @@ export const updateSettings = (req, res) => {
     });
   }
 
-  const settingsToSave = {
-    schoolName: String(schoolName).trim(),
-    phone: phone || "",
-    email: email || "",
-    address: address || "",
-    registrationNumber:
-      registrationNumber || "",
-    defaultLessonDuration:
-      Number(defaultLessonDuration) || 60,
-    defaultLessonPrice:
-      Number(defaultLessonPrice) || 0,
-  };
+  // ======================================
+  // PREPARE VALUES
+  // ======================================
 
-  const entries = Object.entries(
-    settingsToSave
-  );
+  const schoolNameValue =
+    String(schoolName).trim();
 
-  db.serialize(() => {
-    const stmt = db.prepare(
-      `
-      INSERT INTO settings
-      (
-        setting_key,
-        setting_value,
-        school_id,
-        updated_at
-      )
-      VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+  const phoneValue =
+    phone == null
+      ? ""
+      : String(phone).trim();
 
-      ON CONFLICT(setting_key)
-      DO UPDATE SET
-        setting_value = excluded.setting_value,
-        updated_at = CURRENT_TIMESTAMP
-      `
-    );
+  const emailValue =
+    email == null
+      ? ""
+      : String(email).trim();
 
-    let errorOccurred = false;
+  const addressValue =
+    address == null
+      ? ""
+      : String(address).trim();
 
-    entries.forEach(
-      ([key, value]) => {
-        stmt.run(
-          key,
-          String(value),
-          (err) => {
-            if (err && !errorOccurred) {
-              errorOccurred = true;
+  const registrationNumberValue =
+    registrationNumber == null
+      ? ""
+      : String(
+          registrationNumber
+        ).trim();
 
-              console.error(
-                "UPDATE SETTINGS ERROR:",
-                err.message
-              );
-            }
-          }
-        );
-      }
-    );
+  const lessonDurationValue =
+    Number(
+      defaultLessonDuration
+    ) || 60;
 
-    stmt.finalize((err) => {
+  const lessonPriceValue =
+    Number(
+      defaultLessonPrice
+    ) || 0;
+
+  // ======================================
+  // UPDATE EXISTING SETTINGS RECORD
+  // ======================================
+
+  db.run(
+    `
+    UPDATE settings
+    SET
+      schoolName = ?,
+      phone = ?,
+      email = ?,
+      address = ?,
+      registrationNumber = ?,
+      defaultLessonDuration = ?,
+      defaultLessonPrice = ?
+    WHERE id = 1
+    `,
+    [
+      schoolNameValue,
+      phoneValue,
+      emailValue,
+      addressValue,
+      registrationNumberValue,
+      lessonDurationValue,
+      lessonPriceValue,
+    ],
+    function (err) {
       if (err) {
         console.error(
-          "FINALIZE SETTINGS ERROR:",
+          "UPDATE SETTINGS ERROR:",
           err.message
         );
 
         return res.status(500).json({
           success: false,
-          message: err.message,
+          message:
+            "Failed to save settings.",
+          error: err.message,
         });
       }
 
-      if (errorOccurred) {
-        return res.status(500).json({
-          success: false,
-          message: "Failed to save settings.",
-        });
+      // ======================================
+      // IF NO RECORD EXISTS, CREATE ONE
+      // ======================================
+
+      if (this.changes === 0) {
+        db.run(
+          `
+          INSERT INTO settings
+          (
+            id,
+            schoolName,
+            phone,
+            email,
+            address,
+            registrationNumber,
+            defaultLessonDuration,
+            defaultLessonPrice,
+            lessonDuration,
+            lessonPrice
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            1,
+            schoolNameValue,
+            phoneValue,
+            emailValue,
+            addressValue,
+            registrationNumberValue,
+            lessonDurationValue,
+            lessonPriceValue,
+            60,
+            0,
+          ],
+          (insertErr) => {
+            if (insertErr) {
+              console.error(
+                "INSERT SETTINGS ERROR:",
+                insertErr.message
+              );
+
+              return res.status(500).json({
+                success: false,
+                message:
+                  "Failed to save settings.",
+                error:
+                  insertErr.message,
+              });
+            }
+
+            return res.json({
+              success: true,
+              message:
+                "Settings saved successfully.",
+            });
+          }
+        );
+
+        return;
       }
+
+      // ======================================
+      // SUCCESS
+      // ======================================
 
       res.json({
         success: true,
         message:
           "Settings saved successfully.",
       });
-    });
-  });
+    }
+  );
 };

@@ -3,6 +3,7 @@ import {
   Button,
   Paper,
   Typography,
+  Box,
 } from "@mui/material";
 
 import PaymentForm from "../Components/PaymentForm";
@@ -30,7 +31,8 @@ const emptyPayment: Payment = {
   courseFee: 0,
   amountPaid: 0,
   balance: 0,
-  paymentDate: new Date().toISOString().split("T")[0],
+  paymentDate:
+    new Date().toISOString().split("T")[0],
   paymentMethod: "Cash",
   amount: 0,
   reference: "",
@@ -38,10 +40,17 @@ const emptyPayment: Payment = {
 };
 
 export default function Payments() {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [payment, setPayment] = useState<Payment>(emptyPayment);
-  const [open, setOpen] = useState(false);
+  const [payments, setPayments] =
+    useState<Payment[]>([]);
+
+  const [students, setStudents] =
+    useState<Student[]>([]);
+
+  const [payment, setPayment] =
+    useState<Payment>(emptyPayment);
+
+  const [open, setOpen] =
+    useState(false);
 
   useEffect(() => {
     loadPayments();
@@ -67,7 +76,9 @@ export default function Payments() {
   }
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement
+    >
   ) => {
     const { name, value } = e.target;
 
@@ -82,9 +93,15 @@ export default function Payments() {
           studentId: student.id!,
           studentName: student.fullname,
           studentNumber: student.studentNo,
-          courseFee: Number(student.courseFee),
-          amountPaid: Number(student.amountPaid),
-          balance: Number(student.balance),
+          courseFee: Number(
+            student.courseFee
+          ),
+          amountPaid: Number(
+            student.amountPaid
+          ),
+          balance: Number(
+            student.balance
+          ),
         });
       }
 
@@ -115,7 +132,8 @@ export default function Payments() {
     setPayment({
       ...emptyPayment,
       receiptNo: `REC${Date.now()}`,
-      paymentDate: new Date().toISOString().split("T")[0],
+      paymentDate:
+        new Date().toISOString().split("T")[0],
     });
 
     setOpen(true);
@@ -124,12 +142,17 @@ export default function Payments() {
   const handleSave = async () => {
     try {
       if (payment.id) {
-        await updatePayment(payment.id, payment);
+        await updatePayment(
+          payment.id,
+          payment
+        );
       } else {
         await addPayment(payment);
       }
 
-      alert("Payment saved successfully.");
+      alert(
+        "Payment saved successfully."
+      );
 
       setOpen(false);
       setPayment(emptyPayment);
@@ -141,15 +164,21 @@ export default function Payments() {
     }
   };
 
-  const handleEdit = (selectedPayment: Payment) => {
+  const handleEdit = (
+    selectedPayment: Payment
+  ) => {
     setPayment(selectedPayment);
     setOpen(true);
   };
 
-  const handlePrint = (selectedPayment: Payment) => {
+  const handlePrint = (
+    selectedPayment: Payment
+  ) => {
     const student =
       students.find(
-        (s) => s.id === selectedPayment.studentId
+        (s) =>
+          s.id ===
+          selectedPayment.studentId
       ) || null;
 
     generatePaymentReceipt(
@@ -158,8 +187,16 @@ export default function Payments() {
     );
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("Delete this payment?")) return;
+  const handleDelete = async (
+    id: number
+  ) => {
+    if (
+      !window.confirm(
+        "Delete this payment?"
+      )
+    ) {
+      return;
+    }
 
     try {
       await deletePayment(id);
@@ -170,34 +207,76 @@ export default function Payments() {
   };
 
   return (
-    <Paper sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        💳 Payments
-      </Typography>
-
-      <Button
-        variant="contained"
-        onClick={handleNew}
-        sx={{ mb: 2 }}
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+      }}
+    >
+      <Paper
+        sx={{
+          p: {
+            xs: 2,
+            sm: 3,
+          },
+          width: "100%",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
       >
-        New Payment
-      </Button>
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{
+            fontSize: {
+              xs: "28px",
+              sm: "32px",
+            },
+            wordBreak: "break-word",
+          }}
+        >
+          💳 Payments
+        </Typography>
 
-      <PaymentTable
-        payments={payments}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onPrint={handlePrint}
-      />
+        <Button
+          variant="contained"
+          onClick={handleNew}
+          sx={{
+            mb: 2,
+          }}
+        >
+          New Payment
+        </Button>
 
-      <PaymentForm
-        open={open}
-        payment={payment}
-        students={students}
-        onClose={() => setOpen(false)}
-        onChange={handleChange}
-        onSave={handleSave}
-      />
-    </Paper>
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+          }}
+        >
+          <PaymentTable
+            payments={payments}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onPrint={handlePrint}
+          />
+        </Box>
+
+        <PaymentForm
+          open={open}
+          payment={payment}
+          students={students}
+          onClose={() =>
+            setOpen(false)
+          }
+          onChange={handleChange}
+          onSave={handleSave}
+        />
+      </Paper>
+    </Box>
   );
 }

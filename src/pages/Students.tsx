@@ -5,6 +5,9 @@ import {
   Paper,
   Typography,
   Button,
+  Tabs,
+  Tab,
+  Box,
 } from "@mui/material";
 
 import AddIcon from "@mui/icons-material/Add";
@@ -74,6 +77,12 @@ type Vehicle = {
 };
 
 // ==========================================
+// STUDENT VIEW TYPES
+// ==========================================
+
+type StudentView = "all" | "learners" | "licences";
+
+// ==========================================
 // STUDENTS PAGE
 // ==========================================
 
@@ -107,6 +116,9 @@ export default function Students() {
 
   const [payment, setPayment] =
     useState<Payment>(emptyPayment);
+
+  const [studentView, setStudentView] =
+    useState<StudentView>("all");
 
   // ==========================================
   // LOAD STUDENTS
@@ -465,6 +477,17 @@ export default function Students() {
     };
 
   // ==========================================
+  // CHANGE STUDENT VIEW
+  // ==========================================
+
+  const handleViewChange = (
+    _event: React.SyntheticEvent,
+    newValue: StudentView
+  ) => {
+    setStudentView(newValue);
+  };
+
+  // ==========================================
   // PAGE
   // ==========================================
 
@@ -481,8 +504,52 @@ export default function Students() {
           variant="h4"
           gutterBottom
         >
-          🎓 Student Management
+          ?? Student Management
         </Typography>
+
+        {/* STUDENT SECTIONS */}
+
+        <Box
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            mb: 3,
+          }}
+        >
+          <Tabs
+            value={studentView}
+            onChange={handleViewChange}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab
+              value="all"
+              label={`ALL STUDENTS (${students.length})`}
+            />
+
+            <Tab
+              value="learners"
+              label={`LEARNERS (${
+                students.filter(
+                  (student) =>
+                    (student.learnerStatus || "Not Applicable") !==
+                    "Not Applicable"
+                ).length
+              })`}
+            />
+
+            <Tab
+              value="licences"
+              label={`LICENCES (${
+                students.filter(
+                  (student) =>
+                    (student.licenceStatus || "Not Applicable") !==
+                    "Not Applicable"
+                ).length
+              })`}
+            />
+          </Tabs>
+        </Box>
 
         {/* ADD STUDENT */}
 
@@ -501,6 +568,7 @@ export default function Students() {
 
         <StudentTable
           students={students}
+          view={studentView}
           onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -583,3 +651,4 @@ export default function Students() {
     </Container>
   );
 }
+

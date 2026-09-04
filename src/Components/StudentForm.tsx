@@ -31,7 +31,10 @@ const emptyStudent: Student = {
   email: "",
   address: "",
   learnerNumber: "",
+  learnerCode: "",
+  learnerStatus: "Active",
   licenceCode: "Code B",
+  licenceStatus: "Not Applicable",
   instructor: "",
   vehicle: "",
   courseFee: 0,
@@ -276,9 +279,17 @@ export default function StudentForm({
 
         school_id:
           studentToSave.school_id,
+
+        learnerCode:
+          studentToSave.learnerCode,
+
+        learnerStatus:
+          studentToSave.learnerStatus,
+
+        licenceStatus:
+          studentToSave.licenceStatus,
       }
     );
-
     // ===============================================
     // SEND TO PARENT
     // ===============================================
@@ -529,6 +540,79 @@ export default function StudentForm({
                   }
                 />
               </Grid>
+              <Grid
+                size={{
+                  xs: 12,
+                  md: 6,
+                }}
+              >
+                <TextField
+                  select
+                  fullWidth
+                  label="Learner Code"
+                  name="learnerCode"
+                  value={
+                    form.learnerCode
+                  }
+                  onChange={
+                    handleChange
+                  }
+                >
+                  <MenuItem value="">
+                    Select Learner Code
+                  </MenuItem>
+
+                  <MenuItem value="Code 8">
+                    Code 8
+                  </MenuItem>
+
+                  <MenuItem value="Code 10">
+                    Code 10
+                  </MenuItem>
+
+                  <MenuItem value="EC">
+                    EC
+                  </MenuItem>
+                </TextField>
+              </Grid>
+
+
+              <Grid
+                size={{
+                  xs: 12,
+                  md: 6,
+                }}
+              >
+                <TextField
+                  select
+                  fullWidth
+                  label="Learner Status"
+                  name="learnerStatus"
+                  value={
+                    form.learnerStatus
+                  }
+                  onChange={
+                    handleChange
+                  }
+                >
+                  <MenuItem value="Not Applicable">
+                    Not Applicable
+                  </MenuItem>
+
+                  <MenuItem value="Active">
+                    Active
+                  </MenuItem>
+
+                  <MenuItem value="Complete">
+                    Complete
+                  </MenuItem>
+
+                  <MenuItem value="Inactive">
+                    Inactive
+                  </MenuItem>
+                </TextField>
+              </Grid>
+
 
               <Grid
                 size={{
@@ -562,6 +646,42 @@ export default function StudentForm({
 
                   <MenuItem value="Code EC">
                     Code EC
+                  </MenuItem>
+                </TextField>
+              </Grid>
+
+              <Grid
+                size={{
+                  xs: 12,
+                  md: 6,
+                }}
+              >
+                <TextField
+                  select
+                  fullWidth
+                  label="Licence Status"
+                  name="licenceStatus"
+                  value={
+                    form.licenceStatus
+                  }
+                  onChange={
+                    handleChange
+                  }
+                >
+                  <MenuItem value="Not Applicable">
+                    Not Applicable
+                  </MenuItem>
+
+                  <MenuItem value="Active">
+                    Active
+                  </MenuItem>
+
+                  <MenuItem value="Complete">
+                    Complete
+                  </MenuItem>
+
+                  <MenuItem value="Inactive">
+                    Inactive
                   </MenuItem>
                 </TextField>
               </Grid>
@@ -724,3 +844,7 @@ export default function StudentForm({
     </Dialog>
   );
 }
+
+
+
+

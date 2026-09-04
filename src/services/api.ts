@@ -6,8 +6,7 @@ import axios from "axios";
 
 // Railway production backend
 const api = axios.create({
-  baseURL:
-    "https://drivepro-sa-production.up.railway.app",
+  baseURL: import.meta.env.VITE_API_URL,
 });
 
 // ==========================================
@@ -63,3 +62,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+

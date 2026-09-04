@@ -91,7 +91,10 @@ export const addStudent = (req, res) => {
     email,
     address,
     learnerNumber,
+    learnerCode,
+    learnerStatus,
     licenceCode,
+    licenceStatus,
     instructor,
     vehicle,
     courseFee,
@@ -113,7 +116,10 @@ export const addStudent = (req, res) => {
       email,
       address,
       learnerNumber,
+      learnerCode,
+      learnerStatus,
       licenceCode,
+      licenceStatus,
       instructor,
       vehicle,
       courseFee,
@@ -124,7 +130,7 @@ export const addStudent = (req, res) => {
       school_id
     )
     VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       studentNo,
@@ -135,7 +141,10 @@ export const addStudent = (req, res) => {
       email,
       address,
       learnerNumber,
+      learnerCode,
+      learnerStatus,
       licenceCode,
+      licenceStatus,
       instructor,
       vehicle,
       courseFee,
@@ -144,8 +153,7 @@ export const addStudent = (req, res) => {
       photo,
       status,
       schoolId,
-    ],
-    function (err) {
+    ],    function (err) {
 
       if (err) {
 
@@ -176,6 +184,8 @@ export const addStudent = (req, res) => {
 
 export const updateStudent = (req, res) => {
 
+
+
   const schoolId =
     getSchoolId(req);
 
@@ -196,7 +206,10 @@ export const updateStudent = (req, res) => {
     email,
     address,
     learnerNumber,
+    learnerCode,
+    learnerStatus,
     licenceCode,
+    licenceStatus,
     instructor,
     vehicle,
     courseFee,
@@ -218,7 +231,10 @@ export const updateStudent = (req, res) => {
       email = ?,
       address = ?,
       learnerNumber = ?,
+      learnerCode = ?,
+      learnerStatus = ?,
       licenceCode = ?,
+      licenceStatus = ?,
       instructor = ?,
       vehicle = ?,
       courseFee = ?,
@@ -238,7 +254,10 @@ export const updateStudent = (req, res) => {
       email,
       address,
       learnerNumber,
+      learnerCode,
+      learnerStatus,
       licenceCode,
+      licenceStatus,
       instructor,
       vehicle,
       courseFee,
@@ -248,8 +267,7 @@ export const updateStudent = (req, res) => {
       status,
       req.params.id,
       schoolId,
-    ],
-    function (err) {
+    ],    function (err) {
 
       if (err) {
 
@@ -341,3 +359,10 @@ export const deleteStudent = (req, res) => {
     }
   );
 };
+
+
+
+
+
+
+

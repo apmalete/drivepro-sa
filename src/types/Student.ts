@@ -17,7 +17,13 @@ export interface Student {
 
   learnerNumber: string;
 
+  learnerCode: string;
+
+  learnerStatus: string;
+
   licenceCode: string;
+
+  licenceStatus: string;
 
   instructor: string;
 
@@ -36,3 +42,4 @@ export interface Student {
   // School that owns this student
   school_id?: number;
 }
+

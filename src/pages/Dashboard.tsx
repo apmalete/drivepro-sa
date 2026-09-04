@@ -64,6 +64,39 @@ interface TodaysLesson {
 
 function Dashboard() {
   // ==========================================
+  // GET LOGGED-IN USER ROLE
+  // ==========================================
+
+  const storedUser = localStorage.getItem("user");
+
+  let currentUser: {
+    fullname?: string;
+    username?: string;
+    role?: string;
+    school_id?: number;
+  } = {};
+
+  try {
+    if (storedUser) {
+      currentUser = JSON.parse(storedUser);
+    }
+  } catch (error) {
+    console.error(
+      "Error reading logged-in user:",
+      error
+    );
+  }
+
+  const role = String(
+    currentUser.role || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const isInstructor =
+    role === "instructor";
+
+  // ==========================================
   // DASHBOARD STATE
   // ==========================================
 
@@ -424,31 +457,33 @@ function Dashboard() {
               FINANCIAL STATISTICS
           ================================== */}
 
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "repeat(2, 1fr)",
-              },
-              gap: 2,
-              mt: 3,
-            }}
-          >
-            <DashboardCard
-              title="💰 Monthly Income"
-              value={formatMoney(
-                dashboard.monthlyIncome
-              )}
-            />
+          {!isInstructor && (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "repeat(2, 1fr)",
+                },
+                gap: 2,
+                mt: 3,
+              }}
+            >
+              <DashboardCard
+                title="💰 Monthly Income"
+                value={formatMoney(
+                  dashboard.monthlyIncome
+                )}
+              />
 
-            <DashboardCard
-              title="💳 Outstanding Balance"
-              value={formatMoney(
-                dashboard.outstandingBalance
-              )}
-            />
-          </Box>
+              <DashboardCard
+                title="💳 Outstanding Balance"
+                value={formatMoney(
+                  dashboard.outstandingBalance
+                )}
+              />
+            </Box>
+          )}
 
           {/* =================================
               LOWER SECTION

@@ -81,7 +81,10 @@ const createTables = (callback) => {
       email TEXT,
       address TEXT,
       learnerNumber TEXT,
+      learnerCode TEXT,
+      learnerStatus TEXT DEFAULT 'Not Applicable',
       licenceCode TEXT,
+      licenceStatus TEXT DEFAULT 'Not Applicable',
       instructor TEXT,
       vehicle TEXT,
       courseFee REAL DEFAULT 0,
@@ -564,6 +567,124 @@ const migrateSchoolsTable = (callback) => {
 };
 
 // =====================================================
+// MIGRATE LEARNER AND LICENCE STATUS
+// =====================================================
+
+const migrateLearnerLicenceStatus = (callback) => {
+
+  db.all(
+    "PRAGMA table_info(students)",
+    [],
+    (err, columns) => {
+
+      if (err) {
+        console.error(
+          "STUDENT STATUS COLUMN CHECK FAILED:",
+          err.message
+        );
+
+        return callback(err);
+      }
+
+      const columnNames = columns.map(
+        (column) => column.name
+      );
+
+      const addLearnerStatus =
+        !columnNames.includes("learnerStatus");
+
+      const addLicenceStatus =
+        !columnNames.includes("licenceStatus");
+
+      const addColumn = (sql, next) => {
+
+        db.run(
+          sql,
+          [],
+          (columnErr) => {
+
+            if (columnErr) {
+              console.error(
+                "STUDENT STATUS COLUMN MIGRATION FAILED:",
+                columnErr.message
+              );
+
+              return next(columnErr);
+            }
+
+            next(null);
+          }
+        );
+
+      };
+
+      const finish = () => {
+        console.log(
+          "Learner/licence status migration completed"
+        );
+
+        callback(null);
+      };
+
+      if (addLearnerStatus) {
+
+        addColumn(
+          "ALTER TABLE students ADD COLUMN learnerStatus TEXT DEFAULT 'Not Applicable'",
+          (learnerErr) => {
+
+            if (learnerErr) {
+              return callback(learnerErr);
+            }
+
+            if (addLicenceStatus) {
+
+              addColumn(
+                "ALTER TABLE students ADD COLUMN licenceStatus TEXT DEFAULT 'Not Applicable'",
+                (licenceErr) => {
+
+                  if (licenceErr) {
+                    return callback(licenceErr);
+                  }
+
+                  finish();
+                }
+              );
+
+            } else {
+
+              finish();
+
+            }
+
+          }
+        );
+
+      } else if (addLicenceStatus) {
+
+        addColumn(
+          "ALTER TABLE students ADD COLUMN licenceStatus TEXT DEFAULT 'Not Applicable'",
+          (licenceErr) => {
+
+            if (licenceErr) {
+              return callback(licenceErr);
+            }
+
+            finish();
+          }
+        );
+
+      } else {
+
+        finish();
+
+      }
+
+    }
+  );
+
+};
+
+// =====================================================
 // MIGRATE STUDENT NUMBERS
 // =====================================================
 //
@@ -590,6 +711,35 @@ const migrateSchoolsTable = (callback) => {
 //
 // =====================================================
 
+const migrateLearnerCode = (callback) => {
+  db.all("PRAGMA table_info(students)", [], (err, columns) => {
+    if (err) {
+      console.error("LEARNER CODE MIGRATION CHECK ERROR:", err.message);
+      return callback(err);
+    }
+
+    const exists = columns.some((column) => column.name === "learnerCode");
+
+    if (exists) {
+      console.log("Learner code migration already complete");
+      return callback(null);
+    }
+
+    db.run(
+      "ALTER TABLE students ADD COLUMN learnerCode TEXT",
+      [],
+      (alterErr) => {
+        if (alterErr) {
+          console.error("LEARNER CODE MIGRATION ERROR:", alterErr.message);
+          return callback(alterErr);
+        }
+
+        console.log("Learner code migration completed");
+        callback(null);
+      }
+    );
+  });
+};
 const migrateStudentNumbers = (callback) => {
 
   console.log(
@@ -714,7 +864,10 @@ const migrateStudentNumbers = (callback) => {
                 email TEXT,
                 address TEXT,
                 learnerNumber TEXT,
+                learnerCode TEXT,
+                learnerStatus TEXT DEFAULT 'Not Applicable',
                 licenceCode TEXT,
+                licenceStatus TEXT DEFAULT 'Not Applicable',
                 instructor TEXT,
                 vehicle TEXT,
                 courseFee REAL DEFAULT 0,
@@ -762,7 +915,10 @@ const migrateStudentNumbers = (callback) => {
                     email,
                     address,
                     learnerNumber,
+                    learnerCode,
+                    learnerStatus,
                     licenceCode,
+                    licenceStatus,
                     instructor,
                     vehicle,
                     courseFee,
@@ -783,7 +939,10 @@ const migrateStudentNumbers = (callback) => {
                     email,
                     address,
                     learnerNumber,
+                    learnerCode,
+                    learnerStatus,
                     licenceCode,
+                    licenceStatus,
                     instructor,
                     vehicle,
                     courseFee,
@@ -1325,89 +1484,77 @@ const databaseReadyCheck = () => {
 // =====================================================
 
 createTables((err) => {
-
   if (err) {
-
     console.error(
       "DATABASE TABLE INITIALIZATION FAILED:",
       err.message
     );
-
     return;
   }
-
   migrateSchoolsTable((err) => {
-
     if (err) {
-
       console.error(
         "DATABASE SCHOOLS MIGRATION FAILED:",
         err.message
       );
-
       return;
     }
-
-    migrateStudentNumbers((err) => {
-
+    migrateLearnerLicenceStatus((err) => {
       if (err) {
-
         console.error(
-          "DATABASE STUDENT NUMBER MIGRATION FAILED:",
+          "DATABASE LEARNER/LICENCE STATUS MIGRATION FAILED:",
           err.message
         );
-
         return;
       }
-
-      createIndexes((err) => {
-
+      migrateLearnerCode((err) => {
         if (err) {
-
           console.error(
-            "DATABASE INDEX CREATION FAILED:",
+            "DATABASE LEARNER CODE MIGRATION FAILED:",
             err.message
           );
-
           return;
         }
-
-        setupDefaultSchool((err) => {
-
+        migrateStudentNumbers((err) => {
+        if (err) {
+          console.error(
+            "DATABASE STUDENT NUMBER MIGRATION FAILED:",
+            err.message
+          );
+          return;
+        }
+        createIndexes((err) => {
           if (err) {
-
             console.error(
-              "DEFAULT SCHOOL SETUP FAILED:",
+              "DATABASE INDEX CREATION FAILED:",
               err.message
             );
-
             return;
           }
-
-          setupDefaultAdmin((err) => {
-
+          setupDefaultSchool((err) => {
             if (err) {
-
               console.error(
-                "DEFAULT ADMIN SETUP FAILED:",
+                "DEFAULT SCHOOL SETUP FAILED:",
                 err.message
               );
-
               return;
             }
-
-            databaseReadyCheck();
-
+            setupDefaultAdmin((err) => {
+              if (err) {
+                console.error(
+                  "DEFAULT ADMIN SETUP FAILED:",
+                  err.message
+                );
+                return;
+              }
+              databaseReadyCheck();
+            });
           });
-
         });
-
       });
-
     });
-
+      });
   });
-
 });
 
 // =====================================================
@@ -1415,3 +1562,14 @@ createTables((err) => {
 // =====================================================
 
 export default db;
+
+
+
+
+
+
+
+
+
+
+

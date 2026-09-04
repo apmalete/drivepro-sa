@@ -1,12 +1,32 @@
+import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import {
+  Box,
+  Drawer,
+  IconButton,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+
+import MenuIcon from "@mui/icons-material/Menu";
+import CloseIcon from "@mui/icons-material/Close";
 
 // ==========================================
 // SIDEBAR
 // ==========================================
 
 function Sidebar() {
-
   const navigate = useNavigate();
+
+  const theme = useTheme();
+
+  const isMobile = useMediaQuery(
+    theme.breakpoints.down("md")
+  );
+
+  const [mobileOpen, setMobileOpen] =
+    useState(false);
 
   // ==========================================
   // GET LOGGED-IN USER
@@ -23,107 +43,84 @@ function Sidebar() {
   } = {};
 
   try {
-
     if (storedUser) {
-
-      currentUser =
-        JSON.parse(
-          storedUser
-        );
-
+      currentUser = JSON.parse(storedUser);
     }
-
   } catch (error) {
-
     console.error(
       "Error reading logged-in user:",
       error
     );
-
   }
-
 
   // ==========================================
   // USER ROLE
   // ==========================================
 
-  const role =
-    String(
-      currentUser.role || ""
-    )
-      .trim()
-      .toLowerCase();
-
+  const role = String(
+    currentUser.role || ""
+  )
+    .trim()
+    .toLowerCase();
 
   // ==========================================
   // SYSTEM ADMINISTRATOR
   // ==========================================
 
   const isSystemAdministrator =
-    role ===
-      "system administrator";
-
+    role === "system administrator";
 
   // ==========================================
   // SCHOOL ADMINISTRATOR
   // ==========================================
 
   const isAdministrator =
-    role ===
-      "administrator" ||
-    role ===
-      "admin";
-
+    role === "administrator" ||
+    role === "admin";
 
   // ==========================================
-  // ADMINISTRATOR OR SYSTEM ADMINISTRATOR
+  // ADMINISTRATOR ACCESS
   // ==========================================
 
   const hasAdministratorAccess =
     isSystemAdministrator ||
     isAdministrator;
 
-
   // ==========================================
   // RECEPTIONIST
   // ==========================================
 
   const isReceptionist =
-    role ===
-    "receptionist";
-
+    role === "receptionist";
 
   // ==========================================
   // INSTRUCTOR
   // ==========================================
 
   const isInstructor =
-    role ===
-    "instructor";
-
+    role === "instructor";
 
   // ==========================================
   // LOGOUT
   // ==========================================
 
   const logout = () => {
-
-    localStorage.removeItem(
-      "loggedIn"
-    );
-
-    localStorage.removeItem(
-      "token"
-    );
-
-    localStorage.removeItem(
-      "user"
-    );
+    localStorage.removeItem("loggedIn");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
 
     navigate("/");
-
   };
 
+  // ==========================================
+  // CLOSE MOBILE MENU
+  // ==========================================
+
+  const closeMobileMenu = () => {
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  };
 
   // ==========================================
   // NAVIGATION STYLE
@@ -134,69 +131,81 @@ function Sidebar() {
   }: {
     isActive: boolean;
   }) => ({
-
     display: "block",
-
     color: "white",
-
     textDecoration: "none",
-
-    padding:
-      "10px 15px",
-
-    borderRadius:
-      "6px",
-
-    marginBottom:
-      "5px",
-
-    background:
-      isActive
-        ? "#2563eb"
-        : "transparent",
-
-    fontWeight:
-      isActive
-        ? "bold"
-        : "normal",
-
+    padding: "10px 15px",
+    borderRadius: "6px",
+    marginBottom: "5px",
+    background: isActive
+      ? "#2563eb"
+      : "transparent",
+    fontWeight: isActive
+      ? "bold"
+      : "normal",
   });
 
-
   // ==========================================
-  // SIDEBAR
+  // SIDEBAR CONTENT
   // ==========================================
 
-  return (
-
-    <div
-      style={{
-        width: "250px",
+  const sidebarContent = (
+    <Box
+      sx={{
+        width: 250,
         background: "#1e3a8a",
         color: "white",
-        height: "100vh",
+
+        // MOBILE SCROLL FIX
+        height: "100dvh",
+        minHeight: 0,
+        overflowY: "auto",
+
         padding: "20px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
       }}
     >
-
       {/* ======================================
           APPLICATION TITLE
       ======================================= */}
 
-      <h2
-        style={{
-          marginTop: 0,
-          marginBottom: 15,
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1,
+          flexShrink: 0,
         }}
       >
-        🚗 DrivePro-SA
-      </h2>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: "bold",
+            color: "white",
+          }}
+        >
+          🚗 DrivePro-SA
+        </Typography>
+
+        {isMobile && (
+          <IconButton
+            onClick={() =>
+              setMobileOpen(false)
+            }
+            sx={{
+              color: "white",
+            }}
+            aria-label="Close menu"
+          >
+            <CloseIcon />
+          </IconButton>
+        )}
+      </Box>
 
       <hr />
-
 
       {/* ======================================
           DASHBOARD
@@ -206,10 +215,10 @@ function Sidebar() {
       <NavLink
         to="/dashboard"
         style={linkStyle}
+        onClick={closeMobileMenu}
       >
         🏠 Dashboard
       </NavLink>
-
 
       {/* ======================================
           STUDENTS
@@ -219,10 +228,10 @@ function Sidebar() {
       <NavLink
         to="/students"
         style={linkStyle}
+        onClick={closeMobileMenu}
       >
         🎓 Students
       </NavLink>
-
 
       {/* ======================================
           LESSON BOOKINGS
@@ -232,30 +241,26 @@ function Sidebar() {
       <NavLink
         to="/lessons"
         style={linkStyle}
+        onClick={closeMobileMenu}
       >
         📅 Lesson Bookings
       </NavLink>
 
-
       {/* ======================================
           INSTRUCTORS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
+          ADMINISTRATOR / RECEPTIONIST
       ======================================= */}
 
       {(hasAdministratorAccess ||
         isReceptionist) && (
-
         <NavLink
           to="/instructors"
           style={linkStyle}
+          onClick={closeMobileMenu}
         >
           👨‍🏫 Instructors
         </NavLink>
-
       )}
-
 
       {/* ======================================
           VEHICLES
@@ -265,68 +270,57 @@ function Sidebar() {
       <NavLink
         to="/vehicles"
         style={linkStyle}
+        onClick={closeMobileMenu}
       >
         🚗 Vehicles
       </NavLink>
 
-
       {/* ======================================
           PAYMENTS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
+          ADMINISTRATOR / RECEPTIONIST
       ======================================= */}
 
       {(hasAdministratorAccess ||
         isReceptionist) && (
-
         <NavLink
           to="/payments"
           style={linkStyle}
+          onClick={closeMobileMenu}
         >
           💳 Payments
         </NavLink>
-
       )}
-
 
       {/* ======================================
           REPORTS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
+          ADMINISTRATOR / RECEPTIONIST
       ======================================= */}
 
       {(hasAdministratorAccess ||
         isReceptionist) && (
-
         <NavLink
           to="/reports"
           style={linkStyle}
+          onClick={closeMobileMenu}
         >
           📊 Reports
         </NavLink>
-
       )}
-
 
       {/* ======================================
           USERS
-          SYSTEM ADMIN
-          SCHOOL ADMIN
+          ADMINISTRATOR
       ======================================= */}
 
       {hasAdministratorAccess && (
-
         <NavLink
           to="/users"
           style={linkStyle}
+          onClick={closeMobileMenu}
         >
           👥 Users
         </NavLink>
-
       )}
-
 
       {/* ======================================
           SCHOOLS
@@ -334,50 +328,48 @@ function Sidebar() {
       ======================================= */}
 
       {isSystemAdministrator && (
-
         <NavLink
           to="/schools"
           style={linkStyle}
+          onClick={closeMobileMenu}
         >
           🏫 Schools
         </NavLink>
-
       )}
-
 
       {/* ======================================
           SETTINGS
-          SYSTEM ADMIN
-          SCHOOL ADMIN
+          ADMINISTRATOR
       ======================================= */}
 
       {hasAdministratorAccess && (
-
         <NavLink
           to="/settings"
           style={linkStyle}
+          onClick={closeMobileMenu}
         >
           ⚙️ Settings
         </NavLink>
-
       )}
-
 
       {/* ======================================
           USER INFORMATION
       ======================================= */}
 
-      <div
-        style={{
-          marginTop: "auto",
+      <Box
+        sx={{
+          // IMPORTANT:
+          // Do not use marginTop: "auto"
+          // because it can push Logout below
+          // the mobile viewport.
+          marginTop: "20px",
+          flexShrink: 0,
         }}
       >
-
         <hr />
 
-
-        <div
-          style={{
+        <Box
+          sx={{
             padding: "12px",
             marginBottom: "10px",
             background:
@@ -385,11 +377,10 @@ function Sidebar() {
             borderRadius: "8px",
           }}
         >
-
           {/* FULL NAME */}
 
-          <div
-            style={{
+          <Box
+            sx={{
               fontWeight: "bold",
               fontSize: "15px",
               marginBottom: "5px",
@@ -398,13 +389,12 @@ function Sidebar() {
             👤{" "}
             {currentUser.fullname ||
               "User"}
-          </div>
-
+          </Box>
 
           {/* USERNAME */}
 
-          <div
-            style={{
+          <Box
+            sx={{
               fontSize: "12px",
               opacity: 0.85,
               marginBottom: "3px",
@@ -413,13 +403,12 @@ function Sidebar() {
             Username:{" "}
             {currentUser.username ||
               "Unknown"}
-          </div>
-
+          </Box>
 
           {/* ROLE */}
 
-          <div
-            style={{
+          <Box
+            sx={{
               fontSize: "12px",
               opacity: 0.85,
             }}
@@ -427,15 +416,13 @@ function Sidebar() {
             Role:{" "}
             {currentUser.role ||
               "User"}
-          </div>
-
+          </Box>
 
           {/* SCHOOL */}
 
           {currentUser.school_id && (
-
-            <div
-              style={{
+            <Box
+              sx={{
                 fontSize: "12px",
                 opacity: 0.85,
                 marginTop: "3px",
@@ -443,12 +430,9 @@ function Sidebar() {
             >
               School ID:{" "}
               {currentUser.school_id}
-            </div>
-
+            </Box>
           )}
-
-        </div>
-
+        </Box>
 
         {/* ====================================
             LOGOUT
@@ -466,17 +450,71 @@ function Sidebar() {
             cursor: "pointer",
             fontSize: "16px",
             fontWeight: "bold",
+            marginBottom: "5px",
           }}
         >
           🚪 Logout
         </button>
-
-      </div>
-
-    </div>
-
+      </Box>
+    </Box>
   );
 
+  // ==========================================
+  // MOBILE
+  // ==========================================
+
+  if (isMobile) {
+    return (
+      <>
+        <IconButton
+          onClick={() =>
+            setMobileOpen(true)
+          }
+          sx={{
+            position: "fixed",
+            top: 12,
+            left: 12,
+            zIndex: 1300,
+            background: "#1e3a8a",
+            color: "white",
+            "&:hover": {
+              background: "#2563eb",
+            },
+            boxShadow: 2,
+          }}
+          aria-label="Open menu"
+        >
+          <MenuIcon />
+        </IconButton>
+
+        <Drawer
+          anchor="left"
+          open={mobileOpen}
+          onClose={() =>
+            setMobileOpen(false)
+          }
+          ModalProps={{
+            keepMounted: true,
+          }}
+          PaperProps={{
+            sx: {
+              background: "#1e3a8a",
+              color: "white",
+              overflow: "hidden",
+            },
+          }}
+        >
+          {sidebarContent}
+        </Drawer>
+      </>
+    );
+  }
+
+  // ==========================================
+  // DESKTOP
+  // ==========================================
+
+  return sidebarContent;
 }
 
 export default Sidebar;
