@@ -232,7 +232,26 @@ app.get("/test", (req, res) => {
     message: "Server Working",
   });
 });
+// =====================================
+// SPA FRONTEND ROUTING
+// =====================================
 
+app.use((req, res, next) => {
+  if (
+    req.method === "GET" &&
+    req.headers["sec-fetch-dest"] === "document" &&
+    req.accepts("html")
+  ) {
+    return res.sendFile(
+      path.join(
+        frontendPath,
+        "index.html"
+      )
+    );
+  }
+
+  next();
+});
 // =====================================
 // DASHBOARD
 // =====================================
