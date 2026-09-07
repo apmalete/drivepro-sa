@@ -618,6 +618,27 @@ app.post(
   }
 );
 
+
+// =====================================
+// SPA FRONTEND ROUTING
+// =====================================
+
+app.use((req, res, next) => {
+  if (
+    req.method === "GET" &&
+    req.accepts("html")
+  ) {
+    return res.sendFile(
+      path.join(
+        frontendPath,
+        "index.html"
+      )
+    );
+  }
+
+  next();
+});
+
 // =====================================
 // 404 HANDLER
 // =====================================
@@ -644,7 +665,10 @@ app.listen(
   PORT,
   () => {
     console.log(
-      `🚀 Server running on port ${PORT}`
+      `ðŸš€ Server running on port ${PORT}`
     );
   }
 );
+
+
+
