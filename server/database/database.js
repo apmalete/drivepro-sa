@@ -352,7 +352,199 @@ const createTables = (callback) => {
     }
   );
 };
+// =====================================================
+// MIGRATE SETTINGS TABLE
+// =====================================================
 
+const migrateSettingsTable = (callback) => {
+
+  db.all(
+    `PRAGMA table_info(settings)`,
+    [],
+    (err, columns) => {
+
+      if (err) {
+
+        console.error(
+          "SETTINGS MIGRATION CHECK ERROR:",
+          err.message
+        );
+
+        return callback(err);
+      }
+
+      const existingColumns = new Set(
+        (columns || []).map(
+          (column) => column.name
+        )
+      );
+
+      const columnsToAdd = [
+        {
+          name: "schoolName",
+          definition: "TEXT DEFAULT 'DrivePro-SA'"
+        },
+        {
+          name: "phone",
+          definition: "TEXT DEFAULT ''"
+        },
+        {
+          name: "email",
+          definition: "TEXT DEFAULT ''"
+        },
+        {
+          name: "address",
+          definition: "TEXT DEFAULT ''"
+        },
+        {
+          name: "registrationNumber",
+          definition: "TEXT DEFAULT ''"
+        },
+        {
+          name: "defaultLessonDuration",
+          definition: "INTEGER DEFAULT 60"
+        },
+        {
+          name: "defaultLessonPrice",
+          definition: "REAL DEFAULT 0"
+        },
+        {
+          name: "lessonDuration",
+          definition: "INTEGER DEFAULT 60"
+        },
+        {
+          name: "lessonPrice",
+          definition: "REAL DEFAULT 0"
+        },
+        {
+          name: "school_id",
+          definition: "INTEGER DEFAULT 1"
+        },
+        {
+       
+  name: "created_at",
+  definition: "TEXT"
+},
+{
+  name: "updated_at",
+  definition: "TEXT"
+}   
+      ];
+
+      let index = 0;
+
+      const addNextColumn = () => {
+
+        if (index >= columnsToAdd.length) {
+
+          // =============================================
+          // CREATE DEFAULT SETTINGS ROW IF MISSING
+          // =============================================
+
+          db.run(
+            `
+            INSERT OR IGNORE INTO settings
+            (
+              id,
+              schoolName,
+              phone,
+              email,
+              address,
+              registrationNumber,
+              defaultLessonDuration,
+              defaultLessonPrice,
+              lessonDuration,
+              lessonPrice,
+              school_id
+            )
+            VALUES
+            (
+              1,
+              'DrivePro-SA',
+              '',
+              '',
+              '',
+              '',
+              60,
+              0,
+              60,
+              0,
+              1
+            )
+            `,
+            [],
+            (insertErr) => {
+
+              if (insertErr) {
+
+                console.error(
+                  "DEFAULT SETTINGS ERROR:",
+                  insertErr.message
+                );
+
+                return callback(insertErr);
+              }
+
+              console.log(
+                "Settings migration completed"
+              );
+
+              callback(null);
+            }
+          );
+
+          return;
+        }
+
+        const column =
+          columnsToAdd[index];
+
+        index++;
+
+        if (
+          existingColumns.has(
+            column.name
+          )
+        ) {
+
+          return addNextColumn();
+        }
+
+        console.log(
+          `Adding settings column: ${column.name}`
+        );
+
+        db.run(
+          `
+          ALTER TABLE settings
+          ADD COLUMN ${column.name} ${column.definition}
+          `,
+          [],
+          (alterErr) => {
+
+            if (alterErr) {
+
+              console.error(
+                `SETTINGS COLUMN MIGRATION ERROR (${column.name}):`,
+                alterErr.message
+              );
+
+              return callback(alterErr);
+            }
+
+            console.log(
+              `Settings column added: ${column.name}`
+            );
+
+            addNextColumn();
+          }
+        );
+      };
+
+      addNextColumn();
+    }
+  );
+};
 // =====================================================
 // MIGRATE SCHOOLS TABLE
 // =====================================================
@@ -1492,13 +1684,23 @@ createTables((err) => {
     return;
   }
   migrateSchoolsTable((err) => {
+  if (err) {
+    console.error(
+      "DATABASE SCHOOLS MIGRATION FAILED:",
+      err.message
+    );
+    return;
+  }
+
+  migrateSettingsTable((err) => {
     if (err) {
       console.error(
-        "DATABASE SCHOOLS MIGRATION FAILED:",
+        "DATABASE SETTINGS MIGRATION FAILED:",
         err.message
       );
       return;
     }
+
     migrateLearnerLicenceStatus((err) => {
       if (err) {
         console.error(
@@ -1560,7 +1762,7 @@ createTables((err) => {
 // =====================================================
 // EXPORT DATABASE
 // =====================================================
-
+});
 export default db;
 
 
