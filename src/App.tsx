@@ -15,6 +15,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Students from "./pages/Students";
 import Lessons from "./pages/LessonBookings";
+import TestBookings from "./pages/TestBookings";
 import Instructors from "./pages/Instructors";
 import Vehicles from "./pages/Vehicles";
 import Users from "./pages/Users";
@@ -275,6 +276,32 @@ export default function App() {
             ]}
           >
             <Lessons />
+          </RoleRoute>
+        }
+      />
+
+
+      {/* =====================================
+          TEST BOOKINGS
+          SYSTEM ADMIN
+          ADMIN
+          RECEPTIONIST
+          INSTRUCTOR
+      ====================================== */}
+
+      <Route
+        path="/test-bookings"
+        element={
+          <RoleRoute
+            allowedRoles={[
+              "System Administrator",
+              "Administrator",
+              "Admin",
+              "Receptionist",
+              "Instructor",
+            ]}
+          >
+            <TestBookings />
           </RoleRoute>
         }
       />

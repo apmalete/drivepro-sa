@@ -247,6 +247,19 @@ function Sidebar() {
       </NavLink>
 
       {/* ======================================
+          TEST BOOKINGS
+          ALL ROLES
+      ======================================= */}
+
+      <NavLink
+        to="/test-bookings"
+        style={linkStyle}
+        onClick={closeMobileMenu}
+      >
+        📝 Test Bookings
+      </NavLink>
+
+      {/* ======================================
           INSTRUCTORS
           ADMINISTRATOR / RECEPTIONIST
       ======================================= */}

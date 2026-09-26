@@ -1,5 +1,6 @@
 import db from "../database/database.js";
 
+
 // =====================================================
 // GET SCHOOL ID FROM AUTHENTICATED USER
 // =====================================================
@@ -240,9 +241,11 @@ export const addLesson = (
           lesson_date,
           lesson_time,
           status,
+          notification_sent,
+          day_reminder_sent,
           school_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?)
         `,
         [
           student,
@@ -393,6 +396,9 @@ export const updateLesson = (
 
       // ================================================
       // UPDATE LESSON
+      //
+      // Reset WhatsApp flags because the lesson may
+      // have been rescheduled or changed.
       // ================================================
 
       db.run(
@@ -404,7 +410,9 @@ export const updateLesson = (
           vehicle = ?,
           lesson_date = ?,
           lesson_time = ?,
-          status = ?
+          status = ?,
+          notification_sent = 0,
+          day_reminder_sent = 0
         WHERE id = ?
           AND school_id = ?
         `,

@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import express from "express";
 import path from "path";
 import multer from "multer";
@@ -6,6 +8,19 @@ import cors from "cors";
 import fs from "fs";
 
 import "./database/database.js";
+
+// =====================================
+// WHATSAPP
+// =====================================
+
+import {
+  isWhatsAppConfigured,
+  sendDriveProTestMessage,
+} from "./services/whatsappService.js";
+
+import {
+  startWhatsAppReminderScheduler,
+} from "./services/whatsappReminderScheduler.js";
 
 // =====================================
 // AUTHENTICATION
@@ -49,6 +64,19 @@ import {
   updateLesson,
   deleteLesson,
 } from "./controllers/lessonsController.js";
+
+// =====================================
+// TEST BOOKINGS
+// =====================================
+
+import {
+  getTestBookings,
+  getStudentTestBookings,
+  addTestBooking,
+  updateTestBooking,
+  updateTestBookingStatus,
+  deleteTestBooking,
+} from "./controllers/testBookingsController.js";
 
 // =====================================
 // INSTRUCTORS
@@ -149,11 +177,13 @@ const __dirname =
 app.use(
   cors({
     origin: [
-  "http://localhost:5173",
-  "https://drivepro-sa-production.up.railway.app",
-  "https://drivepro-sa.co.za",
-  "https://www.drivepro-sa.co.za",
-],
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://drivepro-sa-production.up.railway.app",
+      "https://drivepro-sa.co.za",
+      "https://www.drivepro-sa.co.za",
+    ],
+
     methods: [
       "GET",
       "POST",
@@ -232,26 +262,119 @@ app.get("/test", (req, res) => {
     message: "Server Working",
   });
 });
+
+// =====================================
+// WHATSAPP STATUS
+// =====================================
+
+app.get(
+  "/whatsapp/status",
+  authenticateUser,
+  (req, res) => {
+
+    res.json({
+      success: true,
+
+      configured:
+        isWhatsAppConfigured(),
+
+      message:
+        isWhatsAppConfigured()
+          ? "WhatsApp is configured."
+          : "WhatsApp access token is not configured yet.",
+    });
+  }
+);
+
+// =====================================
+// WHATSAPP TEST MESSAGE
+// =====================================
+
+app.post(
+  "/whatsapp/test",
+  authenticateUser,
+  async (req, res) => {
+
+    try {
+
+      const {
+        phoneNumber,
+      } = req.body;
+
+      if (!phoneNumber) {
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "Phone number is required.",
+        });
+      }
+
+      if (!isWhatsAppConfigured()) {
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "WhatsApp is not configured. Add the WhatsApp access token to the server .env file first.",
+        });
+      }
+
+      const result =
+        await sendDriveProTestMessage(
+          phoneNumber
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "WhatsApp test message sent.",
+        result,
+      });
+
+    } catch (error) {
+
+      console.error(
+        "WHATSAPP TEST ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to send WhatsApp test message.",
+      });
+    }
+  }
+);
+
 // =====================================
 // SPA FRONTEND ROUTING
 // =====================================
 
-app.use((req, res, next) => {
-  if (
-    req.method === "GET" &&
-    req.headers["sec-fetch-dest"] === "document" &&
-    req.accepts("html")
-  ) {
-    return res.sendFile(
-      path.join(
-        frontendPath,
-        "index.html"
-      )
-    );
-  }
+app.use(
+  (req, res, next) => {
 
-  next();
-});
+    if (
+      req.method === "GET" &&
+      req.headers[
+        "sec-fetch-dest"
+      ] === "document" &&
+      req.accepts("html")
+    ) {
+
+      return res.sendFile(
+        path.join(
+          frontendPath,
+          "index.html"
+        )
+      );
+    }
+
+    next();
+  }
+);
+
 // =====================================
 // DASHBOARD
 // =====================================
@@ -437,6 +560,46 @@ app.delete(
 );
 
 // =====================================
+// TEST BOOKINGS
+// =====================================
+
+app.get(
+  "/test-bookings",
+  authenticateUser,
+  getTestBookings
+);
+
+app.get(
+  "/test-bookings/student/:studentId",
+  authenticateUser,
+  getStudentTestBookings
+);
+
+app.post(
+  "/test-bookings",
+  authenticateUser,
+  addTestBooking
+);
+
+app.put(
+  "/test-bookings/:id",
+  authenticateUser,
+  updateTestBooking
+);
+
+app.patch(
+  "/test-bookings/:id/status",
+  authenticateUser,
+  updateTestBookingStatus
+);
+
+app.delete(
+  "/test-bookings/:id",
+  authenticateUser,
+  deleteTestBooking
+);
+
+// =====================================
 // INSTRUCTORS
 // =====================================
 
@@ -552,6 +715,7 @@ if (
     studentUploadDirectory
   )
 ) {
+
   fs.mkdirSync(
     studentUploadDirectory,
     {
@@ -572,6 +736,7 @@ const storage =
       file,
       cb
     ) => {
+
       cb(
         null,
         studentUploadDirectory
@@ -628,6 +793,7 @@ app.post(
 
     res.json({
       success: true,
+
       filename:
         req.file.filename,
 
@@ -646,6 +812,7 @@ app.use(
 
     res.status(404).json({
       success: false,
+
       message:
         `Route not found: ${req.method} ${req.originalUrl}`,
     });
@@ -662,8 +829,15 @@ const PORT =
 app.listen(
   PORT,
   () => {
+
     console.log(
       `🚀 Server running on port ${PORT}`
     );
+
+    console.log(
+      `📱 WhatsApp configured: ${isWhatsAppConfigured()}`
+    );
+
+    startWhatsAppReminderScheduler();
   }
 );

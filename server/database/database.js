@@ -334,7 +334,47 @@ const createTables = (callback) => {
                                     );
                                   }
 
-                                  callback(null);
+                                  // =============================================
+                                  // TEST BOOKINGS
+                                  // =============================================
+
+                                  db.run(
+                                    `
+                                    CREATE TABLE IF NOT EXISTS test_bookings (
+                                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                      student_id INTEGER NOT NULL,
+                                      student_name TEXT NOT NULL,
+                                      test_type TEXT NOT NULL,
+                                      booking_date TEXT NOT NULL,
+                                      booking_time TEXT NOT NULL,
+                                      test_centre TEXT,
+                                      booking_reference TEXT,
+                                      status TEXT DEFAULT 'Pending',
+                                      reminder_sent INTEGER DEFAULT 0,
+                                      day_reminder_sent INTEGER DEFAULT 0,
+                                      school_id INTEGER DEFAULT 1,
+                                      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                                    )
+                                    `,
+                                    [],
+                                    (testBookingErr) => {
+
+                                      if (testBookingErr) {
+                                        console.error(
+                                          "TEST BOOKINGS TABLE ERROR:",
+                                          testBookingErr.message
+                                        );
+
+                                        return callback(testBookingErr);
+                                      }
+
+                                      console.log(
+                                        "Test bookings table ready"
+                                      );
+
+                                      callback(null);
+                                    }
+                                  );
                                 }
                               );
                             }
@@ -901,6 +941,98 @@ const migrateLearnerLicenceStatus = (callback) => {
 //   School 2 + Student 1
 //   School 2 + Student 1 -> NOT allowed
 //
+// =====================================================
+
+// =====================================================
+// MIGRATE LESSON WHATSAPP REMINDER COLUMNS
+// =====================================================
+
+const migrateLessonWhatsAppReminders = (callback) => {
+
+  db.all(
+    `PRAGMA table_info(lessons)`,
+    [],
+    (err, columns) => {
+
+      if (err) {
+        console.error(
+          "LESSON WHATSAPP COLUMN CHECK ERROR:",
+          err.message
+        );
+        return callback(err);
+      }
+
+      const existingColumns = new Set(
+        (columns || []).map(
+          (column) => column.name
+        )
+      );
+
+      const columnsToAdd = [
+        {
+          name: "notification_sent",
+          definition: "INTEGER DEFAULT 0"
+        },
+        {
+          name: "day_reminder_sent",
+          definition: "INTEGER DEFAULT 0"
+        }
+      ];
+
+      let index = 0;
+
+      const addNextColumn = () => {
+
+        if (index >= columnsToAdd.length) {
+          console.log(
+            "Lesson WhatsApp reminder migration completed"
+          );
+          return callback(null);
+        }
+
+        const column = columnsToAdd[index];
+        index++;
+
+        if (existingColumns.has(column.name)) {
+          return addNextColumn();
+        }
+
+        console.log(
+          `Adding lesson WhatsApp column: ${column.name}`
+        );
+
+        db.run(
+          `
+          ALTER TABLE lessons
+          ADD COLUMN ${column.name} ${column.definition}
+          `,
+          [],
+          (alterErr) => {
+
+            if (alterErr) {
+              console.error(
+                `LESSON WHATSAPP COLUMN MIGRATION ERROR (${column.name}):`,
+                alterErr.message
+              );
+              return callback(alterErr);
+            }
+
+            console.log(
+              `Lesson WhatsApp column added: ${column.name}`
+            );
+
+            addNextColumn();
+          }
+        );
+      };
+
+      addNextColumn();
+    }
+  );
+};
+
+// =====================================================
+// MIGRATE LEARNER CODE
 // =====================================================
 
 const migrateLearnerCode = (callback) => {
@@ -1675,7 +1807,26 @@ const databaseReadyCheck = () => {
 //
 // =====================================================
 
+// =====================================================
+// INITIALIZE DATABASE
+// =====================================================
+//
+// 1. Create tables
+// 2. Migrate schools
+// 3. Migrate settings
+// 4. Migrate learner/licence status
+// 5. Migrate learner code
+// 6. Migrate lesson WhatsApp reminders
+// 7. Migrate student numbers
+// 8. Create indexes
+// 9. Create default school
+// 10. Create/update admin
+// 11. Run ready checks
+//
+// =====================================================
+
 createTables((err) => {
+
   if (err) {
     console.error(
       "DATABASE TABLE INITIALIZATION FAILED:",
@@ -1683,90 +1834,125 @@ createTables((err) => {
     );
     return;
   }
-  migrateSchoolsTable((err) => {
-  if (err) {
-    console.error(
-      "DATABASE SCHOOLS MIGRATION FAILED:",
-      err.message
-    );
-    return;
-  }
 
-  migrateSettingsTable((err) => {
+  migrateSchoolsTable((err) => {
+
     if (err) {
       console.error(
-        "DATABASE SETTINGS MIGRATION FAILED:",
+        "DATABASE SCHOOLS MIGRATION FAILED:",
         err.message
       );
       return;
     }
 
-    migrateLearnerLicenceStatus((err) => {
+    migrateSettingsTable((err) => {
+
       if (err) {
         console.error(
-          "DATABASE LEARNER/LICENCE STATUS MIGRATION FAILED:",
+          "DATABASE SETTINGS MIGRATION FAILED:",
           err.message
         );
         return;
       }
-      migrateLearnerCode((err) => {
+
+      migrateLearnerLicenceStatus((err) => {
+
         if (err) {
           console.error(
-            "DATABASE LEARNER CODE MIGRATION FAILED:",
+            "DATABASE LEARNER/LICENCE STATUS MIGRATION FAILED:",
             err.message
           );
           return;
         }
-        migrateStudentNumbers((err) => {
-        if (err) {
-          console.error(
-            "DATABASE STUDENT NUMBER MIGRATION FAILED:",
-            err.message
-          );
-          return;
-        }
-        createIndexes((err) => {
+
+        migrateLearnerCode((err) => {
+
           if (err) {
             console.error(
-              "DATABASE INDEX CREATION FAILED:",
+              "DATABASE LEARNER CODE MIGRATION FAILED:",
               err.message
             );
             return;
           }
-          setupDefaultSchool((err) => {
+
+          migrateLessonWhatsAppReminders((err) => {
+
             if (err) {
               console.error(
-                "DEFAULT SCHOOL SETUP FAILED:",
+                "DATABASE LESSON WHATSAPP MIGRATION FAILED:",
                 err.message
               );
               return;
             }
-            setupDefaultAdmin((err) => {
+
+            migrateStudentNumbers((err) => {
+
               if (err) {
                 console.error(
-                  "DEFAULT ADMIN SETUP FAILED:",
+                  "DATABASE STUDENT NUMBER MIGRATION FAILED:",
                   err.message
                 );
                 return;
               }
-              databaseReadyCheck();
+
+              createIndexes((err) => {
+
+                if (err) {
+                  console.error(
+                    "DATABASE INDEX CREATION FAILED:",
+                    err.message
+                  );
+                  return;
+                }
+
+                setupDefaultSchool((err) => {
+
+                  if (err) {
+                    console.error(
+                      "DEFAULT SCHOOL SETUP FAILED:",
+                      err.message
+                    );
+                    return;
+                  }
+
+                  setupDefaultAdmin((err) => {
+
+                    if (err) {
+                      console.error(
+                        "DEFAULT ADMIN SETUP FAILED:",
+                        err.message
+                      );
+                      return;
+                    }
+
+                    databaseReadyCheck();
+
+                  });
+
+                });
+
+              });
+
             });
+
           });
+
         });
+
       });
+
     });
-      });
+
   });
+
 });
+
 
 // =====================================================
 // EXPORT DATABASE
 // =====================================================
-});
+
 export default db;
-
-
-
 
 
 
