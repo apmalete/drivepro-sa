@@ -695,16 +695,13 @@ export const addUser = (req, res) => {
 
   }
 
-
+console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
   const allowedRoles = [
-
-    "Administrator",
-
-    "Receptionist",
-
-    "Instructor",
-
-  ];
+  "Administrator",
+  "Receptionist",
+  "Instructor",
+  "Student",
+];
 
 
   if (
@@ -988,16 +985,12 @@ export const updateUser = (req, res) => {
 
 
   const allowedRoles = [
-
-    "Administrator",
-
-    "Receptionist",
-
-    "Instructor",
-
-    "System Administrator",
-
-  ];
+  "Administrator",
+  "Receptionist",
+  "Instructor",
+  "Student",
+  "System Administrator",
+];
 
 
   if (

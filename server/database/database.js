@@ -28,39 +28,24 @@ const __dirname = path.dirname(__filename);
 const databasePath =
   process.env.NODE_ENV === "production"
     ? "/app/data/drivepro.db"
-    : path.join(
-        __dirname,
-        "..",
-        "drivepro.db"
-      );
+    : path.join(__dirname, "..", "drivepro.db");
 
-console.log(
-  "DATABASE PATH:",
-  databasePath
-);
+console.log("DATABASE PATH:", databasePath);
 
 // =====================================================
 // DATABASE CONNECTION
 // =====================================================
 
-const db = new sqlite3.Database(
-  databasePath,
-  (err) => {
-    if (err) {
-      console.error(
-        "DATABASE CONNECTION FAILED:",
-        err.message
-      );
-    } else {
-      console.log(
-        "Database Connected"
-      );
-    }
+const db = new sqlite3.Database(databasePath, (err) => {
+  if (err) {
+    console.error("DATABASE CONNECTION FAILED:", err.message);
+  } else {
+    console.log("Database Connected");
   }
-);
+});
 
 // =====================================================
-// CREATE TABLE HELPER
+// CREATE TABLES
 // =====================================================
 
 const createTables = (callback) => {
@@ -100,14 +85,9 @@ const createTables = (callback) => {
     (err) => {
 
       if (err) {
-        console.error(
-          "STUDENTS TABLE ERROR:",
-          err.message
-        );
+        console.error("STUDENTS TABLE ERROR:", err.message);
       } else {
-        console.log(
-          "Students table ready"
-        );
+        console.log("Students table ready");
       }
 
       // =================================================
@@ -131,14 +111,9 @@ const createTables = (callback) => {
         (err) => {
 
           if (err) {
-            console.error(
-              "USERS TABLE ERROR:",
-              err.message
-            );
+            console.error("USERS TABLE ERROR:", err.message);
           } else {
-            console.log(
-              "Users table ready"
-            );
+            console.log("Users table ready");
           }
 
           // =============================================
@@ -162,17 +137,11 @@ const createTables = (callback) => {
             (err) => {
 
               if (err) {
-                console.error(
-                  "SCHOOLS TABLE ERROR:",
-                  err.message
-                );
-
+                console.error("SCHOOLS TABLE ERROR:", err.message);
                 return callback(err);
               }
 
-              console.log(
-                "Schools table ready"
-              );
+              console.log("Schools table ready");
 
               // =========================================
               // INSTRUCTORS
@@ -199,9 +168,7 @@ const createTables = (callback) => {
                       err.message
                     );
                   } else {
-                    console.log(
-                      "Instructors table ready"
-                    );
+                    console.log("Instructors table ready");
                   }
 
                   // =======================================
@@ -231,9 +198,7 @@ const createTables = (callback) => {
                           err.message
                         );
                       } else {
-                        console.log(
-                          "Vehicles table ready"
-                        );
+                        console.log("Vehicles table ready");
                       }
 
                       // =================================
@@ -262,9 +227,7 @@ const createTables = (callback) => {
                               err.message
                             );
                           } else {
-                            console.log(
-                              "Lessons table ready"
-                            );
+                            console.log("Lessons table ready");
                           }
 
                           // ===============================
@@ -296,9 +259,7 @@ const createTables = (callback) => {
                                   err.message
                                 );
                               } else {
-                                console.log(
-                                  "Payments table ready"
-                                );
+                                console.log("Payments table ready");
                               }
 
                               // =============================
@@ -392,6 +353,7 @@ const createTables = (callback) => {
     }
   );
 };
+
 // =====================================================
 // MIGRATE SETTINGS TABLE
 // =====================================================
@@ -404,7 +366,6 @@ const migrateSettingsTable = (callback) => {
     (err, columns) => {
 
       if (err) {
-
         console.error(
           "SETTINGS MIGRATION CHECK ERROR:",
           err.message
@@ -461,14 +422,13 @@ const migrateSettingsTable = (callback) => {
           definition: "INTEGER DEFAULT 1"
         },
         {
-       
-  name: "created_at",
-  definition: "TEXT"
-},
-{
-  name: "updated_at",
-  definition: "TEXT"
-}   
+          name: "created_at",
+          definition: "TEXT"
+        },
+        {
+          name: "updated_at",
+          definition: "TEXT"
+        }
       ];
 
       let index = 0;
@@ -476,10 +436,6 @@ const migrateSettingsTable = (callback) => {
       const addNextColumn = () => {
 
         if (index >= columnsToAdd.length) {
-
-          // =============================================
-          // CREATE DEFAULT SETTINGS ROW IF MISSING
-          // =============================================
 
           db.run(
             `
@@ -536,8 +492,7 @@ const migrateSettingsTable = (callback) => {
           return;
         }
 
-        const column =
-          columnsToAdd[index];
+        const column = columnsToAdd[index];
 
         index++;
 
@@ -546,7 +501,6 @@ const migrateSettingsTable = (callback) => {
             column.name
           )
         ) {
-
           return addNextColumn();
         }
 
@@ -585,6 +539,7 @@ const migrateSettingsTable = (callback) => {
     }
   );
 };
+
 // =====================================================
 // MIGRATE SCHOOLS TABLE
 // =====================================================
@@ -641,10 +596,6 @@ const migrateSchoolsTable = (callback) => {
         );
       };
 
-      // =================================================
-      // ADD schoolName IF MISSING
-      // =================================================
-
       const addSchoolName = (next) => {
 
         if (
@@ -664,10 +615,6 @@ const migrateSchoolsTable = (callback) => {
           next
         );
       };
-
-      // =================================================
-      // COPY OLD name INTO schoolName
-      // =================================================
 
       const copyOldSchoolName = (next) => {
 
@@ -709,10 +656,6 @@ const migrateSchoolsTable = (callback) => {
         );
       };
 
-      // =================================================
-      // ADD REGISTRATION NUMBER
-      // =================================================
-
       const addRegistrationNumber = (next) => {
 
         if (
@@ -733,10 +676,6 @@ const migrateSchoolsTable = (callback) => {
         );
       };
 
-      // =================================================
-      // ADD STATUS
-      // =================================================
-
       const addStatus = (next) => {
 
         if (
@@ -756,10 +695,6 @@ const migrateSchoolsTable = (callback) => {
           next
         );
       };
-
-      // =================================================
-      // RUN MIGRATION IN ORDER
-      // =================================================
 
       addSchoolName((err) => {
 
@@ -836,6 +771,7 @@ const migrateLearnerLicenceStatus = (callback) => {
           (columnErr) => {
 
             if (columnErr) {
+
               console.error(
                 "STUDENT STATUS COLUMN MIGRATION FAILED:",
                 columnErr.message
@@ -847,10 +783,10 @@ const migrateLearnerLicenceStatus = (callback) => {
             next(null);
           }
         );
-
       };
 
       const finish = () => {
+
         console.log(
           "Learner/licence status migration completed"
         );
@@ -913,35 +849,7 @@ const migrateLearnerLicenceStatus = (callback) => {
 
     }
   );
-
 };
-
-// =====================================================
-// MIGRATE STUDENT NUMBERS
-// =====================================================
-//
-// OLD DATABASE:
-//   studentNo TEXT UNIQUE
-//
-// PROBLEM:
-//   Student numbers were globally unique.
-//
-// CORRECT DATABASE:
-//   studentNo TEXT
-//
-//   UNIQUE(school_id, studentNo)
-//
-// This allows:
-//
-//   School 1 + Student 1 -> allowed
-//   School 2 + Student 1 -> allowed
-//
-// But:
-//
-//   School 2 + Student 1
-//   School 2 + Student 1 -> NOT allowed
-//
-// =====================================================
 
 // =====================================================
 // MIGRATE LESSON WHATSAPP REMINDER COLUMNS
@@ -959,6 +867,7 @@ const migrateLessonWhatsAppReminders = (callback) => {
           "LESSON WHATSAPP COLUMN CHECK ERROR:",
           err.message
         );
+
         return callback(err);
       }
 
@@ -984,13 +893,16 @@ const migrateLessonWhatsAppReminders = (callback) => {
       const addNextColumn = () => {
 
         if (index >= columnsToAdd.length) {
+
           console.log(
             "Lesson WhatsApp reminder migration completed"
           );
+
           return callback(null);
         }
 
         const column = columnsToAdd[index];
+
         index++;
 
         if (existingColumns.has(column.name)) {
@@ -1010,10 +922,12 @@ const migrateLessonWhatsAppReminders = (callback) => {
           (alterErr) => {
 
             if (alterErr) {
+
               console.error(
                 `LESSON WHATSAPP COLUMN MIGRATION ERROR (${column.name}):`,
                 alterErr.message
               );
+
               return callback(alterErr);
             }
 
@@ -1036,43 +950,69 @@ const migrateLessonWhatsAppReminders = (callback) => {
 // =====================================================
 
 const migrateLearnerCode = (callback) => {
-  db.all("PRAGMA table_info(students)", [], (err, columns) => {
-    if (err) {
-      console.error("LEARNER CODE MIGRATION CHECK ERROR:", err.message);
-      return callback(err);
-    }
 
-    const exists = columns.some((column) => column.name === "learnerCode");
+  db.all(
+    "PRAGMA table_info(students)",
+    [],
+    (err, columns) => {
 
-    if (exists) {
-      console.log("Learner code migration already complete");
-      return callback(null);
-    }
+      if (err) {
+        console.error(
+          "LEARNER CODE MIGRATION CHECK ERROR:",
+          err.message
+        );
 
-    db.run(
-      "ALTER TABLE students ADD COLUMN learnerCode TEXT",
-      [],
-      (alterErr) => {
-        if (alterErr) {
-          console.error("LEARNER CODE MIGRATION ERROR:", alterErr.message);
-          return callback(alterErr);
-        }
-
-        console.log("Learner code migration completed");
-        callback(null);
+        return callback(err);
       }
-    );
-  });
+
+      const exists = columns.some(
+        (column) => column.name === "learnerCode"
+      );
+
+      if (exists) {
+
+        console.log(
+          "Learner code migration already complete"
+        );
+
+        return callback(null);
+      }
+
+      db.run(
+        "ALTER TABLE students ADD COLUMN learnerCode TEXT",
+        [],
+        (alterErr) => {
+
+          if (alterErr) {
+
+            console.error(
+              "LEARNER CODE MIGRATION ERROR:",
+              alterErr.message
+            );
+
+            return callback(alterErr);
+          }
+
+          console.log(
+            "Learner code migration completed"
+          );
+
+          callback(null);
+        }
+      );
+    }
+  );
 };
+
+// =====================================================
+// MIGRATE STUDENT NUMBERS
+// =====================================================
+
 const migrateStudentNumbers = (callback) => {
 
   console.log(
     "***** STARTING STUDENT NUMBER MIGRATION *****"
   );
-
-  // ===================================================
-  // CHECK IF NEW INDEX ALREADY EXISTS
-  // ===================================================
 
   db.get(
     `
@@ -1094,10 +1034,6 @@ const migrateStudentNumbers = (callback) => {
         return callback(err);
       }
 
-      // -------------------------------------------------
-      // If already migrated, stop here.
-      // -------------------------------------------------
-
       if (existingIndex) {
 
         console.log(
@@ -1106,10 +1042,6 @@ const migrateStudentNumbers = (callback) => {
 
         return callback(null);
       }
-
-      // =================================================
-      // CHECK FOR DUPLICATES WITHIN THE SAME SCHOOL
-      // =================================================
 
       db.all(
         `
@@ -1135,15 +1067,8 @@ const migrateStudentNumbers = (callback) => {
               duplicateErr.message
             );
 
-            return callback(
-              duplicateErr
-            );
+            return callback(duplicateErr);
           }
-
-          // ------------------------------------------------
-          // Do not change the database if existing records
-          // already contain a duplicate within one school.
-          // ------------------------------------------------
 
           if (
             duplicates &&
@@ -1165,10 +1090,6 @@ const migrateStudentNumbers = (callback) => {
               )
             );
           }
-
-          // =================================================
-          // CREATE TEMPORARY TABLE
-          // =================================================
 
           db.serialize(() => {
 
@@ -1213,18 +1134,12 @@ const migrateStudentNumbers = (callback) => {
                     createErr.message
                   );
 
-                  return callback(
-                    createErr
-                  );
+                  return callback(createErr);
                 }
 
                 console.log(
                   "Temporary students table created"
                 );
-
-                // =================================================
-                // COPY EXISTING STUDENTS
-                // =================================================
 
                 db.run(
                   `
@@ -1305,10 +1220,6 @@ const migrateStudentNumbers = (callback) => {
                       "Existing students copied successfully"
                     );
 
-                    // =================================================
-                    // DROP OLD STUDENTS TABLE
-                    // =================================================
-
                     db.run(
                       `
                       DROP TABLE students
@@ -1340,10 +1251,6 @@ const migrateStudentNumbers = (callback) => {
                           "Old students table removed"
                         );
 
-                        // =================================================
-                        // RENAME NEW TABLE
-                        // =================================================
-
                         db.run(
                           `
                           ALTER TABLE students_new
@@ -1359,18 +1266,12 @@ const migrateStudentNumbers = (callback) => {
                                 renameErr.message
                               );
 
-                              return callback(
-                                renameErr
-                              );
+                              return callback(renameErr);
                             }
 
                             console.log(
                               "Students table rebuilt successfully"
                             );
-
-                            // =================================================
-                            // CREATE SCHOOL-SPECIFIC UNIQUE INDEX
-                            // =================================================
 
                             db.run(
                               `
@@ -1392,9 +1293,7 @@ const migrateStudentNumbers = (callback) => {
                                     indexErr.message
                                   );
 
-                                  return callback(
-                                    indexErr
-                                  );
+                                  return callback(indexErr);
                                 }
 
                                 console.log(
@@ -1421,12 +1320,188 @@ const migrateStudentNumbers = (callback) => {
 };
 
 // =====================================================
+// MIGRATE STUDENT USER ID
+// =====================================================
+//
+// This connects:
+//
+// USERS
+//   id
+//   fullname
+//   role = Student
+//   school_id
+//
+// to:
+//
+// STUDENTS
+//   user_id
+//
+// Existing records are automatically linked when the
+// student fullname and school match.
+//
+// =====================================================
+
+const migrateStudentUserId = (callback) => {
+
+  db.all(
+    `PRAGMA table_info(students)`,
+    [],
+    (err, columns) => {
+
+      if (err) {
+
+        console.error(
+          "STUDENT USER ID MIGRATION CHECK ERROR:",
+          err.message
+        );
+
+        return callback(err);
+      }
+
+      const exists = (columns || []).some(
+        (column) =>
+          String(column.name).toLowerCase() === "user_id"
+      );
+
+      const addUserIdColumn = (next) => {
+
+        if (exists) {
+
+          console.log(
+            "Student user_id column already exists"
+          );
+
+          return next(null);
+        }
+
+        db.run(
+          `
+          ALTER TABLE students
+          ADD COLUMN user_id INTEGER
+          `,
+          [],
+          (alterErr) => {
+
+            if (alterErr) {
+
+              console.error(
+                "STUDENT USER ID COLUMN MIGRATION ERROR:",
+                alterErr.message
+              );
+
+              return next(alterErr);
+            }
+
+            console.log(
+              "Student user_id column added"
+            );
+
+            next(null);
+          }
+        );
+      };
+
+      addUserIdColumn((columnErr) => {
+
+        if (columnErr) {
+          return callback(columnErr);
+        }
+
+        // =================================================
+        // LINK EXISTING STUDENTS TO STUDENT USERS
+        // =================================================
+
+        db.run(
+          `
+          UPDATE students
+          SET user_id = (
+            SELECT users.id
+            FROM users
+            WHERE users.school_id = students.school_id
+              AND LOWER(TRIM(users.fullname)) =
+                  LOWER(TRIM(students.fullname))
+              AND LOWER(TRIM(users.role)) = 'student'
+            ORDER BY users.id
+            LIMIT 1
+          )
+          WHERE user_id IS NULL
+            AND EXISTS (
+              SELECT 1
+              FROM users
+              WHERE users.school_id = students.school_id
+                AND LOWER(TRIM(users.fullname)) =
+                    LOWER(TRIM(students.fullname))
+                AND LOWER(TRIM(users.role)) = 'student'
+            )
+          `,
+          [],
+          (updateErr) => {
+
+            if (updateErr) {
+
+              console.error(
+                "STUDENT USER ID BACKFILL ERROR:",
+                updateErr.message
+              );
+
+              return callback(updateErr);
+            }
+
+            console.log(
+              "Existing student/user records linked where names matched"
+            );
+
+            // =================================================
+            // CREATE USER ID INDEX
+            // =================================================
+
+            db.run(
+              `
+              CREATE INDEX IF NOT EXISTS idx_students_user_id
+              ON students(user_id)
+              `,
+              [],
+              (indexErr) => {
+
+                if (indexErr) {
+
+                  console.error(
+                    "STUDENT USER ID INDEX ERROR:",
+                    indexErr.message
+                  );
+
+                  return callback(indexErr);
+                }
+
+                console.log(
+                  "Student user_id index ready"
+                );
+
+                callback(null);
+              }
+            );
+          }
+        );
+      });
+    }
+  );
+};
+
+// =====================================================
 // CREATE INDEXES
 // =====================================================
 
 const createIndexes = (callback) => {
 
   const indexes = [
+
+    {
+      name: "idx_students_user_id",
+      sql: `
+        CREATE INDEX IF NOT EXISTS idx_students_user_id
+        ON students(user_id)
+      `
+    },
 
     {
       name: "idx_students_school",
@@ -1634,7 +1709,7 @@ const setupDefaultAdmin = (callback) => {
           `,
           [
             "Administrator",
-            "1234",
+            "admin",
             "System Administrator",
             "Active",
             1,
@@ -1649,9 +1724,7 @@ const setupDefaultAdmin = (callback) => {
                 updateErr.message
               );
 
-              return callback(
-                updateErr
-              );
+              return callback(updateErr);
             }
 
             console.log(
@@ -1703,9 +1776,7 @@ const setupDefaultAdmin = (callback) => {
               insertErr.message
             );
 
-            return callback(
-              insertErr
-            );
+            return callback(insertErr);
           }
 
           console.log(
@@ -1799,133 +1870,174 @@ const databaseReadyCheck = () => {
 //
 // 1. Create tables
 // 2. Migrate schools
-// 3. Migrate student numbers
-// 4. Create indexes
-// 5. Create default school
-// 6. Create/update admin
-// 7. Run ready checks
-//
-// =====================================================
-
-// =====================================================
-// INITIALIZE DATABASE
-// =====================================================
-//
-// 1. Create tables
-// 2. Migrate schools
 // 3. Migrate settings
 // 4. Migrate learner/licence status
 // 5. Migrate learner code
 // 6. Migrate lesson WhatsApp reminders
 // 7. Migrate student numbers
-// 8. Create indexes
-// 9. Create default school
-// 10. Create/update admin
-// 11. Run ready checks
+// 8. Migrate student user ID
+// 9. Create indexes
+// 10. Create default school
+// 11. Create/update admin
+// 12. Run ready checks
 //
 // =====================================================
 
 createTables((err) => {
 
   if (err) {
+
     console.error(
       "DATABASE TABLE INITIALIZATION FAILED:",
       err.message
     );
+
     return;
   }
 
   migrateSchoolsTable((err) => {
 
     if (err) {
+
       console.error(
         "DATABASE SCHOOLS MIGRATION FAILED:",
         err.message
       );
+
       return;
     }
 
     migrateSettingsTable((err) => {
 
       if (err) {
+
         console.error(
           "DATABASE SETTINGS MIGRATION FAILED:",
           err.message
         );
+
         return;
       }
 
       migrateLearnerLicenceStatus((err) => {
 
         if (err) {
+
           console.error(
             "DATABASE LEARNER/LICENCE STATUS MIGRATION FAILED:",
             err.message
           );
+
           return;
         }
 
         migrateLearnerCode((err) => {
 
           if (err) {
+
             console.error(
               "DATABASE LEARNER CODE MIGRATION FAILED:",
               err.message
             );
+
             return;
           }
 
           migrateLessonWhatsAppReminders((err) => {
 
             if (err) {
+
               console.error(
                 "DATABASE LESSON WHATSAPP MIGRATION FAILED:",
                 err.message
               );
+
               return;
             }
 
             migrateStudentNumbers((err) => {
 
               if (err) {
+
                 console.error(
                   "DATABASE STUDENT NUMBER MIGRATION FAILED:",
                   err.message
                 );
+
                 return;
               }
 
-              createIndexes((err) => {
+              // =================================================
+              // STUDENT USER ID MIGRATION
+              // =================================================
+
+              migrateStudentUserId((err) => {
 
                 if (err) {
+
                   console.error(
-                    "DATABASE INDEX CREATION FAILED:",
+                    "DATABASE STUDENT USER ID MIGRATION FAILED:",
                     err.message
                   );
+
                   return;
                 }
 
-                setupDefaultSchool((err) => {
+                // =================================================
+                // CREATE INDEXES
+                // =================================================
+
+                createIndexes((err) => {
 
                   if (err) {
+
                     console.error(
-                      "DEFAULT SCHOOL SETUP FAILED:",
+                      "DATABASE INDEX CREATION FAILED:",
                       err.message
                     );
+
                     return;
                   }
 
-                  setupDefaultAdmin((err) => {
+                  // =================================================
+                  // DEFAULT SCHOOL
+                  // =================================================
+
+                  setupDefaultSchool((err) => {
 
                     if (err) {
+
                       console.error(
-                        "DEFAULT ADMIN SETUP FAILED:",
+                        "DEFAULT SCHOOL SETUP FAILED:",
                         err.message
                       );
+
                       return;
                     }
 
-                    databaseReadyCheck();
+                    // =================================================
+                    // DEFAULT ADMIN
+                    // =================================================
+
+                    setupDefaultAdmin((err) => {
+
+                      if (err) {
+
+                        console.error(
+                          "DEFAULT ADMIN SETUP FAILED:",
+                          err.message
+                        );
+
+                        return;
+                      }
+
+                      // =================================================
+                      // DATABASE READY
+                      // =================================================
+
+                      databaseReadyCheck();
+
+                    });
 
                   });
 
@@ -1947,17 +2059,8 @@ createTables((err) => {
 
 });
 
-
 // =====================================================
 // EXPORT DATABASE
 // =====================================================
 
 export default db;
-
-
-
-
-
-
-
-

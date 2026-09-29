@@ -1,533 +1,526 @@
-import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import {
+  NavLink,
+  useNavigate,
+} from "react-router-dom";
+
 import {
   Box,
-  Drawer,
-  IconButton,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
 
-import MenuIcon from "@mui/icons-material/Menu";
-import CloseIcon from "@mui/icons-material/Close";
-
-// ==========================================
+// =====================================================
 // SIDEBAR
-// ==========================================
+// =====================================================
 
-function Sidebar() {
-  const navigate = useNavigate();
+export default function Sidebar() {
 
-  const theme = useTheme();
+  const navigate =
+    useNavigate();
 
-  const isMobile = useMediaQuery(
-    theme.breakpoints.down("md")
-  );
-
-  const [mobileOpen, setMobileOpen] =
-    useState(false);
-
-  // ==========================================
-  // GET LOGGED-IN USER
-  // ==========================================
+  // ===================================================
+  // GET USER
+  // ===================================================
 
   const storedUser =
     localStorage.getItem("user");
 
-  let currentUser: {
-    fullname?: string;
-    username?: string;
-    role?: string;
-    school_id?: number;
-  } = {};
+  let user: any = null;
 
   try {
-    if (storedUser) {
-      currentUser = JSON.parse(storedUser);
-    }
-  } catch (error) {
-    console.error(
-      "Error reading logged-in user:",
-      error
-    );
+
+    user =
+      storedUser
+        ? JSON.parse(storedUser)
+        : null;
+
+  } catch {
+
+    user = null;
+
   }
 
-  // ==========================================
-  // USER ROLE
-  // ==========================================
+  // ===================================================
+  // ROLE
+  // ===================================================
 
-  const role = String(
-    currentUser.role || ""
-  )
-    .trim()
-    .toLowerCase();
+  const role =
+    String(
+      user?.role || ""
+    )
+      .trim()
+      .toLowerCase();
 
-  // ==========================================
-  // SYSTEM ADMINISTRATOR
-  // ==========================================
-
-  const isSystemAdministrator =
-    role === "system administrator";
-
-  // ==========================================
-  // SCHOOL ADMINISTRATOR
-  // ==========================================
-
-  const isAdministrator =
-    role === "administrator" ||
-    role === "admin";
-
-  // ==========================================
-  // ADMINISTRATOR ACCESS
-  // ==========================================
-
-  const hasAdministratorAccess =
-    isSystemAdministrator ||
-    isAdministrator;
-
-  // ==========================================
-  // RECEPTIONIST
-  // ==========================================
-
-  const isReceptionist =
-    role === "receptionist";
-
-  // ==========================================
-  // INSTRUCTOR
-  // ==========================================
+  const isStudent =
+    role === "student";
 
   const isInstructor =
     role === "instructor";
 
-  // ==========================================
+  const isReceptionist =
+    role === "receptionist";
+
+  const isAdministrator =
+    role === "administrator" ||
+    role === "admin" ||
+    role === "system administrator";
+
+  // ===================================================
   // LOGOUT
-  // ==========================================
+  // ===================================================
 
-  const logout = () => {
-    localStorage.removeItem("loggedIn");
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  const handleLogout = () => {
 
-    navigate("/");
+    localStorage.removeItem(
+      "loggedIn"
+    );
+
+    localStorage.removeItem(
+      "user"
+    );
+
+    localStorage.removeItem(
+      "token"
+    );
+
+    sessionStorage.clear();
+
+    navigate(
+      "/",
+      {
+        replace: true,
+      }
+    );
+
   };
 
-  // ==========================================
-  // CLOSE MOBILE MENU
-  // ==========================================
-
-  const closeMobileMenu = () => {
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-  };
-
-  // ==========================================
+  // ===================================================
   // NAVIGATION STYLE
-  // ==========================================
+  // ===================================================
 
-  const linkStyle = ({
+  const getNavStyle = ({
     isActive,
   }: {
     isActive: boolean;
-  }) => ({
-    display: "block",
-    color: "white",
-    textDecoration: "none",
-    padding: "10px 15px",
-    borderRadius: "6px",
-    marginBottom: "5px",
-    background: isActive
-      ? "#2563eb"
-      : "transparent",
-    fontWeight: isActive
-      ? "bold"
-      : "normal",
-  });
+  }) => {
 
-  // ==========================================
-  // SIDEBAR CONTENT
-  // ==========================================
+    return {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      textDecoration: "none",
+      color: "#fff",
+      padding: "14px 20px",
+      marginBottom: "6px",
+      borderRadius: "8px",
+      fontSize: "18px",
+      fontWeight: 500,
+      backgroundColor: isActive
+        ? "#2867e8"
+        : "transparent",
+      transition:
+        "background-color 0.2s ease",
+    };
 
-  const sidebarContent = (
+  };
+
+  // ===================================================
+  // SIDEBAR
+  // ===================================================
+
+  return (
     <Box
       sx={{
-        width: 250,
-        background: "#1e3a8a",
-        color: "white",
-
-        // MOBILE SCROLL FIX
-        height: "100dvh",
-        minHeight: 0,
-        overflowY: "auto",
-
-        padding: "20px",
+        width: 300,
+        minHeight: "100vh",
+        backgroundColor: "#233f8f",
+        color: "#fff",
+        padding: "24px",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      {/* ======================================
-          APPLICATION TITLE
-      ======================================= */}
+
+      {/* =========================================
+          LOGO / TITLE
+      ========================================== */}
 
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 1,
-          flexShrink: 0,
+          textAlign: "center",
+          mb: 3,
         }}
       >
+
         <Typography
-          variant="h6"
-          sx={{
-            fontWeight: "bold",
-            color: "white",
-          }}
+          variant="h5"
+          fontWeight="bold"
         >
           🚗 DrivePro-SA
         </Typography>
 
-        {isMobile && (
-          <IconButton
-            onClick={() =>
-              setMobileOpen(false)
-            }
-            sx={{
-              color: "white",
-            }}
-            aria-label="Close menu"
-          >
-            <CloseIcon />
-          </IconButton>
-        )}
+        <Typography
+          variant="body2"
+          sx={{
+            opacity: 0.8,
+            mt: 0.5,
+          }}
+        >
+          Driving School Management
+        </Typography>
+
       </Box>
 
-      <hr />
+      {/* =========================================
+          STUDENT MENU
+      ========================================== */}
 
-      {/* ======================================
-          DASHBOARD
-          ALL ROLES
-      ======================================= */}
+      {isStudent && (
 
-      <NavLink
-        to="/dashboard"
-        style={linkStyle}
-        onClick={closeMobileMenu}
-      >
-        🏠 Dashboard
-      </NavLink>
+        <>
 
-      {/* ======================================
-          STUDENTS
-          ALL ROLES
-      ======================================= */}
+          {/* STUDENT DASHBOARD */}
 
-      <NavLink
-        to="/students"
-        style={linkStyle}
-        onClick={closeMobileMenu}
-      >
-        🎓 Students
-      </NavLink>
+          <NavLink
+            to="/student-dashboard"
+            style={getNavStyle}
+          >
+            🏠
+            <span>Dashboard</span>
+          </NavLink>
 
-      {/* ======================================
-          LESSON BOOKINGS
-          ALL ROLES
-      ======================================= */}
+          {/* STUDENT LESSONS */}
 
-      <NavLink
-        to="/lessons"
-        style={linkStyle}
-        onClick={closeMobileMenu}
-      >
-        📅 Lesson Bookings
-      </NavLink>
+          <NavLink
+            to="/student-lessons"
+            style={getNavStyle}
+          >
+            📅
+            <span>My Lessons</span>
+          </NavLink>
 
-      {/* ======================================
-          TEST BOOKINGS
-          ALL ROLES
-      ======================================= */}
+          {/* STUDENT TEST BOOKINGS */}
 
-      <NavLink
-        to="/test-bookings"
-        style={linkStyle}
-        onClick={closeMobileMenu}
-      >
-        📝 Test Bookings
-      </NavLink>
+          <NavLink
+            to="/student-test-bookings"
+            style={getNavStyle}
+          >
+            📝
+            <span>My Tests</span>
+          </NavLink>
 
-      {/* ======================================
-          INSTRUCTORS
-          ADMINISTRATOR / RECEPTIONIST
-      ======================================= */}
+          {/* STUDENT PROFILE */}
 
-      {(hasAdministratorAccess ||
-        isReceptionist) && (
-        <NavLink
-          to="/instructors"
-          style={linkStyle}
-          onClick={closeMobileMenu}
-        >
-          👨‍🏫 Instructors
-        </NavLink>
+          <NavLink
+            to="/student-profile"
+            style={getNavStyle}
+          >
+            👤
+            <span>My Profile</span>
+          </NavLink>
+
+          {/* STUDENT PAYMENTS */}
+
+          <NavLink
+            to="/student-payments"
+            style={getNavStyle}
+          >
+            💳
+            <span>My Payments</span>
+          </NavLink>
+
+        </>
+
       )}
 
-      {/* ======================================
-          VEHICLES
-          ALL ROLES
-      ======================================= */}
+      {/* =========================================
+          ADMIN / RECEPTIONIST / INSTRUCTOR MENU
+      ========================================== */}
 
-      <NavLink
-        to="/vehicles"
-        style={linkStyle}
-        onClick={closeMobileMenu}
-      >
-        🚗 Vehicles
-      </NavLink>
+      {!isStudent && (
 
-      {/* ======================================
-          PAYMENTS
-          ADMINISTRATOR / RECEPTIONIST
-      ======================================= */}
+        <>
 
-      {(hasAdministratorAccess ||
-        isReceptionist) && (
-        <NavLink
-          to="/payments"
-          style={linkStyle}
-          onClick={closeMobileMenu}
-        >
-          💳 Payments
-        </NavLink>
+          {/* =====================================
+              DASHBOARD
+          ====================================== */}
+
+          <NavLink
+            to="/dashboard"
+            style={getNavStyle}
+          >
+            🏠
+            <span>Dashboard</span>
+          </NavLink>
+
+          {/* =====================================
+              STUDENTS
+          ====================================== */}
+
+          {(isAdministrator ||
+            isReceptionist ||
+            isInstructor) && (
+
+            <NavLink
+              to="/students"
+              style={getNavStyle}
+            >
+              🎓
+              <span>Students</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              LESSON BOOKINGS
+          ====================================== */}
+
+          {(isAdministrator ||
+            isReceptionist ||
+            isInstructor) && (
+
+            <NavLink
+              to="/lessons"
+              style={getNavStyle}
+            >
+              📅
+              <span>Lesson Bookings</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              TEST BOOKINGS
+          ====================================== */}
+
+          {(isAdministrator ||
+            isReceptionist ||
+            isInstructor) && (
+
+            <NavLink
+              to="/test-bookings"
+              style={getNavStyle}
+            >
+              📝
+              <span>Test Bookings</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              VEHICLES
+          ====================================== */}
+
+          {(isAdministrator ||
+            isReceptionist ||
+            isInstructor) && (
+
+            <NavLink
+              to="/vehicles"
+              style={getNavStyle}
+            >
+              🚗
+              <span>Vehicles</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              INSTRUCTORS
+          ====================================== */}
+
+          {(isAdministrator ||
+            isReceptionist) && (
+
+            <NavLink
+              to="/instructors"
+              style={getNavStyle}
+            >
+              👨‍🏫
+              <span>Instructors</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              PAYMENTS
+          ====================================== */}
+
+          {(isAdministrator ||
+            isReceptionist) && (
+
+            <NavLink
+              to="/payments"
+              style={getNavStyle}
+            >
+              💳
+              <span>Payments</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              REPORTS
+          ====================================== */}
+
+          {(isAdministrator ||
+            isReceptionist) && (
+
+            <NavLink
+              to="/reports"
+              style={getNavStyle}
+            >
+              📊
+              <span>Reports</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              USERS
+          ====================================== */}
+
+          {isAdministrator && (
+
+            <NavLink
+              to="/users"
+              style={getNavStyle}
+            >
+              👥
+              <span>Users</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              SCHOOLS
+          ====================================== */}
+
+          {role ===
+            "system administrator" && (
+
+            <NavLink
+              to="/schools"
+              style={getNavStyle}
+            >
+              🏫
+              <span>Schools</span>
+            </NavLink>
+
+          )}
+
+          {/* =====================================
+              SETTINGS
+          ====================================== */}
+
+          {isAdministrator && (
+
+            <NavLink
+              to="/settings"
+              style={getNavStyle}
+            >
+              ⚙️
+              <span>Settings</span>
+            </NavLink>
+
+          )}
+
+        </>
+
       )}
 
-      {/* ======================================
-          REPORTS
-          ADMINISTRATOR / RECEPTIONIST
-      ======================================= */}
-
-      {(hasAdministratorAccess ||
-        isReceptionist) && (
-        <NavLink
-          to="/reports"
-          style={linkStyle}
-          onClick={closeMobileMenu}
-        >
-          📊 Reports
-        </NavLink>
-      )}
-
-      {/* ======================================
-          USERS
-          ADMINISTRATOR
-      ======================================= */}
-
-      {hasAdministratorAccess && (
-        <NavLink
-          to="/users"
-          style={linkStyle}
-          onClick={closeMobileMenu}
-        >
-          👥 Users
-        </NavLink>
-      )}
-
-      {/* ======================================
-          SCHOOLS
-          SYSTEM ADMINISTRATOR ONLY
-      ======================================= */}
-
-      {isSystemAdministrator && (
-        <NavLink
-          to="/schools"
-          style={linkStyle}
-          onClick={closeMobileMenu}
-        >
-          🏫 Schools
-        </NavLink>
-      )}
-
-      {/* ======================================
-          SETTINGS
-          ADMINISTRATOR
-      ======================================= */}
-
-      {hasAdministratorAccess && (
-        <NavLink
-          to="/settings"
-          style={linkStyle}
-          onClick={closeMobileMenu}
-        >
-          ⚙️ Settings
-        </NavLink>
-      )}
-
-      {/* ======================================
+      {/* =========================================
           USER INFORMATION
-      ======================================= */}
+      ========================================== */}
 
       <Box
         sx={{
-          // IMPORTANT:
-          // Do not use marginTop: "auto"
-          // because it can push Logout below
-          // the mobile viewport.
-          marginTop: "20px",
-          flexShrink: 0,
+          mt: "auto",
+          pt: 3,
         }}
       >
-        <hr />
 
         <Box
           sx={{
-            padding: "12px",
-            marginBottom: "10px",
-            background:
-              "rgba(255,255,255,0.10)",
-            borderRadius: "8px",
+            backgroundColor:
+              "rgba(255,255,255,0.12)",
+            borderRadius: "10px",
+            padding: "16px",
+            mb: 2,
           }}
         >
-          {/* FULL NAME */}
 
-          <Box
-            sx={{
-              fontWeight: "bold",
-              fontSize: "15px",
-              marginBottom: "5px",
-            }}
+          <Typography
+            fontWeight="bold"
           >
             👤{" "}
-            {currentUser.fullname ||
+            {user?.fullname ||
+              user?.username ||
               "User"}
-          </Box>
+          </Typography>
 
-          {/* USERNAME */}
-
-          <Box
+          <Typography
+            variant="body2"
             sx={{
-              fontSize: "12px",
-              opacity: 0.85,
-              marginBottom: "3px",
+              mt: 1,
+              opacity: 0.9,
             }}
           >
             Username:{" "}
-            {currentUser.username ||
-              "Unknown"}
-          </Box>
+            {user?.username || "-"}
+          </Typography>
 
-          {/* ROLE */}
-
-          <Box
+          <Typography
+            variant="body2"
             sx={{
-              fontSize: "12px",
-              opacity: 0.85,
+              mt: 0.5,
+              opacity: 0.9,
             }}
           >
             Role:{" "}
-            {currentUser.role ||
-              "User"}
-          </Box>
+            {user?.role || "-"}
+          </Typography>
 
-          {/* SCHOOL */}
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 0.5,
+              opacity: 0.9,
+            }}
+          >
+            School ID:{" "}
+            {user?.school_id || "-"}
+          </Typography>
 
-          {currentUser.school_id && (
-            <Box
-              sx={{
-                fontSize: "12px",
-                opacity: 0.85,
-                marginTop: "3px",
-              }}
-            >
-              School ID:{" "}
-              {currentUser.school_id}
-            </Box>
-          )}
         </Box>
 
-        {/* ====================================
+        {/* =======================================
             LOGOUT
-        ===================================== */}
+        ======================================== */}
 
-        <button
-          onClick={logout}
-          style={{
+        <Box
+          component="button"
+          onClick={handleLogout}
+          sx={{
             width: "100%",
-            padding: "12px",
-            background: "#dc2626",
-            color: "white",
             border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontSize: "16px",
+            borderRadius: "8px",
+            padding: "14px",
+            backgroundColor: "#e82323",
+            color: "#fff",
+            fontSize: "17px",
             fontWeight: "bold",
-            marginBottom: "5px",
+            cursor: "pointer",
+            "&:hover": {
+              backgroundColor: "#c91d1d",
+            },
           }}
         >
           🚪 Logout
-        </button>
+        </Box>
+
       </Box>
+
     </Box>
   );
-
-  // ==========================================
-  // MOBILE
-  // ==========================================
-
-  if (isMobile) {
-    return (
-      <>
-        <IconButton
-          onClick={() =>
-            setMobileOpen(true)
-          }
-          sx={{
-            position: "fixed",
-            top: 12,
-            left: 12,
-            zIndex: 1300,
-            background: "#1e3a8a",
-            color: "white",
-            "&:hover": {
-              background: "#2563eb",
-            },
-            boxShadow: 2,
-          }}
-          aria-label="Open menu"
-        >
-          <MenuIcon />
-        </IconButton>
-
-        <Drawer
-          anchor="left"
-          open={mobileOpen}
-          onClose={() =>
-            setMobileOpen(false)
-          }
-          ModalProps={{
-            keepMounted: true,
-          }}
-          PaperProps={{
-            sx: {
-              background: "#1e3a8a",
-              color: "white",
-              overflow: "hidden",
-            },
-          }}
-        >
-          {sidebarContent}
-        </Drawer>
-      </>
-    );
-  }
-
-  // ==========================================
-  // DESKTOP
-  // ==========================================
-
-  return sidebarContent;
 }
-
-export default Sidebar;

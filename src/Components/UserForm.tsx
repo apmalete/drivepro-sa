@@ -519,6 +519,10 @@ export default function UserForm({
             Instructor
           </MenuItem>
 
+          <MenuItem value="Student">
+            Student
+          </MenuItem>
+
         </TextField>
 
         {/* =========================================

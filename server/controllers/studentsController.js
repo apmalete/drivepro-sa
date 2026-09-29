@@ -5,14 +5,96 @@ import db from "../database/database.js";
 // =====================================================
 
 const getSchoolId = (req) => {
-  const schoolId =
-    Number(req.user?.school_id);
+
+  const schoolId = Number(
+    req.user?.school_id
+  );
 
   if (!schoolId) {
     return null;
   }
 
   return schoolId;
+};
+
+// =====================================================
+// GET USER ROLE
+// =====================================================
+
+const getRole = (req) => {
+
+  return String(
+    req.user?.role || ""
+  )
+    .trim()
+    .toLowerCase();
+};
+
+// =====================================================
+// GET USER NAME
+// =====================================================
+
+const getUserName = (req) => {
+
+  return String(
+    req.user?.fullname ||
+    req.user?.username ||
+    ""
+  ).trim();
+};
+
+// =====================================================
+// GET USER ID
+// =====================================================
+
+const getUserId = (req) => {
+
+  const userId = Number(
+    req.user?.id
+  );
+
+  if (!userId) {
+    return null;
+  }
+
+  return userId;
+};
+
+// =====================================================
+// CHECK ADMINISTRATOR
+// =====================================================
+
+const isAdministrator = (req) => {
+
+  const role = getRole(req);
+
+  return (
+    role === "administrator" ||
+    role === "admin" ||
+    role === "system administrator"
+  );
+};
+
+// =====================================================
+// CHECK INSTRUCTOR
+// =====================================================
+
+const isInstructor = (req) => {
+
+  return (
+    getRole(req) === "instructor"
+  );
+};
+
+// =====================================================
+// CHECK STUDENT
+// =====================================================
+
+const isStudent = (req) => {
+
+  return (
+    getRole(req) === "student"
+  );
 };
 
 // =====================================================
@@ -25,6 +107,7 @@ export const getStudents = (req, res) => {
     getSchoolId(req);
 
   if (!schoolId) {
+
     return res.status(403).json({
       success: false,
       message:
@@ -32,32 +115,316 @@ export const getStudents = (req, res) => {
     });
   }
 
-  db.all(
-    `
-    SELECT *
-    FROM students
-    WHERE school_id = ?
-    ORDER BY id DESC
-    `,
-    [schoolId],
-    (err, rows) => {
+  const role = getRole(req);
 
-      if (err) {
+  const userName =
+    getUserName(req);
 
-        console.error(
-          "GET STUDENTS ERROR:",
-          err.message
+  const userId =
+    getUserId(req);
+
+  // ===================================================
+  // ADMINISTRATOR
+  // ===================================================
+
+  if (isAdministrator(req)) {
+
+    return db.all(
+      `
+      SELECT *
+      FROM students
+      WHERE school_id = ?
+      ORDER BY id DESC
+      `,
+      [schoolId],
+      (err, rows) => {
+
+        if (err) {
+
+          console.error(
+            "GET STUDENTS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(
+          rows || []
         );
-
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
       }
+    );
+  }
 
-      res.json(rows || []);
-    }
-  );
+  // ===================================================
+  // INSTRUCTOR
+  // ===================================================
+
+  if (isInstructor(req)) {
+
+    return db.all(
+      `
+      SELECT *
+      FROM students
+      WHERE school_id = ?
+        AND LOWER(TRIM(instructor))
+            = LOWER(TRIM(?))
+      ORDER BY id DESC
+      `,
+      [
+        schoolId,
+        userName,
+      ],
+      (err, rows) => {
+
+        if (err) {
+
+          console.error(
+            "GET INSTRUCTOR STUDENTS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(
+          rows || []
+        );
+      }
+    );
+  }
+
+  // ===================================================
+  // STUDENT
+  // ===================================================
+
+  if (isStudent(req)) {
+
+    /*
+      STUDENT LOOKUP ORDER:
+
+      1. user_id
+      2. studentNo
+      3. learnerNumber
+      4. learnerCode
+      5. fullname
+    */
+
+    return db.all(
+      `
+      SELECT *
+      FROM students
+
+      WHERE school_id = ?
+
+        AND
+        (
+          user_id = ?
+
+          OR
+
+          (
+            user_id IS NULL
+            AND studentNo IS NOT NULL
+            AND LOWER(TRIM(studentNo)) =
+                LOWER(TRIM(?))
+          )
+
+          OR
+
+          (
+            user_id IS NULL
+            AND learnerNumber IS NOT NULL
+            AND LOWER(TRIM(learnerNumber)) =
+                LOWER(TRIM(?))
+          )
+
+          OR
+
+          (
+            user_id IS NULL
+            AND learnerCode IS NOT NULL
+            AND LOWER(TRIM(learnerCode)) =
+                LOWER(TRIM(?))
+          )
+
+          OR
+
+          (
+            user_id IS NULL
+            AND fullname IS NOT NULL
+            AND LOWER(TRIM(fullname)) =
+                LOWER(TRIM(?))
+          )
+        )
+
+      ORDER BY
+
+        CASE
+
+          WHEN user_id = ?
+          THEN 1
+
+          WHEN
+            user_id IS NULL
+            AND LOWER(TRIM(studentNo)) =
+                LOWER(TRIM(?))
+          THEN 2
+
+          WHEN
+            user_id IS NULL
+            AND LOWER(TRIM(learnerNumber)) =
+                LOWER(TRIM(?))
+          THEN 3
+
+          WHEN
+            user_id IS NULL
+            AND LOWER(TRIM(learnerCode)) =
+                LOWER(TRIM(?))
+          THEN 4
+
+          WHEN
+            user_id IS NULL
+            AND LOWER(TRIM(fullname)) =
+                LOWER(TRIM(?))
+          THEN 5
+
+          ELSE 99
+
+        END
+
+      `,
+      [
+        // School
+        schoolId,
+
+        // User ID
+        userId,
+
+        // Student number
+        req.user?.username,
+
+        // Learner number
+        req.user?.username,
+
+        // Learner code
+        req.user?.username,
+
+        // Full name
+        req.user?.fullname,
+
+        // ORDER BY user ID
+        userId,
+
+        // ORDER BY student number
+        req.user?.username,
+
+        // ORDER BY learner number
+        req.user?.username,
+
+        // ORDER BY learner code
+        req.user?.username,
+
+        // ORDER BY fullname
+        req.user?.fullname,
+      ],
+      (err, rows) => {
+
+        if (err) {
+
+          console.error(
+            "GET STUDENT PROFILE ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        // =================================================
+        // AUTOMATICALLY LINK STUDENT TO USER
+        // =================================================
+
+        if (
+          rows &&
+          rows.length > 0 &&
+          userId
+        ) {
+
+          const student =
+            rows[0];
+
+          if (
+            Number(student.user_id) !== userId
+          ) {
+
+            db.run(
+              `
+              UPDATE students
+              SET user_id = ?
+              WHERE id = ?
+                AND school_id = ?
+              `,
+              [
+                userId,
+                student.id,
+                schoolId,
+              ],
+              (linkErr) => {
+
+                if (linkErr) {
+
+                  console.error(
+                    "STUDENT USER LINK ERROR:",
+                    linkErr.message
+                  );
+
+                  return res.json(
+                    rows || []
+                  );
+                }
+
+                student.user_id =
+                  userId;
+
+                console.log(
+                  `Student ${student.id} linked to user ${userId}`
+                );
+
+                return res.json(
+                  rows || []
+                );
+              }
+            );
+
+            return;
+          }
+        }
+
+        return res.json(
+          rows || []
+        );
+      }
+    );
+  }
+
+  // ===================================================
+  // UNKNOWN / UNSUPPORTED ROLE
+  // ===================================================
+
+  return res.status(403).json({
+    success: false,
+    message:
+      "You do not have permission to view students.",
+  });
 };
 
 // =====================================================
@@ -70,10 +437,24 @@ export const addStudent = (req, res) => {
     getSchoolId(req);
 
   if (!schoolId) {
+
     return res.status(403).json({
       success: false,
       message:
         "School information not found.",
+    });
+  }
+
+  // ===================================================
+  // ONLY ADMINISTRATORS CAN ADD STUDENTS
+  // ===================================================
+
+  if (!isAdministrator(req)) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Only administrators can add students.",
     });
   }
 
@@ -82,7 +463,12 @@ export const addStudent = (req, res) => {
     req.body
   );
 
+  // ===================================================
+  // STUDENT DATA
+  // ===================================================
+
   const {
+    user_id,
     studentNo,
     fullname,
     idNumber,
@@ -104,10 +490,15 @@ export const addStudent = (req, res) => {
     status,
   } = req.body;
 
+  // ===================================================
+  // INSERT STUDENT
+  // ===================================================
+
   db.run(
     `
     INSERT INTO students
     (
+      user_id,
       studentNo,
       fullname,
       idNumber,
@@ -129,31 +520,80 @@ export const addStudent = (req, res) => {
       status,
       school_id
     )
+
     VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?,
+      ?
+    )
     `,
     [
-      studentNo,
+      user_id
+        ? Number(user_id)
+        : null,
+
+      studentNo || null,
+
       fullname,
-      idNumber,
-      gender,
+
+      idNumber || null,
+
+      gender || null,
+
       phone,
-      email,
-      address,
-      learnerNumber,
-      learnerCode,
-      learnerStatus,
-      licenceCode,
-      licenceStatus,
-      instructor,
-      vehicle,
-      courseFee,
-      amountPaid,
-      balance,
-      photo,
-      status,
+
+      email || null,
+
+      address || null,
+
+      learnerNumber || null,
+
+      learnerCode || null,
+
+      learnerStatus ||
+        "Not Applicable",
+
+      licenceCode || null,
+
+      licenceStatus ||
+        "Not Applicable",
+
+      instructor || null,
+
+      vehicle || null,
+
+      Number(courseFee) || 0,
+
+      Number(amountPaid) || 0,
+
+      Number(balance) || 0,
+
+      photo || null,
+
+      status || "Active",
+
       schoolId,
-    ],    function (err) {
+    ],
+    function (err) {
 
       if (err) {
 
@@ -168,11 +608,19 @@ export const addStudent = (req, res) => {
         });
       }
 
-      res.json({
+      console.log(
+        `Student ${this.lastID} added successfully`
+      );
+
+      return res.json({
+
         success: true,
+
         message:
           "Student added successfully",
+
         id: this.lastID,
+
       });
     }
   );
@@ -184,12 +632,11 @@ export const addStudent = (req, res) => {
 
 export const updateStudent = (req, res) => {
 
-
-
   const schoolId =
     getSchoolId(req);
 
   if (!schoolId) {
+
     return res.status(403).json({
       success: false,
       message:
@@ -197,7 +644,25 @@ export const updateStudent = (req, res) => {
     });
   }
 
+  // ===================================================
+  // ONLY ADMINISTRATORS CAN UPDATE STUDENTS
+  // ===================================================
+
+  if (!isAdministrator(req)) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Only administrators can update students.",
+    });
+  }
+
+  // ===================================================
+  // STUDENT DATA
+  // ===================================================
+
   const {
+    user_id,
     studentNo,
     fullname,
     idNumber,
@@ -219,10 +684,16 @@ export const updateStudent = (req, res) => {
     status,
   } = req.body;
 
+  // ===================================================
+  // UPDATE STUDENT
+  // ===================================================
+
   db.run(
     `
     UPDATE students
+
     SET
+      user_id = ?,
       studentNo = ?,
       fullname = ?,
       idNumber = ?,
@@ -242,32 +713,60 @@ export const updateStudent = (req, res) => {
       balance = ?,
       photo = ?,
       status = ?
+
     WHERE id = ?
-    AND school_id = ?
+      AND school_id = ?
     `,
     [
-      studentNo,
+      user_id
+        ? Number(user_id)
+        : null,
+
+      studentNo || null,
+
       fullname,
-      idNumber,
-      gender,
+
+      idNumber || null,
+
+      gender || null,
+
       phone,
-      email,
-      address,
-      learnerNumber,
-      learnerCode,
-      learnerStatus,
-      licenceCode,
-      licenceStatus,
-      instructor,
-      vehicle,
-      courseFee,
-      amountPaid,
-      balance,
-      photo,
-      status,
+
+      email || null,
+
+      address || null,
+
+      learnerNumber || null,
+
+      learnerCode || null,
+
+      learnerStatus ||
+        "Not Applicable",
+
+      licenceCode || null,
+
+      licenceStatus ||
+        "Not Applicable",
+
+      instructor || null,
+
+      vehicle || null,
+
+      Number(courseFee) || 0,
+
+      Number(amountPaid) || 0,
+
+      Number(balance) || 0,
+
+      photo || null,
+
+      status || "Active",
+
       req.params.id,
+
       schoolId,
-    ],    function (err) {
+    ],
+    function (err) {
 
       if (err) {
 
@@ -291,10 +790,17 @@ export const updateStudent = (req, res) => {
         });
       }
 
-      res.json({
+      console.log(
+        `Student ${req.params.id} updated successfully`
+      );
+
+      return res.json({
+
         success: true,
+
         message:
           "Student updated successfully",
+
       });
     }
   );
@@ -310,6 +816,7 @@ export const deleteStudent = (req, res) => {
     getSchoolId(req);
 
   if (!schoolId) {
+
     return res.status(403).json({
       success: false,
       message:
@@ -317,11 +824,28 @@ export const deleteStudent = (req, res) => {
     });
   }
 
+  // ===================================================
+  // ONLY ADMINISTRATORS CAN DELETE STUDENTS
+  // ===================================================
+
+  if (!isAdministrator(req)) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Only administrators can delete students.",
+    });
+  }
+
+  // ===================================================
+  // DELETE STUDENT
+  // ===================================================
+
   db.run(
     `
     DELETE FROM students
     WHERE id = ?
-    AND school_id = ?
+      AND school_id = ?
     `,
     [
       req.params.id,
@@ -351,18 +875,18 @@ export const deleteStudent = (req, res) => {
         });
       }
 
-      res.json({
+      console.log(
+        `Student ${req.params.id} deleted successfully`
+      );
+
+      return res.json({
+
         success: true,
+
         message:
           "Student deleted successfully",
+
       });
     }
   );
 };
-
-
-
-
-
-
-

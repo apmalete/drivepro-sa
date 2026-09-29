@@ -94,7 +94,14 @@ function Dashboard() {
     .toLowerCase();
 
   const isInstructor =
-    role === "instructor";
+  role.includes("instructor");
+
+const isStudent =
+  role.includes("student");
+
+console.log("DASHBOARD ROLE:", currentUser.role);
+console.log("NORMALIZED ROLE:", role);
+console.log("IS STUDENT:", isStudent);
 
   // ==========================================
   // DASHBOARD STATE
@@ -457,7 +464,12 @@ function Dashboard() {
               FINANCIAL STATISTICS
           ================================== */}
 
-          {!isInstructor && (
+          {/* =================================
+              FINANCIAL STATISTICS
+              HIDDEN FOR STUDENTS AND INSTRUCTORS
+          ================================== */}
+
+          {!isStudent && !isInstructor && (
             <Box
               sx={{
                 display: "grid",

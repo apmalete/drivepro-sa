@@ -23,6 +23,12 @@ import Payments from "./pages/Payments";
 import Reports from "./pages/Reports";
 import Schools from "./pages/Schools";
 
+import StudentDashboard from "./pages/StudentDashboard";
+import StudentLessons from "./pages/StudentLessons";
+import StudentTestBookings from "./pages/StudentTestBookings";
+import StudentProfile from "./pages/StudentProfile";
+import StudentPayments from "./pages/StudentPayments";
+
 // ==========================================
 // USER ROLE TYPE
 // ==========================================
@@ -32,14 +38,14 @@ type UserRole =
   | "Admin"
   | "System Administrator"
   | "Receptionist"
-  | "Instructor";
+  | "Instructor"
+  | "Student";
 
 // ==========================================
 // GET LOGGED-IN USER
 // ==========================================
 
 const getCurrentUser = () => {
-
   const storedUser =
     localStorage.getItem("user");
 
@@ -48,13 +54,8 @@ const getCurrentUser = () => {
   }
 
   try {
-
-    return JSON.parse(
-      storedUser
-    );
-
+    return JSON.parse(storedUser);
   } catch (error) {
-
     console.error(
       "ERROR READING USER:",
       error
@@ -71,13 +72,9 @@ const getCurrentUser = () => {
 const getUserRole = (
   role?: string
 ): string => {
-
-  return String(
-    role || ""
-  )
+  return String(role || "")
     .trim()
     .toLowerCase();
-
 };
 
 // ==========================================
@@ -89,11 +86,8 @@ function ProtectedRoute({
 }: {
   children: ReactNode;
 }) {
-
   const loggedIn =
-    localStorage.getItem(
-      "loggedIn"
-    );
+    localStorage.getItem("loggedIn");
 
   const user =
     getCurrentUser();
@@ -102,14 +96,12 @@ function ProtectedRoute({
     loggedIn !== "true" ||
     !user
   ) {
-
     return (
       <Navigate
         to="/"
         replace
       />
     );
-
   }
 
   return <>{children}</>;
@@ -126,45 +118,26 @@ function RoleRoute({
   allowedRoles: UserRole[];
   children: ReactNode;
 }) {
-
   const loggedIn =
-    localStorage.getItem(
-      "loggedIn"
-    );
+    localStorage.getItem("loggedIn");
 
   const user =
     getCurrentUser();
-
-  // ========================================
-  // NOT LOGGED IN
-  // ========================================
 
   if (
     loggedIn !== "true" ||
     !user
   ) {
-
     return (
       <Navigate
         to="/"
         replace
       />
     );
-
   }
 
-  // ========================================
-  // GET CURRENT ROLE
-  // ========================================
-
   const currentRole =
-    getUserRole(
-      user.role
-    );
-
-  // ========================================
-  // CHECK PERMISSION
-  // ========================================
+    getUserRole(user.role);
 
   const hasPermission =
     allowedRoles.some(
@@ -174,19 +147,55 @@ function RoleRoute({
         ) === currentRole
     );
 
-  // ========================================
-  // ACCESS DENIED
-  // ========================================
-
   if (!hasPermission) {
-
     return (
       <Navigate
         to="/dashboard"
         replace
       />
     );
+  }
 
+  return <>{children}</>;
+}
+
+// ==========================================
+// STUDENT ROUTE
+// ==========================================
+
+function StudentRoute({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const loggedIn =
+    localStorage.getItem("loggedIn");
+
+  const user =
+    getCurrentUser();
+
+  if (
+    loggedIn !== "true" ||
+    !user
+  ) {
+    return (
+      <Navigate
+        to="/"
+        replace
+      />
+    );
+  }
+
+  const role =
+    getUserRole(user.role);
+
+  if (role !== "student") {
+    return (
+      <Navigate
+        to="/dashboard"
+        replace
+      />
+    );
   }
 
   return <>{children}</>;
@@ -197,9 +206,7 @@ function RoleRoute({
 // ==========================================
 
 export default function App() {
-
   return (
-
     <Routes>
 
       {/* =====================================
@@ -208,15 +215,11 @@ export default function App() {
 
       <Route
         path="/"
-        element={
-          <Login />
-        }
+        element={<Login />}
       />
 
-
       {/* =====================================
-          DASHBOARD
-          ALL LOGGED-IN USERS
+          NORMAL DASHBOARD
       ====================================== */}
 
       <Route
@@ -228,13 +231,73 @@ export default function App() {
         }
       />
 
+      {/* =====================================
+          STUDENT DASHBOARD
+      ====================================== */}
+
+      <Route
+        path="/student-dashboard"
+        element={
+          <StudentRoute>
+            <StudentDashboard />
+          </StudentRoute>
+        }
+      />
+
+      {/* =====================================
+          STUDENT LESSONS
+      ====================================== */}
+
+      <Route
+        path="/student-lessons"
+        element={
+          <StudentRoute>
+            <StudentLessons />
+          </StudentRoute>
+        }
+      />
+
+      {/* =====================================
+          STUDENT TEST BOOKINGS
+      ====================================== */}
+
+      <Route
+        path="/student-test-bookings"
+        element={
+          <StudentRoute>
+            <StudentTestBookings />
+          </StudentRoute>
+        }
+      />
+
+      {/* =====================================
+          STUDENT PROFILE
+      ====================================== */}
+
+      <Route
+        path="/student-profile"
+        element={
+          <StudentRoute>
+            <StudentProfile />
+          </StudentRoute>
+        }
+      />
+
+      {/* =====================================
+          STUDENT PAYMENTS
+      ====================================== */}
+
+      <Route
+        path="/student-payments"
+        element={
+          <StudentRoute>
+            <StudentPayments />
+          </StudentRoute>
+        }
+      />
 
       {/* =====================================
           STUDENTS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
-          INSTRUCTOR
       ====================================== */}
 
       <Route
@@ -254,13 +317,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           LESSONS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
-          INSTRUCTOR
       ====================================== */}
 
       <Route
@@ -280,13 +338,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           TEST BOOKINGS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
-          INSTRUCTOR
       ====================================== */}
 
       <Route
@@ -306,12 +359,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           INSTRUCTORS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
       ====================================== */}
 
       <Route
@@ -330,13 +379,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           VEHICLES
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
-          INSTRUCTOR
       ====================================== */}
 
       <Route
@@ -356,11 +400,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           USERS
-          SYSTEM ADMIN
-          SCHOOL ADMINISTRATOR
       ====================================== */}
 
       <Route
@@ -378,12 +419,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           PAYMENTS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
       ====================================== */}
 
       <Route
@@ -402,12 +439,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           REPORTS
-          SYSTEM ADMIN
-          ADMIN
-          RECEPTIONIST
       ====================================== */}
 
       <Route
@@ -426,10 +459,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           SCHOOLS
-          SYSTEM ADMINISTRATOR ONLY
       ====================================== */}
 
       <Route
@@ -445,11 +476,8 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           SETTINGS
-          SYSTEM ADMIN
-          SCHOOL ADMINISTRATOR
       ====================================== */}
 
       <Route
@@ -467,7 +495,6 @@ export default function App() {
         }
       />
 
-
       {/* =====================================
           CATCH ALL
       ====================================== */}
@@ -483,6 +510,5 @@ export default function App() {
       />
 
     </Routes>
-
   );
 }

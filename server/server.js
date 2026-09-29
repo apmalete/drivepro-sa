@@ -33,6 +33,14 @@ import {
 } from "./middleware/authMiddleware.js";
 
 // =====================================
+// CURRENT USER PROFILE
+// =====================================
+
+import {
+  getMe,
+} from "./controllers/meController.js";
+
+// =====================================
 // DASHBOARD
 // =====================================
 
@@ -408,7 +416,19 @@ app.post(
   loginUser
 );
 
+// =====================================
+// CURRENT AUTHENTICATED USER
+// =====================================
+
+app.get(
+  "/me",
+  authenticateUser,
+  getMe
+);
+
+// =====================================
 // USERS REQUIRE AUTHENTICATION
+// =====================================
 
 app.get(
   "/users",

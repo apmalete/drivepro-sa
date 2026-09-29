@@ -1,146 +1,456 @@
 import db from "../database/database.js";
 
-
 // =====================================================
 // GET SCHOOL ID FROM AUTHENTICATED USER
 // =====================================================
 
 const getSchoolId = (req) => {
+  const schoolId = Number(req.user?.school_id);
 
-  const schoolId =
-    Number(req.user?.school_id);
-
-  if (!schoolId) {
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
     return null;
   }
 
   return schoolId;
 };
 
+// =====================================================
+// GET USER ROLE
+// =====================================================
+
+const getUserRole = (req) => {
+  return String(req.user?.role || "")
+    .trim()
+    .toLowerCase();
+};
 
 // =====================================================
-// GET ALL LESSONS
+// GET USERNAME
 // =====================================================
 
-export const getLessons = (req, res) => {
+const getUsername = (req) => {
+  return String(req.user?.username || "").trim();
+};
 
-  const schoolId =
-    getSchoolId(req);
+// =====================================================
+// GET USER FULL NAME
+// =====================================================
 
-  if (!schoolId) {
+const getUserFullName = (req) => {
+  return String(
+    req.user?.fullname ||
+    req.user?.fullName ||
+    req.user?.username ||
+    ""
+  ).trim();
+};
 
-    return res.status(403).json({
-      success: false,
-      message:
-        "School information not found.",
-    });
-  }
+// =====================================================
+// CHECK ADMINISTRATOR
+// =====================================================
 
-  db.all(
-    `
-    SELECT *
-    FROM lessons
-    WHERE school_id = ?
-    ORDER BY lesson_date, lesson_time
-    `,
-    [schoolId],
-    (err, rows) => {
+const isAdministrator = (req) => {
+  const role = getUserRole(req);
 
-      if (err) {
-
-        console.error(
-          "GET LESSONS ERROR:",
-          err.message
-        );
-
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      res.json(rows || []);
-    }
+  return (
+    role === "administrator" ||
+    role === "system administrator" ||
+    role === "admin"
   );
 };
 
+// =====================================================
+// CHECK SYSTEM ADMINISTRATOR
+// =====================================================
+
+const isSystemAdministrator = (req) => {
+  const role = getUserRole(req);
+  const username = getUsername(req).toLowerCase();
+
+  return (
+    role === "system administrator" ||
+    username === "admin"
+  );
+};
+
+// =====================================================
+// GET LESSONS
+//
+// ADMINISTRATOR
+//   -> sees all lessons for their school
+//
+// INSTRUCTOR
+//   -> sees only lessons assigned to them
+//
+// STUDENT
+//   -> sees only their own lessons
+//
+// SYSTEM ADMINISTRATOR
+//   -> sees all lessons for their school
+// =====================================================
+
+export const getLessons = (req, res) => {
+  const schoolId = getSchoolId(req);
+  const role = getUserRole(req);
+
+  if (!schoolId) {
+    return res.status(403).json({
+      success: false,
+      message: "School information not found.",
+    });
+  }
+
+  // ===================================================
+  // SYSTEM ADMIN / ADMINISTRATOR
+  // ===================================================
+
+  if (
+    role === "system administrator" ||
+    role === "administrator" ||
+    role === "admin"
+  ) {
+    db.all(
+      `
+      SELECT *
+      FROM lessons
+      WHERE school_id = ?
+      ORDER BY lesson_date, lesson_time
+      `,
+      [schoolId],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET ADMIN LESSONS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
+
+    return;
+  }
+
+  // ===================================================
+  // INSTRUCTOR
+  // ===================================================
+
+  if (role === "instructor") {
+    const instructorName = getUserFullName(req);
+
+    if (!instructorName) {
+      return res.status(403).json({
+        success: false,
+        message: "Instructor information not found.",
+      });
+    }
+
+    db.all(
+      `
+      SELECT *
+      FROM lessons
+      WHERE school_id = ?
+        AND LOWER(TRIM(instructor))
+            =
+            LOWER(TRIM(?))
+      ORDER BY lesson_date, lesson_time
+      `,
+      [
+        schoolId,
+        instructorName,
+      ],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET INSTRUCTOR LESSONS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
+
+    return;
+  }
+
+  // ===================================================
+  // STUDENT
+  // ===================================================
+
+  if (role === "student") {
+    const studentName = getUserFullName(req);
+
+    if (!studentName) {
+      return res.status(403).json({
+        success: false,
+        message: "Student information not found.",
+      });
+    }
+
+    db.all(
+      `
+      SELECT *
+      FROM lessons
+      WHERE school_id = ?
+        AND LOWER(TRIM(student))
+            =
+            LOWER(TRIM(?))
+      ORDER BY lesson_date, lesson_time
+      `,
+      [
+        schoolId,
+        studentName,
+      ],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET STUDENT LESSONS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
+
+    return;
+  }
+
+  // ===================================================
+  // UNKNOWN ROLE
+  // ===================================================
+
+  return res.status(403).json({
+    success: false,
+    message: "You are not authorised to view lessons.",
+  });
+};
 
 // =====================================================
 // GET LESSONS FOR ONE STUDENT
+//
+// /lessons/student/:studentName
+//
+// ADMINISTRATOR
+//   -> can view requested student
+//
+// INSTRUCTOR
+//   -> can only view students assigned to that instructor
+//
+// STUDENT
+//   -> can only view their own lessons
 // =====================================================
 
-export const getStudentLessons = (
-  req,
-  res
-) => {
-
+export const getStudentLessons = (req, res) => {
   const {
     studentName,
   } = req.params;
 
-  const schoolId =
-    getSchoolId(req);
+  const schoolId = getSchoolId(req);
+  const role = getUserRole(req);
 
   if (!schoolId) {
-
     return res.status(403).json({
       success: false,
-      message:
-        "School information not found.",
+      message: "School information not found.",
     });
   }
 
-  db.all(
-    `
-    SELECT *
-    FROM lessons
-    WHERE student = ?
-      AND school_id = ?
-    ORDER BY lesson_date DESC, lesson_time DESC
-    `,
-    [
-      studentName,
-      schoolId,
-    ],
-    (err, rows) => {
+  if (!studentName) {
+    return res.status(400).json({
+      success: false,
+      message: "Student name is required.",
+    });
+  }
 
-      if (err) {
+  // ===================================================
+  // STUDENT
+  //
+  // A student cannot request another student's lessons.
+  // ===================================================
 
-        console.error(
-          "GET STUDENT LESSONS ERROR:",
-          err.message
-        );
+  if (role === "student") {
+    const loggedInStudent = getUserFullName(req);
 
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      res.json(rows || []);
+    if (
+      loggedInStudent.toLowerCase() !==
+      String(studentName).trim().toLowerCase()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Students can only view their own lessons.",
+      });
     }
-  );
-};
+  }
 
+  // ===================================================
+  // INSTRUCTOR
+  //
+  // Instructor can only view lessons for a student
+  // assigned to that instructor.
+  // ===================================================
+
+  if (role === "instructor") {
+    const instructorName = getUserFullName(req);
+
+    db.all(
+      `
+      SELECT *
+      FROM lessons
+      WHERE student = ?
+        AND school_id = ?
+        AND LOWER(TRIM(instructor))
+            =
+            LOWER(TRIM(?))
+      ORDER BY lesson_date DESC, lesson_time DESC
+      `,
+      [
+        studentName,
+        schoolId,
+        instructorName,
+      ],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET INSTRUCTOR STUDENT LESSONS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
+
+    return;
+  }
+
+  // ===================================================
+  // STUDENT
+  // ===================================================
+
+  if (role === "student") {
+    db.all(
+      `
+      SELECT *
+      FROM lessons
+      WHERE LOWER(TRIM(student))
+            =
+            LOWER(TRIM(?))
+        AND school_id = ?
+      ORDER BY lesson_date DESC, lesson_time DESC
+      `,
+      [
+        studentName,
+        schoolId,
+      ],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET STUDENT LESSONS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
+
+    return;
+  }
+
+  // ===================================================
+  // ADMINISTRATOR / SYSTEM ADMINISTRATOR
+  // ===================================================
+
+  if (isAdministrator(req)) {
+    db.all(
+      `
+      SELECT *
+      FROM lessons
+      WHERE student = ?
+        AND school_id = ?
+      ORDER BY lesson_date DESC, lesson_time DESC
+      `,
+      [
+        studentName,
+        schoolId,
+      ],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET ADMIN STUDENT LESSONS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
+
+    return;
+  }
+
+  return res.status(403).json({
+    success: false,
+    message:
+      "You are not authorised to view these lessons.",
+  });
+};
 
 // =====================================================
 // ADD LESSON
+//
+// ONLY ADMINISTRATORS CAN CREATE LESSONS
 // =====================================================
 
-export const addLesson = (
-  req,
-  res
-) => {
-
-  const schoolId =
-    getSchoolId(req);
+export const addLesson = (req, res) => {
+  const schoolId = getSchoolId(req);
 
   if (!schoolId) {
+    return res.status(403).json({
+      success: false,
+      message: "School information not found.",
+    });
+  }
 
+  if (!isAdministrator(req)) {
     return res.status(403).json({
       success: false,
       message:
-        "School information not found.",
+        "Only administrators can add lessons.",
     });
   }
 
@@ -153,9 +463,43 @@ export const addLesson = (
     status,
   } = req.body;
 
+  if (!student) {
+    return res.status(400).json({
+      success: false,
+      message: "Student is required.",
+    });
+  }
+
+  if (!instructor) {
+    return res.status(400).json({
+      success: false,
+      message: "Instructor is required.",
+    });
+  }
+
+  if (!vehicle) {
+    return res.status(400).json({
+      success: false,
+      message: "Vehicle is required.",
+    });
+  }
+
+  if (!lesson_date) {
+    return res.status(400).json({
+      success: false,
+      message: "Lesson date is required.",
+    });
+  }
+
+  if (!lesson_time) {
+    return res.status(400).json({
+      success: false,
+      message: "Lesson time is required.",
+    });
+  }
 
   // ===================================================
-  // CHECK INSTRUCTOR AND VEHICLE CONFLICT
+  // CHECK INSTRUCTOR / VEHICLE CONFLICT
   // ===================================================
 
   db.get(
@@ -178,9 +522,7 @@ export const addLesson = (
       vehicle,
     ],
     (err, existingLesson) => {
-
       if (err) {
-
         console.error(
           "CHECK LESSON CONFLICT ERROR:",
           err.message
@@ -192,16 +534,14 @@ export const addLesson = (
         });
       }
 
-
-      // ================================================
-      // INSTRUCTOR ALREADY BOOKED
-      // ================================================
+      // =================================================
+      // INSTRUCTOR CONFLICT
+      // =================================================
 
       if (
         existingLesson &&
         existingLesson.instructor === instructor
       ) {
-
         return res.status(400).json({
           success: false,
           message:
@@ -209,16 +549,14 @@ export const addLesson = (
         });
       }
 
-
-      // ================================================
-      // VEHICLE ALREADY BOOKED
-      // ================================================
+      // =================================================
+      // VEHICLE CONFLICT
+      // =================================================
 
       if (
         existingLesson &&
         existingLesson.vehicle === vehicle
       ) {
-
         return res.status(400).json({
           success: false,
           message:
@@ -226,10 +564,9 @@ export const addLesson = (
         });
       }
 
-
-      // ================================================
-      // ADD LESSON
-      // ================================================
+      // =================================================
+      // INSERT LESSON
+      // =================================================
 
       db.run(
         `
@@ -241,11 +578,9 @@ export const addLesson = (
           lesson_date,
           lesson_time,
           status,
-          notification_sent,
-          day_reminder_sent,
           school_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [
           student,
@@ -257,9 +592,7 @@ export const addLesson = (
           schoolId,
         ],
         function (err) {
-
           if (err) {
-
             console.error(
               "ADD LESSON ERROR:",
               err.message
@@ -271,7 +604,7 @@ export const addLesson = (
             });
           }
 
-          res.json({
+          return res.json({
             success: true,
             message:
               "Lesson created successfully.",
@@ -283,29 +616,31 @@ export const addLesson = (
   );
 };
 
-
 // =====================================================
 // UPDATE LESSON
+//
+// ONLY ADMINISTRATORS CAN UPDATE LESSONS
 // =====================================================
 
-export const updateLesson = (
-  req,
-  res
-) => {
-
+export const updateLesson = (req, res) => {
   const {
     id,
   } = req.params;
 
-  const schoolId =
-    getSchoolId(req);
+  const schoolId = getSchoolId(req);
 
   if (!schoolId) {
+    return res.status(403).json({
+      success: false,
+      message: "School information not found.",
+    });
+  }
 
+  if (!isAdministrator(req)) {
     return res.status(403).json({
       success: false,
       message:
-        "School information not found.",
+        "Only administrators can update lessons.",
     });
   }
 
@@ -317,7 +652,6 @@ export const updateLesson = (
     lesson_time,
     status,
   } = req.body;
-
 
   // ===================================================
   // CHECK INSTRUCTOR / VEHICLE CONFLICT
@@ -345,9 +679,7 @@ export const updateLesson = (
       vehicle,
     ],
     (err, existingLesson) => {
-
       if (err) {
-
         console.error(
           "CHECK LESSON UPDATE CONFLICT ERROR:",
           err.message
@@ -359,16 +691,14 @@ export const updateLesson = (
         });
       }
 
-
-      // ================================================
+      // =================================================
       // INSTRUCTOR CONFLICT
-      // ================================================
+      // =================================================
 
       if (
         existingLesson &&
         existingLesson.instructor === instructor
       ) {
-
         return res.status(400).json({
           success: false,
           message:
@@ -376,16 +706,14 @@ export const updateLesson = (
         });
       }
 
-
-      // ================================================
+      // =================================================
       // VEHICLE CONFLICT
-      // ================================================
+      // =================================================
 
       if (
         existingLesson &&
         existingLesson.vehicle === vehicle
       ) {
-
         return res.status(400).json({
           success: false,
           message:
@@ -393,13 +721,12 @@ export const updateLesson = (
         });
       }
 
-
-      // ================================================
+      // =================================================
       // UPDATE LESSON
       //
-      // Reset WhatsApp flags because the lesson may
-      // have been rescheduled or changed.
-      // ================================================
+      // Reset WhatsApp notification flags because
+      // the lesson may have changed.
+      // =================================================
 
       db.run(
         `
@@ -427,9 +754,7 @@ export const updateLesson = (
           schoolId,
         ],
         function (err) {
-
           if (err) {
-
             console.error(
               "UPDATE LESSON ERROR:",
               err.message
@@ -441,13 +766,7 @@ export const updateLesson = (
             });
           }
 
-
-          // ============================================
-          // LESSON NOT FOUND
-          // ============================================
-
           if (this.changes === 0) {
-
             return res.status(404).json({
               success: false,
               message:
@@ -455,8 +774,7 @@ export const updateLesson = (
             });
           }
 
-
-          res.json({
+          return res.json({
             success: true,
             message:
               "Lesson updated successfully.",
@@ -467,32 +785,33 @@ export const updateLesson = (
   );
 };
 
-
 // =====================================================
 // DELETE LESSON
+//
+// ONLY ADMINISTRATORS CAN DELETE LESSONS
 // =====================================================
 
-export const deleteLesson = (
-  req,
-  res
-) => {
-
+export const deleteLesson = (req, res) => {
   const {
     id,
   } = req.params;
 
-  const schoolId =
-    getSchoolId(req);
+  const schoolId = getSchoolId(req);
 
   if (!schoolId) {
-
     return res.status(403).json({
       success: false,
-      message:
-        "School information not found.",
+      message: "School information not found.",
     });
   }
 
+  if (!isAdministrator(req)) {
+    return res.status(403).json({
+      success: false,
+      message:
+        "Only administrators can delete lessons.",
+    });
+  }
 
   db.run(
     `
@@ -505,9 +824,7 @@ export const deleteLesson = (
       schoolId,
     ],
     function (err) {
-
       if (err) {
-
         console.error(
           "DELETE LESSON ERROR:",
           err.message
@@ -519,13 +836,7 @@ export const deleteLesson = (
         });
       }
 
-
-      // ================================================
-      // LESSON NOT FOUND
-      // ================================================
-
       if (this.changes === 0) {
-
         return res.status(404).json({
           success: false,
           message:
@@ -533,8 +844,7 @@ export const deleteLesson = (
         });
       }
 
-
-      res.json({
+      return res.json({
         success: true,
         message:
           "Lesson deleted successfully.",

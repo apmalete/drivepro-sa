@@ -8,6 +8,7 @@ const JWT_SECRET =
   process.env.JWT_SECRET ||
   "drivepro-sa-secret-key-change-later";
 
+
 // ==========================================
 // AUTHENTICATION MIDDLEWARE
 // ==========================================
@@ -27,6 +28,7 @@ export const authenticateUser = (
     const authHeader =
       req.headers.authorization;
 
+
     // ========================================
     // CHECK HEADER
     // ========================================
@@ -40,6 +42,7 @@ export const authenticateUser = (
       });
 
     }
+
 
     // ========================================
     // CHECK BEARER
@@ -59,12 +62,14 @@ export const authenticateUser = (
 
     }
 
+
     // ========================================
     // GET TOKEN
     // ========================================
 
     const token =
       authHeader.substring(7);
+
 
     // ========================================
     // VERIFY TOKEN
@@ -76,12 +81,14 @@ export const authenticateUser = (
         JWT_SECRET
       );
 
+
     // ========================================
     // STORE USER
     // ========================================
 
     req.user =
       decoded;
+
 
     // ========================================
     // CONTINUE
@@ -127,6 +134,7 @@ export const requireSystemAdministrator = (
 
   }
 
+
   if (
     req.user.role !==
     "System Administrator"
@@ -140,13 +148,14 @@ export const requireSystemAdministrator = (
 
   }
 
+
   next();
 
 };
 
 
 // ==========================================
-// SCHOOL ADMINISTRATOR OR SYSTEM ADMIN
+// ADMINISTRATOR OR SYSTEM ADMINISTRATOR
 // ==========================================
 
 export const requireAdministrator = (
@@ -165,6 +174,7 @@ export const requireAdministrator = (
 
   }
 
+
   if (
     req.user.role !==
       "Administrator" &&
@@ -179,6 +189,183 @@ export const requireAdministrator = (
     });
 
   }
+
+
+  next();
+
+};
+
+
+// ==========================================
+// INSTRUCTOR ONLY
+// ==========================================
+
+export const requireInstructor = (
+  req,
+  res,
+  next
+) => {
+
+  if (!req.user) {
+
+    return res.status(401).json({
+      success: false,
+      message:
+        "Authentication required.",
+    });
+
+  }
+
+
+  if (
+    req.user.role !==
+    "Instructor"
+  ) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Instructor access required.",
+    });
+
+  }
+
+
+  next();
+
+};
+
+
+// ==========================================
+// STUDENT ONLY
+// ==========================================
+
+export const requireStudent = (
+  req,
+  res,
+  next
+) => {
+
+  if (!req.user) {
+
+    return res.status(401).json({
+      success: false,
+      message:
+        "Student access required.",
+    });
+
+  }
+
+
+  if (
+    req.user.role !==
+    "Student"
+  ) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Student access required.",
+    });
+
+  }
+
+
+  next();
+
+};
+
+
+// ==========================================
+// INSTRUCTOR OR ADMINISTRATOR
+// ==========================================
+
+export const requireInstructorOrAdministrator = (
+  req,
+  res,
+  next
+) => {
+
+  if (!req.user) {
+
+    return res.status(401).json({
+      success: false,
+      message:
+        "Authentication required.",
+    });
+
+  }
+
+
+  const allowedRoles = [
+    "Instructor",
+    "Administrator",
+    "System Administrator",
+  ];
+
+
+  if (
+    !allowedRoles.includes(
+      req.user.role
+    )
+  ) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Instructor or administrator access required.",
+    });
+
+  }
+
+
+  next();
+
+};
+
+
+// ==========================================
+// STUDENT OR ADMINISTRATOR
+// ==========================================
+
+export const requireStudentOrAdministrator = (
+  req,
+  res,
+  next
+) => {
+
+  if (!req.user) {
+
+    return res.status(401).json({
+      success: false,
+      message:
+        "Authentication required.",
+    });
+
+  }
+
+
+  const allowedRoles = [
+    "Student",
+    "Administrator",
+    "System Administrator",
+  ];
+
+
+  if (
+    !allowedRoles.includes(
+      req.user.role
+    )
+  ) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Student or administrator access required.",
+    });
+
+  }
+
 
   next();
 
