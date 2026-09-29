@@ -895,21 +895,120 @@ console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
           }
 
 
-          return res.status(201).json({
+          // =============================================
+// STUDENT ACCOUNT LINK
+// =============================================
+//
+// When a Student user is created, automatically
+// connect the user account to the existing student
+// profile in the same school.
+//
+// We match the student by:
+// 1. School
+// 2. Full name
+//
+// We only update an existing student profile.
+// We DO NOT create a new student.
+//
 
-            success:
-              true,
+const newUserId =
+  this.lastID;
 
-            message:
-              "User added successfully.",
+if (
+  String(role)
+    .trim()
+    .toLowerCase() ===
+  "student"
+) {
 
-            id:
-              this.lastID,
+  db.run(
+    `
+    UPDATE students
+    SET user_id = ?
+    WHERE id = (
+      SELECT id
+      FROM students
+      WHERE school_id = ?
+        AND LOWER(TRIM(fullname)) =
+            LOWER(TRIM(?))
+        AND (
+          user_id IS NULL
+          OR user_id = ?
+        )
+      ORDER BY id DESC
+      LIMIT 1
+    )
+    `,
+    [
+      newUserId,
+      schoolId,
+      String(fullname).trim(),
+      newUserId,
+    ],
+    (linkErr) => {
 
-            school_id:
-              schoolId,
+      if (linkErr) {
 
-          });
+        console.error(
+          "STUDENT USER LINK ERROR:",
+          linkErr.message
+        );
+
+      } else {
+
+        console.log(
+          "STUDENT USER LINK CHECK:",
+          "User:",
+          newUserId,
+          "School:",
+          schoolId,
+          "Name:",
+          String(fullname).trim()
+        );
+
+      }
+
+      return res.status(201).json({
+
+        success:
+          true,
+
+        message:
+          "User added successfully.",
+
+        id:
+          newUserId,
+
+        school_id:
+          schoolId,
+
+      });
+
+    }
+  );
+
+  return;
+}
+
+// =============================================
+// NORMAL USER RESPONSE
+// =============================================
+
+return res.status(201).json({
+
+  success:
+    true,
+
+  message:
+    "User added successfully.",
+
+  id:
+    newUserId,
+
+  school_id:
+    schoolId,
+
+});
 
         }
       );

@@ -5,6 +5,7 @@ import db from "../database/database.js";
 // =====================================================
 
 export const getMe = (req, res) => {
+
   const user = req.user;
 
   if (!user) {
@@ -14,30 +15,63 @@ export const getMe = (req, res) => {
     });
   }
 
-  const userId = Number(user.id);
-  const schoolId = Number(user.school_id) || 1;
-  const role = String(user.role || "").trim();
+  const userId =
+    Number(user.id);
+
+  const schoolId =
+    Number(user.school_id);
+
+  const role =
+    String(user.role || "")
+      .trim()
+      .toLowerCase();
+
+  // ===================================================
+  // VALID SCHOOL
+  // ===================================================
+
+  if (
+    !Number.isInteger(schoolId) ||
+    schoolId <= 0
+  ) {
+    return res.status(403).json({
+      success: false,
+      message:
+        "User is not assigned to a valid school.",
+    });
+  }
 
   // ===================================================
   // SYSTEM ADMINISTRATOR
   // ===================================================
 
   if (
-    role.toLowerCase() ===
+    role ===
     "system administrator"
   ) {
+
     return res.json({
       success: true,
 
       user: {
-        id: userId,
-        username: user.username,
-        fullname: user.fullname,
-        role: "System Administrator",
-        school_id: schoolId,
+        id:
+          userId,
+
+        username:
+          user.username,
+
+        fullname:
+          user.fullname,
+
+        role:
+          "System Administrator",
+
+        school_id:
+          schoolId,
       },
 
-      profile: null,
+      profile:
+        null,
     });
   }
 
@@ -46,9 +80,10 @@ export const getMe = (req, res) => {
   // ===================================================
 
   if (
-    role.toLowerCase() ===
+    role ===
     "administrator"
   ) {
+
     return db.get(
       `
       SELECT
@@ -63,10 +98,14 @@ export const getMe = (req, res) => {
         AND school_id = ?
       LIMIT 1
       `,
-      [userId, schoolId],
+      [
+        userId,
+        schoolId,
+      ],
       (err, row) => {
 
         if (err) {
+
           console.error(
             "GET ME ADMIN ERROR:",
             err.message
@@ -80,20 +119,35 @@ export const getMe = (req, res) => {
         }
 
         return res.json({
-          success: true,
 
-          user: row || {
-            id: userId,
-            username: user.username,
-            fullname: user.fullname,
-            role,
-            school_id: schoolId,
-          },
+          success:
+            true,
 
-          profile: null,
+          user:
+            row || {
+              id:
+                userId,
+
+              username:
+                user.username,
+
+              fullname:
+                user.fullname,
+
+              role:
+                "Administrator",
+
+              school_id:
+                schoolId,
+            },
+
+          profile:
+            null,
         });
       }
     );
+
+    return;
   }
 
   // ===================================================
@@ -101,7 +155,7 @@ export const getMe = (req, res) => {
   // ===================================================
 
   if (
-    role.toLowerCase() ===
+    role ===
     "instructor"
   ) {
 
@@ -125,11 +179,13 @@ export const getMe = (req, res) => {
       `,
       [
         schoolId,
-        user.fullname || user.username,
+        user.fullname ||
+          user.username,
       ],
       (err, instructor) => {
 
         if (err) {
+
           console.error(
             "GET ME INSTRUCTOR ERROR:",
             err.message
@@ -143,52 +199,81 @@ export const getMe = (req, res) => {
         }
 
         return res.json({
-          success: true,
+
+          success:
+            true,
 
           user: {
-            id: userId,
-            username: user.username,
-            fullname: user.fullname,
-            role: "Instructor",
-            school_id: schoolId,
+            id:
+              userId,
+
+            username:
+              user.username,
+
+            fullname:
+              user.fullname,
+
+            role:
+              "Instructor",
+
+            school_id:
+              schoolId,
           },
 
-          profile: instructor || null,
+          profile:
+            instructor ||
+            null,
         });
       }
     );
+
+    return;
   }
 
   // ===================================================
   // STUDENT
   // ===================================================
+  //
+  // IMPORTANT:
+  //
+  // FIRST:
+  // Find the student using students.user_id.
+  //
+  // SECOND:
+  // If the account has not yet been linked,
+  // fall back to matching the student's name.
+  //
+  // This makes the student relationship permanent.
+  // ===================================================
 
   if (
-    role.toLowerCase() ===
+    role ===
     "student"
   ) {
 
-    // -------------------------------------------------
-    // FIRST: FIND STUDENT USING USER ID
-    // -------------------------------------------------
+    // =================================================
+    // FIRST SEARCH BY USER ID
+    // =================================================
 
     return db.get(
       `
-      SELECT *
-      FROM students
-      WHERE school_id = ?
-        AND user_id = ?
+      SELECT
+        s.*
+      FROM students s
+      WHERE s.user_id = ?
+        AND s.school_id = ?
       LIMIT 1
       `,
       [
-        schoolId,
         userId,
+        schoolId,
       ],
       (err, student) => {
 
         if (err) {
+
           console.error(
-            "GET ME STUDENT BY USER ID ERROR:",
+            "GET ME STUDENT USER ID ERROR:",
             err.message
           );
 
@@ -199,472 +284,205 @@ export const getMe = (req, res) => {
           });
         }
 
-        // ------------------------------------------------
-        // STUDENT FOUND USING USER ID
-        // ------------------------------------------------
+        // =============================================
+        // STUDENT FOUND BY USER ID
+        // =============================================
 
         if (student) {
 
+          console.log(
+            "STUDENT PROFILE FOUND BY USER ID:",
+            userId,
+            "Student ID:",
+            student.id
+          );
+
           return res.json({
-            success: true,
+
+            success:
+              true,
 
             user: {
-              id: userId,
-              username: user.username,
-              fullname: user.fullname,
-              role: "Student",
-              school_id: schoolId,
+              id:
+                userId,
+
+              username:
+                user.username,
+
+              fullname:
+                user.fullname,
+
+              role:
+                "Student",
+
+              school_id:
+                schoolId,
             },
 
-            profile: student,
+            profile:
+              student,
           });
         }
 
-        // ------------------------------------------------
-        // FALLBACK 1:
-        // MATCH STUDENT NUMBER
-        // ------------------------------------------------
+        // =============================================
+        // FALLBACK: MATCH BY NAME
+        // =============================================
 
-        const studentNo =
-          String(
-            user.studentNo || ""
-          ).trim();
+        db.get(
+          `
+          SELECT
+            s.*
+          FROM students s
+          WHERE s.school_id = ?
+            AND LOWER(TRIM(s.fullname)) =
+                LOWER(TRIM(?))
+          ORDER BY s.id DESC
+          LIMIT 1
+          `,
+          [
+            schoolId,
+            user.fullname ||
+              user.username,
+          ],
+          (nameErr, nameStudent) => {
 
-        if (studentNo) {
+            if (nameErr) {
 
-          return db.get(
-            `
-            SELECT *
-            FROM students
-            WHERE school_id = ?
-              AND LOWER(TRIM(studentNo)) =
-                  LOWER(TRIM(?))
-            LIMIT 1
-            `,
-            [
-              schoolId,
-              studentNo,
-            ],
-            (studentNoErr, studentByNumber) => {
+              console.error(
+                "GET ME STUDENT NAME ERROR:",
+                nameErr.message
+              );
 
-              if (studentNoErr) {
-
-                console.error(
-                  "GET ME STUDENT BY STUDENT NUMBER ERROR:",
-                  studentNoErr.message
-                );
-
-                return res.status(500).json({
-                  success: false,
-                  message:
-                    "Failed to load student profile.",
-                });
-              }
-
-              if (studentByNumber) {
-
-                // Link student to logged-in user
-                db.run(
-                  `
-                  UPDATE students
-                  SET user_id = ?
-                  WHERE id = ?
-                    AND school_id = ?
-                  `,
-                  [
-                    userId,
-                    studentByNumber.id,
-                    schoolId,
-                  ],
-                  (linkErr) => {
-
-                    if (linkErr) {
-                      console.error(
-                        "STUDENT USER LINK ERROR:",
-                        linkErr.message
-                      );
-                    }
-
-                    return res.json({
-                      success: true,
-
-                      user: {
-                        id: userId,
-                        username: user.username,
-                        fullname: user.fullname,
-                        role: "Student",
-                        school_id: schoolId,
-                      },
-
-                      profile: {
-                        ...studentByNumber,
-                        user_id: userId,
-                      },
-                    });
-                  }
-                );
-
-                return;
-              }
-
-              // Continue to next fallback
-              findByLearnerNumber();
+              return res.status(500).json({
+                success: false,
+                message:
+                  "Failed to load student profile.",
+              });
             }
-          );
 
-          return;
-        }
+            // =========================================
+            // NO STUDENT FOUND
+            // =========================================
 
-        // ------------------------------------------------
-        // FALLBACK 2:
-        // MATCH LEARNER NUMBER
-        // ------------------------------------------------
+            if (!nameStudent) {
 
-        findByLearnerNumber();
+              console.log(
+                "NO STUDENT PROFILE FOUND:",
+                "User ID:",
+                userId,
+                "School:",
+                schoolId,
+                "Name:",
+                user.fullname
+              );
 
-        function findByLearnerNumber() {
+              return res.json({
 
-          const learnerNumber =
-            String(
-              user.learnerNumber || ""
-            ).trim();
+                success:
+                  true,
 
-          if (!learnerNumber) {
-            return findByLearnerCode();
-          }
-
-          db.get(
-            `
-            SELECT *
-            FROM students
-            WHERE school_id = ?
-              AND LOWER(TRIM(learnerNumber)) =
-                  LOWER(TRIM(?))
-            LIMIT 1
-            `,
-            [
-              schoolId,
-              learnerNumber,
-            ],
-            (learnerErr, studentByLearner) => {
-
-              if (learnerErr) {
-
-                console.error(
-                  "GET ME STUDENT BY LEARNER NUMBER ERROR:",
-                  learnerErr.message
-                );
-
-                return res.status(500).json({
-                  success: false,
-                  message:
-                    "Failed to load student profile.",
-                });
-              }
-
-              if (studentByLearner) {
-
-                db.run(
-                  `
-                  UPDATE students
-                  SET user_id = ?
-                  WHERE id = ?
-                    AND school_id = ?
-                  `,
-                  [
+                user: {
+                  id:
                     userId,
-                    studentByLearner.id,
+
+                  username:
+                    user.username,
+
+                  fullname:
+                    user.fullname,
+
+                  role:
+                    "Student",
+
+                  school_id:
                     schoolId,
-                  ],
-                  (linkErr) => {
+                },
 
-                    if (linkErr) {
-                      console.error(
-                        "STUDENT LEARNER LINK ERROR:",
-                        linkErr.message
-                      );
-                    }
-
-                    return res.json({
-                      success: true,
-
-                      user: {
-                        id: userId,
-                        username: user.username,
-                        fullname: user.fullname,
-                        role: "Student",
-                        school_id: schoolId,
-                      },
-
-                      profile: {
-                        ...studentByLearner,
-                        user_id: userId,
-                      },
-                    });
-                  }
-                );
-
-                return;
-              }
-
-              findByLearnerCode();
+                profile:
+                  null,
+              });
             }
-          );
-        }
 
-        // ------------------------------------------------
-        // FALLBACK 3:
-        // MATCH LEARNER CODE
-        // ------------------------------------------------
+            // =========================================
+            // LINK STUDENT TO USER
+            // =========================================
 
-        function findByLearnerCode() {
+            db.run(
+              `
+              UPDATE students
+              SET user_id = ?
+              WHERE id = ?
+                AND school_id = ?
+                AND (
+                  user_id IS NULL
+                  OR user_id = ?
+                )
+              `,
+              [
+                userId,
+                nameStudent.id,
+                schoolId,
+                userId,
+              ],
+              (linkErr) => {
 
-          const learnerCode =
-            String(
-              user.learnerCode || ""
-            ).trim();
+                if (linkErr) {
 
-          if (!learnerCode) {
-            return findByFullname();
-          }
+                  console.error(
+                    "STUDENT AUTO LINK ERROR:",
+                    linkErr.message
+                  );
 
-          db.get(
-            `
-            SELECT *
-            FROM students
-            WHERE school_id = ?
-              AND LOWER(TRIM(learnerCode)) =
-                  LOWER(TRIM(?))
-            LIMIT 1
-            `,
-            [
-              schoolId,
-              learnerCode,
-            ],
-            (codeErr, studentByCode) => {
+                  // Do not fail the profile request.
+                  // We can still return the student.
+                } else {
 
-              if (codeErr) {
-
-                console.error(
-                  "GET ME STUDENT BY LEARNER CODE ERROR:",
-                  codeErr.message
-                );
-
-                return res.status(500).json({
-                  success: false,
-                  message:
-                    "Failed to load student profile.",
-                });
-              }
-
-              if (studentByCode) {
-
-                db.run(
-                  `
-                  UPDATE students
-                  SET user_id = ?
-                  WHERE id = ?
-                    AND school_id = ?
-                  `,
-                  [
+                  console.log(
+                    "STUDENT AUTO LINKED:",
+                    "User:",
                     userId,
-                    studentByCode.id,
-                    schoolId,
-                  ],
-                  (linkErr) => {
+                    "Student:",
+                    nameStudent.id,
+                    "School:",
+                    schoolId
+                  );
 
-                    if (linkErr) {
-                      console.error(
-                        "STUDENT CODE LINK ERROR:",
-                        linkErr.message
-                      );
-                    }
-
-                    return res.json({
-                      success: true,
-
-                      user: {
-                        id: userId,
-                        username: user.username,
-                        fullname: user.fullname,
-                        role: "Student",
-                        school_id: schoolId,
-                      },
-
-                      profile: {
-                        ...studentByCode,
-                        user_id: userId,
-                      },
-                    });
-                  }
-                );
-
-                return;
-              }
-
-              findByFullname();
-            }
-          );
-        }
-
-        // ------------------------------------------------
-        // FALLBACK 4:
-        // MATCH FULL NAME
-        // ------------------------------------------------
-
-        function findByFullname() {
-
-          const fullname =
-            String(
-              user.fullname ||
-              user.username ||
-              ""
-            ).trim();
-
-          if (!fullname) {
-
-            return res.json({
-              success: true,
-
-              user: {
-                id: userId,
-                username: user.username,
-                fullname: user.fullname,
-                role: "Student",
-                school_id: schoolId,
-              },
-
-              profile: null,
-            });
-          }
-
-          db.get(
-            `
-            SELECT *
-            FROM students
-            WHERE school_id = ?
-              AND LOWER(TRIM(fullname)) =
-                  LOWER(TRIM(?))
-            ORDER BY id DESC
-            LIMIT 1
-            `,
-            [
-              schoolId,
-              fullname,
-            ],
-            (fullnameErr, studentByName) => {
-
-              if (fullnameErr) {
-
-                console.error(
-                  "GET ME STUDENT BY FULLNAME ERROR:",
-                  fullnameErr.message
-                );
-
-                return res.status(500).json({
-                  success: false,
-                  message:
-                    "Failed to load student profile.",
-                });
-              }
-
-              if (!studentByName) {
-
-                console.log(
-                  "NO STUDENT PROFILE FOUND FOR USER:",
-                  {
-                    userId,
-                    fullname,
-                    username:
-                      user.username,
-                    schoolId,
-                  }
-                );
+                  nameStudent.user_id =
+                    userId;
+                }
 
                 return res.json({
-                  success: true,
+
+                  success:
+                    true,
 
                   user: {
-                    id: userId,
+                    id:
+                      userId,
+
                     username:
                       user.username,
+
                     fullname:
                       user.fullname,
-                    role: "Student",
+
+                    role:
+                      "Student",
+
                     school_id:
                       schoolId,
                   },
 
-                  profile: null,
+                  profile:
+                    nameStudent,
                 });
               }
-
-              // ------------------------------------------------
-              // AUTOMATICALLY LINK STUDENT TO USER
-              // ------------------------------------------------
-
-              db.run(
-                `
-                UPDATE students
-                SET user_id = ?
-                WHERE id = ?
-                  AND school_id = ?
-                `,
-                [
-                  userId,
-                  studentByName.id,
-                  schoolId,
-                ],
-                (linkErr) => {
-
-                  if (linkErr) {
-
-                    console.error(
-                      "STUDENT FULLNAME LINK ERROR:",
-                      linkErr.message
-                    );
-
-                  } else {
-
-                    console.log(
-                      "STUDENT LINKED TO USER:",
-                      {
-                        studentId:
-                          studentByName.id,
-                        userId,
-                        fullname:
-                          studentByName.fullname,
-                      }
-                    );
-                  }
-
-                  return res.json({
-                    success: true,
-
-                    user: {
-                      id: userId,
-                      username:
-                        user.username,
-                      fullname:
-                        user.fullname,
-                      role: "Student",
-                      school_id:
-                        schoolId,
-                    },
-
-                    profile: {
-                      ...studentByName,
-                      user_id:
-                        userId,
-                    },
-                  });
-                }
-              );
-            }
-          );
-        }
+            );
+          }
+        );
       }
     );
+
   }
 
   // ===================================================
@@ -673,6 +491,7 @@ export const getMe = (req, res) => {
 
   return res.status(403).json({
     success: false,
-    message: "Unsupported user role.",
+    message:
+      "Unsupported user role.",
   });
 };
