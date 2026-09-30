@@ -21,19 +21,15 @@ export interface Lesson {
 
 const getSchoolId = (): number => {
   try {
-    const userData =
-      localStorage.getItem("user");
+    const userData = localStorage.getItem("user");
 
     if (!userData) {
       return 1;
     }
 
-    const user =
-      JSON.parse(userData);
+    const user = JSON.parse(userData);
 
-    return Number(
-      user?.school_id || 1
-    );
+    return Number(user?.school_id || 1);
   } catch (error) {
     console.error(
       "ERROR READING USER SCHOOL:",
@@ -48,124 +44,107 @@ const getSchoolId = (): number => {
 // GET ALL LESSONS
 // =====================================================
 
-export const getLessons =
-  async (): Promise<Lesson[]> => {
-    const schoolId =
-      getSchoolId();
+export const getLessons = async (): Promise<Lesson[]> => {
+  const schoolId = getSchoolId();
 
-    const response =
-      await api.get<Lesson[]>(
-        "/lessons",
-        {
-          params: {
-            school_id: schoolId,
-          },
-        }
-      );
+  const response = await api.get<Lesson[]>(
+    "/lessons",
+    {
+      params: {
+        school_id: schoolId,
+      },
+    }
+  );
 
-    return response.data;
-  };
+  return response.data;
+};
 
 // =====================================================
 // GET LESSONS FOR ONE STUDENT
 // =====================================================
 
-export const getStudentLessons =
-  async (
-    studentName: string
-  ): Promise<Lesson[]> => {
-    const schoolId =
-      getSchoolId();
+export const getStudentLessons = async (
+  studentName: string
+): Promise<Lesson[]> => {
+  const schoolId = getSchoolId();
 
-    const response =
-      await api.get<Lesson[]>(
-        `/lessons/student/${encodeURIComponent(
-          studentName
-        )}`,
-        {
-          params: {
-            school_id: schoolId,
-          },
-        }
-      );
+  const response = await api.get<Lesson[]>(
+    `/lessons/student/${encodeURIComponent(studentName)}`,
+    {
+      params: {
+        school_id: schoolId,
+      },
+    }
+  );
 
-    return response.data;
-  };
+  return response.data;
+};
 
 // =====================================================
 // ADD LESSON
 // =====================================================
 
-export const addLesson =
-  async (
-    lesson: Lesson
-  ): Promise<{
-    success: boolean;
-    id: number;
-  }> => {
-    const schoolId =
-      getSchoolId();
+export const addLesson = async (
+  lesson: Lesson
+): Promise<{
+  success: boolean;
+  id: number;
+}> => {
+  const schoolId = getSchoolId();
 
-    const response =
-      await api.post(
-        "/lessons",
-        {
-          ...lesson,
-          school_id: schoolId,
-        }
-      );
+  const response = await api.post(
+    "/lessons",
+    {
+      ...lesson,
+      school_id: schoolId,
+    }
+  );
 
-    return response.data;
-  };
+  return response.data;
+};
 
 // =====================================================
 // UPDATE LESSON
 // =====================================================
 
-export const updateLesson =
-  async (
-    id: number,
-    lesson: Lesson
-  ): Promise<{
-    success: boolean;
-  }> => {
-    const schoolId =
-      getSchoolId();
+export const updateLesson = async (
+  id: number,
+  lesson: Lesson
+): Promise<{
+  success: boolean;
+}> => {
+  const schoolId = getSchoolId();
 
-    const response =
-      await api.put(
-        `/lessons/${id}`,
-        {
-          ...lesson,
-          school_id: schoolId,
-        }
-      );
+  const response = await api.put(
+    `/lessons/${id}`,
+    {
+      ...lesson,
+      school_id: schoolId,
+    }
+  );
 
-    return response.data;
-  };
+  return response.data;
+};
 
 // =====================================================
 // DELETE LESSON
 // =====================================================
 
-export const deleteLesson =
-  async (
-    id: number
-  ): Promise<{
-    success: boolean;
-  }> => {
-    const schoolId =
-      getSchoolId();
+export const deleteLesson = async (
+  id: number
+): Promise<{
+  success: boolean;
+}> => {
+  const schoolId = getSchoolId();
 
-    const response =
-      await api.delete(
-        `/lessons/${id}`,
-        {
-          params: {
-            school_id: schoolId,
-          },
-        }
-      );
+  const response = await api.delete(
+    `/lessons/${id}`,
+    {
+      params: {
+        school_id: schoolId,
+      },
+    }
+  );
 
-    return response.data;
-  };
+  return response.data;
+};
