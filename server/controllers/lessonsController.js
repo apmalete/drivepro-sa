@@ -187,46 +187,102 @@ export const getLessons = (req, res) => {
 
   // ===================================================
   // STUDENT
+  //
+  // IMPORTANT:
+  // Find the student using the authenticated user's
+  // user_id rather than relying on the login fullname.
+  //
+  // This allows the student account name and the
+  // student profile name to be different.
   // ===================================================
 
   if (role === "student") {
-    const studentName = getUserFullName(req);
+    const userId = Number(req.user?.id);
 
-    if (!studentName) {
+    if (!userId) {
       return res.status(403).json({
         success: false,
-        message: "Student information not found.",
+        message: "Student account information not found.",
       });
     }
 
-    db.all(
+    // -------------------------------------------------
+    // FIND STUDENT PROFILE USING USER ID
+    // -------------------------------------------------
+
+    db.get(
       `
-      SELECT *
-      FROM lessons
-      WHERE school_id = ?
-        AND LOWER(TRIM(student))
-            =
-            LOWER(TRIM(?))
-      ORDER BY lesson_date, lesson_time
+      SELECT
+        id,
+        fullname,
+        school_id,
+        user_id
+      FROM students
+      WHERE user_id = ?
+        AND school_id = ?
+      LIMIT 1
       `,
       [
+        userId,
         schoolId,
-        studentName,
       ],
-      (err, rows) => {
-        if (err) {
+      (studentErr, studentProfile) => {
+
+        if (studentErr) {
           console.error(
-            "GET STUDENT LESSONS ERROR:",
-            err.message
+            "GET STUDENT PROFILE FOR LESSONS ERROR:",
+            studentErr.message
           );
 
           return res.status(500).json({
             success: false,
-            message: err.message,
+            message: "Failed to find student profile.",
           });
         }
 
-        return res.json(rows || []);
+        if (!studentProfile) {
+          return res.status(404).json({
+            success: false,
+            message:
+              "Student profile is not linked to this account.",
+          });
+        }
+
+        // -------------------------------------------------
+        // GET LESSONS USING STUDENT PROFILE NAME
+        // -------------------------------------------------
+
+        db.all(
+          `
+          SELECT *
+          FROM lessons
+          WHERE school_id = ?
+            AND LOWER(TRIM(student))
+                =
+                LOWER(TRIM(?))
+          ORDER BY lesson_date, lesson_time
+          `,
+          [
+            schoolId,
+            studentProfile.fullname,
+          ],
+          (err, rows) => {
+
+            if (err) {
+              console.error(
+                "GET STUDENT LESSONS ERROR:",
+                err.message
+              );
+
+              return res.status(500).json({
+                success: false,
+                message: err.message,
+              });
+            }
+
+            return res.json(rows || []);
+          }
+        );
       }
     );
 
@@ -281,27 +337,6 @@ export const getStudentLessons = (req, res) => {
   }
 
   // ===================================================
-  // STUDENT
-  //
-  // A student cannot request another student's lessons.
-  // ===================================================
-
-  if (role === "student") {
-    const loggedInStudent = getUserFullName(req);
-
-    if (
-      loggedInStudent.toLowerCase() !==
-      String(studentName).trim().toLowerCase()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Students can only view their own lessons.",
-      });
-    }
-  }
-
-  // ===================================================
   // INSTRUCTOR
   //
   // Instructor can only view lessons for a student
@@ -349,37 +384,117 @@ export const getStudentLessons = (req, res) => {
 
   // ===================================================
   // STUDENT
+  //
+  // IMPORTANT:
+  // Do not compare the requested student name against
+  // the login fullname.
+  //
+  // Instead, find the authenticated student's profile
+  // using user_id and school_id.
+  //
+  // This prevents problems when:
+  //
+  // Login account:
+  //     Malete Kgopotso
+  //
+  // Student profile:
+  //     Kgopotso
+  //
+  // Lesson booking:
+  //     Kgopotso
+  //
+  // The account remains protected because the student
+  // profile is found from the authenticated user_id.
   // ===================================================
 
   if (role === "student") {
-    db.all(
+
+    const userId = Number(req.user?.id);
+
+    if (!userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Student account information not found.",
+      });
+    }
+
+    // -------------------------------------------------
+    // FIND STUDENT PROFILE LINKED TO LOGGED-IN USER
+    // -------------------------------------------------
+
+    db.get(
       `
-      SELECT *
-      FROM lessons
-      WHERE LOWER(TRIM(student))
-            =
-            LOWER(TRIM(?))
+      SELECT
+        id,
+        fullname,
+        school_id,
+        user_id
+      FROM students
+      WHERE user_id = ?
         AND school_id = ?
-      ORDER BY lesson_date DESC, lesson_time DESC
+      LIMIT 1
       `,
       [
-        studentName,
+        userId,
         schoolId,
       ],
-      (err, rows) => {
-        if (err) {
+      (studentErr, studentProfile) => {
+
+        if (studentErr) {
           console.error(
-            "GET STUDENT LESSONS ERROR:",
-            err.message
+            "GET STUDENT PROFILE FOR LESSONS ERROR:",
+            studentErr.message
           );
 
           return res.status(500).json({
             success: false,
-            message: err.message,
+            message: "Failed to find student profile.",
           });
         }
 
-        return res.json(rows || []);
+        if (!studentProfile) {
+          return res.status(404).json({
+            success: false,
+            message:
+              "Student profile is not linked to this account.",
+          });
+        }
+
+        // -------------------------------------------------
+        // GET LESSONS FOR THE LINKED STUDENT PROFILE
+        // -------------------------------------------------
+
+        db.all(
+          `
+          SELECT *
+          FROM lessons
+          WHERE school_id = ?
+            AND LOWER(TRIM(student))
+                =
+                LOWER(TRIM(?))
+          ORDER BY lesson_date DESC, lesson_time DESC
+          `,
+          [
+            schoolId,
+            studentProfile.fullname,
+          ],
+          (err, rows) => {
+
+            if (err) {
+              console.error(
+                "GET STUDENT LESSONS ERROR:",
+                err.message
+              );
+
+              return res.status(500).json({
+                success: false,
+                message: err.message,
+              });
+            }
+
+            return res.json(rows || []);
+          }
+        );
       }
     );
 
@@ -522,6 +637,7 @@ export const addLesson = (req, res) => {
       vehicle,
     ],
     (err, existingLesson) => {
+
       if (err) {
         console.error(
           "CHECK LESSON CONFLICT ERROR:",
@@ -592,6 +708,7 @@ export const addLesson = (req, res) => {
           schoolId,
         ],
         function (err) {
+
           if (err) {
             console.error(
               "ADD LESSON ERROR:",
@@ -679,6 +796,7 @@ export const updateLesson = (req, res) => {
       vehicle,
     ],
     (err, existingLesson) => {
+
       if (err) {
         console.error(
           "CHECK LESSON UPDATE CONFLICT ERROR:",
@@ -754,6 +872,7 @@ export const updateLesson = (req, res) => {
           schoolId,
         ],
         function (err) {
+
           if (err) {
             console.error(
               "UPDATE LESSON ERROR:",
@@ -824,6 +943,7 @@ export const deleteLesson = (req, res) => {
       schoolId,
     ],
     function (err) {
+
       if (err) {
         console.error(
           "DELETE LESSON ERROR:",
