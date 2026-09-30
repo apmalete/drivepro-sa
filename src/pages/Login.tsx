@@ -55,10 +55,39 @@ export default function Login() {
         );
 
         // ========================================
-        // GO TO DASHBOARD
+        // GET USER ROLE
         // ========================================
 
-        navigate("/dashboard");
+        const role = String(
+          res.data.user?.role || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        console.log(
+          "LOGIN SUCCESS:",
+          {
+            user: res.data.user,
+            role,
+          }
+        );
+
+        // ========================================
+        // ROLE-BASED REDIRECT
+        // ========================================
+
+        if (role === "student") {
+
+          // Students go to the Student Portal
+          navigate("/student-dashboard");
+
+        } else {
+
+          // Administrators and other existing
+          // management users go to the normal dashboard
+          navigate("/dashboard");
+
+        }
       }
 
     } catch (err: any) {

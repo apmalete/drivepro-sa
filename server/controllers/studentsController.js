@@ -298,9 +298,9 @@ export const getStudents = (req, res) => {
           ELSE 99
 
         END
-
       `,
       [
+
         // School
         schoolId,
 
@@ -333,6 +333,7 @@ export const getStudents = (req, res) => {
 
         // ORDER BY fullname
         req.user?.fullname,
+
       ],
       (err, rows) => {
 
@@ -372,11 +373,16 @@ export const getStudents = (req, res) => {
               SET user_id = ?
               WHERE id = ?
                 AND school_id = ?
+                AND (
+                  user_id IS NULL
+                  OR user_id = ?
+                )
               `,
               [
                 userId,
                 student.id,
                 schoolId,
+                userId,
               ],
               (linkErr) => {
 
@@ -491,137 +497,448 @@ export const addStudent = (req, res) => {
   } = req.body;
 
   // ===================================================
-  // INSERT STUDENT
+  // CLEAN DATA
   // ===================================================
 
-  db.run(
-    `
-    INSERT INTO students
-    (
-      user_id,
-      studentNo,
-      fullname,
-      idNumber,
-      gender,
-      phone,
-      email,
-      address,
-      learnerNumber,
-      learnerCode,
-      learnerStatus,
-      licenceCode,
-      licenceStatus,
-      instructor,
-      vehicle,
-      courseFee,
-      amountPaid,
-      balance,
-      photo,
-      status,
-      school_id
-    )
+  const suppliedUserId =
+    user_id
+      ? Number(user_id)
+      : null;
 
-    VALUES
-    (
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?,
-      ?
-    )
-    `,
-    [
-      user_id
-        ? Number(user_id)
-        : null,
+  const cleanPhone =
+    String(phone || "").trim();
 
-      studentNo || null,
+  const cleanFullname =
+    String(fullname || "").trim();
 
-      fullname,
+  // ===================================================
+  // FIND EXISTING STUDENT ACCOUNT
+  //
+  // PRIORITY:
+  //
+  // 1. Explicit user_id
+  // 2. Phone number = username
+  // 3. Exact fullname
+  //
+  // Matching is restricted to the same school.
+  // ===================================================
 
-      idNumber || null,
+  const findStudentUser = (callback) => {
 
-      gender || null,
+    // -------------------------------------------------
+    // 1. EXPLICIT USER ID
+    // -------------------------------------------------
 
-      phone,
+    if (suppliedUserId) {
 
-      email || null,
+      return db.get(
+        `
+        SELECT
+          id,
+          fullname,
+          username,
+          role,
+          school_id
 
-      address || null,
+        FROM users
 
-      learnerNumber || null,
+        WHERE id = ?
+          AND school_id = ?
+          AND LOWER(TRIM(role)) = 'student'
 
-      learnerCode || null,
+        LIMIT 1
+        `,
+        [
+          suppliedUserId,
+          schoolId,
+        ],
+        (err, user) => {
 
-      learnerStatus ||
-        "Not Applicable",
+          if (err) {
 
-      licenceCode || null,
+            console.error(
+              "FIND STUDENT USER ERROR:",
+              err.message
+            );
 
-      licenceStatus ||
-        "Not Applicable",
+            return callback(
+              err,
+              null
+            );
+          }
 
-      instructor || null,
+          if (user) {
 
-      vehicle || null,
+            return callback(
+              null,
+              user
+            );
+          }
 
-      Number(courseFee) || 0,
+          return callback(
+            null,
+            null
+          );
+        }
+      );
+    }
 
-      Number(amountPaid) || 0,
+    // -------------------------------------------------
+    // 2. MATCH BY PHONE NUMBER
+    //
+    // Student accounts normally use their phone
+    // number as username.
+    // -------------------------------------------------
 
-      Number(balance) || 0,
+    if (cleanPhone) {
 
-      photo || null,
+      return db.get(
+        `
+        SELECT
+          id,
+          fullname,
+          username,
+          role,
+          school_id
 
-      status || "Active",
+        FROM users
 
-      schoolId,
-    ],
-    function (err) {
+        WHERE school_id = ?
+          AND LOWER(TRIM(role)) = 'student'
+          AND LOWER(TRIM(username)) =
+              LOWER(TRIM(?))
 
-      if (err) {
+        LIMIT 1
+        `,
+        [
+          schoolId,
+          cleanPhone,
+        ],
+        (err, user) => {
 
-        console.error(
-          "ADD STUDENT ERROR:",
-          err.message
+          if (err) {
+
+            console.error(
+              "FIND STUDENT USER BY PHONE ERROR:",
+              err.message
+            );
+
+            return callback(
+              err,
+              null
+            );
+          }
+
+          if (user) {
+
+            return callback(
+              null,
+              user
+            );
+          }
+
+          // -------------------------------------------
+          // 3. MATCH BY EXACT FULLNAME
+          // -------------------------------------------
+
+          if (!cleanFullname) {
+
+            return callback(
+              null,
+              null
+            );
+          }
+
+          return db.get(
+            `
+            SELECT
+              id,
+              fullname,
+              username,
+              role,
+              school_id
+
+            FROM users
+
+            WHERE school_id = ?
+              AND LOWER(TRIM(role)) = 'student'
+              AND LOWER(TRIM(fullname)) =
+                  LOWER(TRIM(?))
+
+            LIMIT 1
+            `,
+            [
+              schoolId,
+              cleanFullname,
+            ],
+            (nameErr, nameUser) => {
+
+              if (nameErr) {
+
+                console.error(
+                  "FIND STUDENT USER BY NAME ERROR:",
+                  nameErr.message
+                );
+
+                return callback(
+                  nameErr,
+                  null
+                );
+              }
+
+              return callback(
+                null,
+                nameUser || null
+              );
+            }
+          );
+        }
+      );
+    }
+
+    // -------------------------------------------------
+    // NO PHONE
+    // TRY EXACT FULLNAME
+    // -------------------------------------------------
+
+    if (!cleanFullname) {
+
+      return callback(
+        null,
+        null
+      );
+    }
+
+    return db.get(
+      `
+      SELECT
+        id,
+        fullname,
+        username,
+        role,
+        school_id
+
+      FROM users
+
+      WHERE school_id = ?
+        AND LOWER(TRIM(role)) = 'student'
+        AND LOWER(TRIM(fullname)) =
+            LOWER(TRIM(?))
+
+      LIMIT 1
+      `,
+      [
+        schoolId,
+        cleanFullname,
+      ],
+      (err, user) => {
+
+        if (err) {
+
+          console.error(
+            "FIND STUDENT USER BY NAME ERROR:",
+            err.message
+          );
+
+          return callback(
+            err,
+            null
+          );
+        }
+
+        return callback(
+          null,
+          user || null
         );
+      }
+    );
+  };
+
+  // ===================================================
+  // FIND USER
+  // THEN INSERT STUDENT
+  // ===================================================
+
+  findStudentUser(
+    (findErr, matchedUser) => {
+
+      if (findErr) {
 
         return res.status(500).json({
           success: false,
-          message: err.message,
+          message:
+            findErr.message,
         });
       }
 
+      const finalUserId =
+        matchedUser
+          ? Number(matchedUser.id)
+          : (
+              suppliedUserId ||
+              null
+            );
+
       console.log(
-        `Student ${this.lastID} added successfully`
+        "Student account matching result:",
+        matchedUser
+          ? {
+              userId: matchedUser.id,
+              fullname: matchedUser.fullname,
+              username: matchedUser.username,
+              schoolId: matchedUser.school_id,
+            }
+          : "No existing Student account found"
       );
 
-      return res.json({
+      // =================================================
+      // INSERT STUDENT
+      // =================================================
 
-        success: true,
+      db.run(
+        `
+        INSERT INTO students
+        (
+          user_id,
+          studentNo,
+          fullname,
+          idNumber,
+          gender,
+          phone,
+          email,
+          address,
+          learnerNumber,
+          learnerCode,
+          learnerStatus,
+          licenceCode,
+          licenceStatus,
+          instructor,
+          vehicle,
+          courseFee,
+          amountPaid,
+          balance,
+          photo,
+          status,
+          school_id
+        )
 
-        message:
-          "Student added successfully",
+        VALUES
+        (
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?
+        )
+        `,
+        [
 
-        id: this.lastID,
+          // Linked Student account
+          finalUserId,
 
-      });
+          studentNo || null,
+
+          fullname,
+
+          idNumber || null,
+
+          gender || null,
+
+          phone,
+
+          email || null,
+
+          address || null,
+
+          learnerNumber || null,
+
+          learnerCode || null,
+
+          learnerStatus ||
+            "Not Applicable",
+
+          licenceCode || null,
+
+          licenceStatus ||
+            "Not Applicable",
+
+          instructor || null,
+
+          vehicle || null,
+
+          Number(courseFee) || 0,
+
+          Number(amountPaid) || 0,
+
+          Number(balance) || 0,
+
+          photo || null,
+
+          status || "Active",
+
+          schoolId,
+
+        ],
+        function (err) {
+
+          if (err) {
+
+            console.error(
+              "ADD STUDENT ERROR:",
+              err.message
+            );
+
+            return res.status(500).json({
+              success: false,
+              message:
+                err.message,
+            });
+          }
+
+          console.log(
+            `Student ${this.lastID} added successfully`
+          );
+
+          if (finalUserId) {
+
+            console.log(
+              `Student ${this.lastID} linked to user ${finalUserId}`
+            );
+          }
+
+          return res.json({
+
+            success: true,
+
+            message:
+              finalUserId
+                ? "Student added and account linked successfully"
+                : "Student added successfully",
+
+            id: this.lastID,
+
+            user_id:
+              finalUserId,
+
+          });
+        }
+      );
     }
   );
 };
@@ -718,6 +1035,7 @@ export const updateStudent = (req, res) => {
       AND school_id = ?
     `,
     [
+
       user_id
         ? Number(user_id)
         : null,
@@ -765,6 +1083,7 @@ export const updateStudent = (req, res) => {
       req.params.id,
 
       schoolId,
+
     ],
     function (err) {
 

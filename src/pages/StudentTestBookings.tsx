@@ -11,7 +11,6 @@ import {
 } from "@mui/material";
 
 import Header from "../Components/Header";
-import Sidebar from "../Components/Sidebar";
 import api from "../services/api";
 
 // =====================================================
@@ -174,182 +173,170 @@ export default function StudentTestBookings() {
   return (
     <Box
       sx={{
-        display: "flex",
         minHeight: "100vh",
         backgroundColor: "#f4f6f9",
       }}
     >
-      <Sidebar />
+      <Header
+        title="My Test Bookings"
+      />
 
       <Box
         sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
+          p: {
+            xs: 2,
+            md: 4,
+          },
         }}
       >
-        <Header
-          title="My Test Bookings"
-        />
+        <Card>
+          <CardContent>
+            <Typography
+              variant="h5"
+              fontWeight="bold"
+            >
+              📝 My Test Bookings
+            </Typography>
 
-        <Box
-          sx={{
-            p: {
-              xs: 2,
-              md: 4,
-            },
-          }}
-        >
-          <Card>
-            <CardContent>
-              <Typography
-                variant="h5"
-                fontWeight="bold"
+            <Typography
+              color="text.secondary"
+              sx={{ mt: 1 }}
+            >
+              View your learner's and
+              driver's licence test bookings.
+            </Typography>
+
+            <Divider
+              sx={{ my: 3 }}
+            />
+
+            {loading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent:
+                    "center",
+                  p: 5,
+                }}
               >
-                📝 My Test Bookings
+                <CircularProgress />
+              </Box>
+            ) : error ? (
+              <Typography
+                color="error"
+              >
+                {error}
               </Typography>
-
+            ) : bookings.length === 0 ? (
               <Typography
                 color="text.secondary"
-                sx={{ mt: 1 }}
+                sx={{ py: 4 }}
               >
-                View your learner's and
-                driver's licence test bookings.
+                You currently have no
+                test bookings.
               </Typography>
-
-              <Divider
-                sx={{ my: 3 }}
-              />
-
-              {loading ? (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent:
-                      "center",
-                    p: 5,
-                  }}
-                >
-                  <CircularProgress />
-                </Box>
-              ) : error ? (
-                <Typography
-                  color="error"
-                >
-                  {error}
-                </Typography>
-              ) : bookings.length === 0 ? (
-                <Typography
-                  color="text.secondary"
-                  sx={{ py: 4 }}
-                >
-                  You currently have no
-                  test bookings.
-                </Typography>
-              ) : (
-                <Grid
-                  container
-                  spacing={2}
-                >
-                  {bookings.map(
-                    (booking) => (
-                      <Grid
-                        key={
-                          booking.id
-                        }
-                        size={{
-                          xs: 12,
-                          md: 6,
-                        }}
+            ) : (
+              <Grid
+                container
+                spacing={2}
+              >
+                {bookings.map(
+                  (booking) => (
+                    <Grid
+                      key={
+                        booking.id
+                      }
+                      size={{
+                        xs: 12,
+                        md: 6,
+                      }}
+                    >
+                      <Card
+                        variant="outlined"
                       >
-                        <Card
-                          variant="outlined"
-                        >
-                          <CardContent>
-                            <Typography
-                              variant="h6"
-                              fontWeight="bold"
-                            >
-                              {booking.test_type ||
-                                "Driving Test"}
-                            </Typography>
+                        <CardContent>
+                          <Typography
+                            variant="h6"
+                            fontWeight="bold"
+                          >
+                            {booking.test_type ||
+                              "Driving Test"}
+                          </Typography>
 
-                            <Divider
-                              sx={{
-                                my: 2,
-                              }}
-                            />
+                          <Divider
+                            sx={{
+                              my: 2,
+                            }}
+                          />
 
-                            <Typography
-                              sx={{
-                                mb: 1,
-                              }}
-                            >
-                              <strong>
-                                Date:
-                              </strong>{" "}
-                              {formatDate(
-                                booking.booking_date
-                              )}
-                            </Typography>
+                          <Typography
+                            sx={{
+                              mb: 1,
+                            }}
+                          >
+                            <strong>
+                              Date:
+                            </strong>{" "}
+                            {formatDate(
+                              booking.booking_date
+                            )}
+                          </Typography>
 
-                            <Typography
-                              sx={{
-                                mb: 1,
-                              }}
-                            >
-                              <strong>
-                                Time:
-                              </strong>{" "}
-                              {booking.booking_time ||
-                                "-"}
-                            </Typography>
+                          <Typography
+                            sx={{
+                              mb: 1,
+                            }}
+                          >
+                            <strong>
+                              Time:
+                            </strong>{" "}
+                            {booking.booking_time ||
+                              "-"}
+                          </Typography>
 
-                            <Typography
-                              sx={{
-                                mb: 1,
-                              }}
-                            >
-                              <strong>
-                                Test Centre:
-                              </strong>{" "}
-                              {booking.test_centre ||
-                                "-"}
-                            </Typography>
+                          <Typography
+                            sx={{
+                              mb: 1,
+                            }}
+                          >
+                            <strong>
+                              Test Centre:
+                            </strong>{" "}
+                            {booking.test_centre ||
+                              "-"}
+                          </Typography>
 
-                            <Typography
-                              sx={{
-                                mb: 1,
-                              }}
-                            >
-                              <strong>
-                                Reference:
-                              </strong>{" "}
-                              {booking.booking_reference ||
-                                "-"}
-                            </Typography>
+                          <Typography
+                            sx={{
+                              mb: 1,
+                            }}
+                          >
+                            <strong>
+                              Reference:
+                            </strong>{" "}
+                            {booking.booking_reference ||
+                              "-"}
+                          </Typography>
 
-                            <Chip
-                              label={
-                                booking.status ||
-                                "Pending"
-                              }
-                              color={getStatusColor(
-                                booking.status
-                              )}
-                              size="small"
-                            />
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    )
-                  )}
-                </Grid>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
+                          <Chip
+                            label={
+                              booking.status ||
+                              "Pending"
+                            }
+                            color={getStatusColor(
+                              booking.status
+                            )}
+                            size="small"
+                          />
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  )
+                )}
+              </Grid>
+            )}
+          </CardContent>
+        </Card>
       </Box>
     </Box>
   );

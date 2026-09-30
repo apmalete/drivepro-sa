@@ -8,6 +8,12 @@ import {
 } from "react-router-dom";
 
 // ==========================================
+// COMPONENTS
+// ==========================================
+
+import Sidebar from "./Components/Sidebar";
+
+// ==========================================
 // PAGES
 // ==========================================
 
@@ -202,6 +208,47 @@ function StudentRoute({
 }
 
 // ==========================================
+// STUDENT PORTAL LAYOUT
+// ==========================================
+
+function StudentLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        width: "100%",
+        background: "#f5f7fb",
+      }}
+    >
+      {/* =====================================
+          STUDENT SIDEBAR
+      ====================================== */}
+
+      <Sidebar />
+
+      {/* =====================================
+          STUDENT PAGE CONTENT
+      ====================================== */}
+
+      <main
+        style={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: "100vh",
+        }}
+      >
+        {children}
+      </main>
+    </div>
+  );
+}
+
+// ==========================================
 // APP
 // ==========================================
 
@@ -239,7 +286,9 @@ export default function App() {
         path="/student-dashboard"
         element={
           <StudentRoute>
-            <StudentDashboard />
+            <StudentLayout>
+              <StudentDashboard />
+            </StudentLayout>
           </StudentRoute>
         }
       />
@@ -252,7 +301,9 @@ export default function App() {
         path="/student-lessons"
         element={
           <StudentRoute>
-            <StudentLessons />
+            <StudentLayout>
+              <StudentLessons />
+            </StudentLayout>
           </StudentRoute>
         }
       />
@@ -265,7 +316,9 @@ export default function App() {
         path="/student-test-bookings"
         element={
           <StudentRoute>
-            <StudentTestBookings />
+            <StudentLayout>
+              <StudentTestBookings />
+            </StudentLayout>
           </StudentRoute>
         }
       />
@@ -278,7 +331,9 @@ export default function App() {
         path="/student-profile"
         element={
           <StudentRoute>
-            <StudentProfile />
+            <StudentLayout>
+              <StudentProfile />
+            </StudentLayout>
           </StudentRoute>
         }
       />
@@ -291,7 +346,9 @@ export default function App() {
         path="/student-payments"
         element={
           <StudentRoute>
-            <StudentPayments />
+            <StudentLayout>
+              <StudentPayments />
+            </StudentLayout>
           </StudentRoute>
         }
       />

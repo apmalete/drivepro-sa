@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 
 import Header from "../Components/Header";
-import Sidebar from "../Components/Sidebar";
 import api from "../services/api";
 
 // =====================================================
@@ -40,12 +39,8 @@ interface Payment {
 // MONEY
 // =====================================================
 
-const formatMoney = (
-  value?: number
-) => {
-  return `R${Number(
-    value || 0
-  ).toLocaleString("en-ZA", {
+const formatMoney = (value?: number) => {
+  return `R${Number(value || 0).toLocaleString("en-ZA", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -55,9 +50,7 @@ const formatMoney = (
 // DATE
 // =====================================================
 
-const formatDate = (
-  value?: string
-) => {
+const formatDate = (value?: string) => {
   if (!value) {
     return "-";
   }
@@ -68,14 +61,11 @@ const formatDate = (
     return value;
   }
 
-  return date.toLocaleDateString(
-    "en-ZA",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }
-  );
+  return date.toLocaleDateString("en-ZA", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 };
 
 // =====================================================
@@ -83,24 +73,18 @@ const formatDate = (
 // =====================================================
 
 export default function StudentPayments() {
+  const [payments, setPayments] = useState<Payment[]>([]);
 
-  const [payments, setPayments] =
-    useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
   // ===================================================
   // LOAD PAYMENTS
   // ===================================================
 
   const loadPayments = async () => {
-
     try {
-
       setLoading(true);
       setError("");
 
@@ -108,8 +92,7 @@ export default function StudentPayments() {
       // GET CURRENT STUDENT PROFILE
       // ===============================================
 
-      const meResponse =
-        await api.get("/me");
+      const meResponse = await api.get("/me");
 
       const profile =
         meResponse.data?.profile ||
@@ -120,15 +103,10 @@ export default function StudentPayments() {
       // GET STUDENT ID
       // ===============================================
 
-      const studentId =
-        Number(profile?.id);
+      const studentId = Number(profile?.id);
 
       if (!studentId) {
-
-        setError(
-          "Student profile could not be found."
-        );
-
+        setError("Student profile could not be found.");
         return;
       }
 
@@ -136,44 +114,26 @@ export default function StudentPayments() {
       // GET SCHOOL ID
       // ===============================================
 
-      let schoolId =
-        Number(
-          profile?.school_id
-        );
+      let schoolId = Number(profile?.school_id);
 
       // ===============================================
       // FALLBACK TO LOGGED-IN USER
       // ===============================================
 
       if (!schoolId) {
-
         try {
-
-          const storedUser =
-            localStorage.getItem(
-              "user"
-            );
+          const storedUser = localStorage.getItem("user");
 
           if (storedUser) {
+            const user = JSON.parse(storedUser);
 
-            const user =
-              JSON.parse(
-                storedUser
-              );
-
-            schoolId =
-              Number(
-                user?.school_id
-              );
+            schoolId = Number(user?.school_id);
           }
-
         } catch (userError) {
-
           console.error(
             "ERROR READING STORED USER:",
             userError
           );
-
         }
       }
 
@@ -182,35 +142,27 @@ export default function StudentPayments() {
       // ===============================================
 
       if (!schoolId) {
-
-        setError(
-          "School information could not be found."
-        );
-
+        setError("School information could not be found.");
         return;
       }
 
-      console.log(
-        "LOADING STUDENT PAYMENTS:",
-        {
-          studentId,
-          schoolId,
-        }
-      );
+      console.log("LOADING STUDENT PAYMENTS:", {
+        studentId,
+        schoolId,
+      });
 
       // ===============================================
       // GET PAYMENTS
       // ===============================================
 
-      const response =
-        await api.get(
-          `/payments/student/${studentId}`,
-          {
-            params: {
-              school_id: schoolId,
-            },
-          }
-        );
+      const response = await api.get(
+        `/payments/student/${studentId}`,
+        {
+          params: {
+            school_id: schoolId,
+          },
+        }
+      );
 
       console.log(
         "STUDENT PAYMENTS RESPONSE:",
@@ -226,22 +178,15 @@ export default function StudentPayments() {
           ? response.data
           : []
       );
-
     } catch (err) {
-
       console.error(
         "STUDENT PAYMENTS ERROR:",
         err
       );
 
-      setError(
-        "Unable to load your payments."
-      );
-
+      setError("Unable to load your payments.");
     } finally {
-
       setLoading(false);
-
     }
   };
 
@@ -250,337 +195,235 @@ export default function StudentPayments() {
   // ===================================================
 
   useEffect(() => {
-
     loadPayments();
-
   }, []);
 
   // ===================================================
   // TOTAL PAID
   // ===================================================
 
-  const totalPaid =
-    payments.reduce(
-      (total, payment) =>
-        total +
-        Number(
-          payment.amount || 0
-        ),
-      0
-    );
+  const totalPaid = payments.reduce(
+    (total, payment) =>
+      total + Number(payment.amount || 0),
+    0
+  );
 
   // ===================================================
   // PAGE
   // ===================================================
 
   return (
-
     <Box
       sx={{
-        display: "flex",
         minHeight: "100vh",
         backgroundColor: "#f4f6f9",
       }}
     >
+      {/* ===========================================
+          HEADER
+      ============================================ */}
 
-      {/* =============================================
-          SIDEBAR
-      ============================================== */}
+      <Header title="My Payments" />
 
-      <Sidebar />
-
-      {/* =============================================
-          MAIN CONTENT
-      ============================================== */}
+      {/* ===========================================
+          CONTENT
+      ============================================ */}
 
       <Box
         sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
+          p: {
+            xs: 2,
+            md: 4,
+          },
         }}
       >
+        <Card>
+          <CardContent>
+            {/* =====================================
+                TITLE
+            ====================================== */}
 
-        {/* ===========================================
-            HEADER
-        ============================================ */}
+            <Typography
+              variant="h5"
+              fontWeight="bold"
+            >
+              💳 My Payments
+            </Typography>
 
-        <Header
-          title="My Payments"
-        />
+            <Typography
+              color="text.secondary"
+              sx={{
+                mt: 1,
+              }}
+            >
+              View your payment history.
+            </Typography>
 
-        {/* ===========================================
-            CONTENT
-        ============================================ */}
+            <Divider
+              sx={{
+                my: 3,
+              }}
+            />
 
-        <Box
-          sx={{
-            p: {
-              xs: 2,
-              md: 4,
-            },
-          }}
-        >
+            {/* =====================================
+                TOTAL PAID
+            ====================================== */}
 
-          <Card>
+            <Card
+              variant="outlined"
+              sx={{
+                mb: 3,
+                maxWidth: 350,
+              }}
+            >
+              <CardContent>
+                <Typography color="text.secondary">
+                  Total Paid
+                </Typography>
 
-            <CardContent>
+                <Typography
+                  variant="h5"
+                  fontWeight="bold"
+                >
+                  {formatMoney(totalPaid)}
+                </Typography>
+              </CardContent>
+            </Card>
 
-              {/* =====================================
-                  TITLE
-              ====================================== */}
+            {/* =====================================
+                LOADING
+            ====================================== */}
 
-              <Typography
-                variant="h5"
-                fontWeight="bold"
+            {loading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  p: 5,
+                }}
               >
-                💳 My Payments
+                <CircularProgress />
+              </Box>
+            ) : error ? (
+              /* ===================================
+                 ERROR
+              ==================================== */
+
+              <Typography color="error">
+                {error}
               </Typography>
+            ) : payments.length === 0 ? (
+              /* ===================================
+                 NO PAYMENTS
+              ==================================== */
 
               <Typography
                 color="text.secondary"
                 sx={{
-                  mt: 1,
+                  py: 4,
                 }}
               >
-                View your payment history.
+                No payments found.
               </Typography>
+            ) : (
+              /* ===================================
+                 PAYMENT TABLE
+              ==================================== */
 
-              <Divider
-                sx={{
-                  my: 3,
-                }}
-              />
-
-              {/* =====================================
-                  TOTAL PAID
-              ====================================== */}
-
-              <Card
-                variant="outlined"
-                sx={{
-                  mb: 3,
-                  maxWidth: 350,
-                }}
+              <TableContainer
+                component={Paper}
+                elevation={0}
               >
+                <Table>
+                  {/* =================================
+                      TABLE HEADER
+                  ================================== */}
 
-                <CardContent>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <strong>Date</strong>
+                      </TableCell>
 
-                  <Typography
-                    color="text.secondary"
-                  >
-                    Total Paid
-                  </Typography>
+                      <TableCell>
+                        <strong>Receipt</strong>
+                      </TableCell>
 
-                  <Typography
-                    variant="h5"
-                    fontWeight="bold"
-                  >
-                    {formatMoney(
-                      totalPaid
-                    )}
-                  </Typography>
+                      <TableCell>
+                        <strong>Method</strong>
+                      </TableCell>
 
-                </CardContent>
+                      <TableCell>
+                        <strong>Reference</strong>
+                      </TableCell>
 
-              </Card>
+                      <TableCell align="right">
+                        <strong>Amount</strong>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
 
-              {/* =====================================
-                  LOADING
-              ====================================== */}
+                  {/* =================================
+                      TABLE BODY
+                  ================================== */}
 
-              {loading ? (
+                  <TableBody>
+                    {payments.map(
+                      (payment, index) => (
+                        <TableRow
+                          key={
+                            payment.id ??
+                            index
+                          }
+                        >
+                          {/* DATE */}
 
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent:
-                      "center",
-                    p: 5,
-                  }}
-                >
+                          <TableCell>
+                            {formatDate(
+                              payment.paymentDate
+                            )}
+                          </TableCell>
 
-                  <CircularProgress />
+                          {/* RECEIPT */}
 
-                </Box>
+                          <TableCell>
+                            {payment.receiptNo ||
+                              "-"}
+                          </TableCell>
 
-              ) : error ? (
+                          {/* METHOD */}
 
-                /* ===================================
-                   ERROR
-                ==================================== */
+                          <TableCell>
+                            {payment.paymentMethod ||
+                              "-"}
+                          </TableCell>
 
-                <Typography
-                  color="error"
-                >
-                  {error}
-                </Typography>
+                          {/* REFERENCE */}
 
-              ) : payments.length === 0 ? (
+                          <TableCell>
+                            {payment.reference ||
+                              "-"}
+                          </TableCell>
 
-                /* ===================================
-                   NO PAYMENTS
-                ==================================== */
+                          {/* AMOUNT */}
 
-                <Typography
-                  color="text.secondary"
-                  sx={{
-                    py: 4,
-                  }}
-                >
-                  No payments found.
-                </Typography>
-
-              ) : (
-
-                /* ===================================
-                   PAYMENT TABLE
-                ==================================== */
-
-                <TableContainer
-                  component={Paper}
-                  elevation={0}
-                >
-
-                  <Table>
-
-                    {/* =================================
-                        TABLE HEADER
-                    ================================== */}
-
-                    <TableHead>
-
-                      <TableRow>
-
-                        <TableCell>
-                          <strong>
-                            Date
-                          </strong>
-                        </TableCell>
-
-                        <TableCell>
-                          <strong>
-                            Receipt
-                          </strong>
-                        </TableCell>
-
-                        <TableCell>
-                          <strong>
-                            Method
-                          </strong>
-                        </TableCell>
-
-                        <TableCell>
-                          <strong>
-                            Reference
-                          </strong>
-                        </TableCell>
-
-                        <TableCell align="right">
-                          <strong>
-                            Amount
-                          </strong>
-                        </TableCell>
-
-                      </TableRow>
-
-                    </TableHead>
-
-                    {/* =================================
-                        TABLE BODY
-                    ================================== */}
-
-                    <TableBody>
-
-                      {payments.map(
-                        (
-                          payment,
-                          index
-                        ) => (
-
-                          <TableRow
-                            key={
-                              payment.id ??
-                              index
-                            }
-                          >
-
-                            {/* DATE */}
-
-                            <TableCell>
-
-                              {formatDate(
-                                payment.paymentDate
+                          <TableCell align="right">
+                            <strong>
+                              {formatMoney(
+                                payment.amount
                               )}
-
-                            </TableCell>
-
-                            {/* RECEIPT */}
-
-                            <TableCell>
-
-                              {payment.receiptNo ||
-                                "-"}
-
-                            </TableCell>
-
-                            {/* METHOD */}
-
-                            <TableCell>
-
-                              {payment.paymentMethod ||
-                                "-"}
-
-                            </TableCell>
-
-                            {/* REFERENCE */}
-
-                            <TableCell>
-
-                              {payment.reference ||
-                                "-"}
-
-                            </TableCell>
-
-                            {/* AMOUNT */}
-
-                            <TableCell
-                              align="right"
-                            >
-
-                              <strong>
-
-                                {formatMoney(
-                                  payment.amount
-                                )}
-
-                              </strong>
-
-                            </TableCell>
-
-                          </TableRow>
-
-                        )
-                      )}
-
-                    </TableBody>
-
-                  </Table>
-
-                </TableContainer>
-
-              )}
-
-            </CardContent>
-
-          </Card>
-
-        </Box>
-
+                            </strong>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
       </Box>
-
     </Box>
-
   );
 }

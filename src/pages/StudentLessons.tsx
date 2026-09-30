@@ -17,9 +17,11 @@ import {
 } from "@mui/material";
 
 import Header from "../Components/Header";
-import Sidebar from "../Components/Sidebar";
 import api from "../services/api";
-import { getStudentLessons, type Lesson } from "../services/lessonService";
+import {
+  getStudentLessons,
+  type Lesson,
+} from "../services/lessonService";
 
 // =====================================================
 // FORMAT DATE
@@ -82,9 +84,14 @@ const getStatusColor = (
 // =====================================================
 
 export default function StudentLessons() {
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [lessons, setLessons] =
+    useState<Lesson[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
 
   // ===================================================
   // LOAD STUDENT LESSONS
@@ -179,170 +186,156 @@ export default function StudentLessons() {
   return (
     <Box
       sx={{
-        display: "flex",
         minHeight: "100vh",
         backgroundColor: "#f4f6f9",
       }}
     >
-      <Sidebar />
+      <Header title="My Lessons" />
 
       <Box
         sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
+          p: {
+            xs: 2,
+            md: 4,
+          },
         }}
       >
-        <Header
-          title="My Lessons"
-        />
+        <Card>
+          <CardContent>
+            <Typography
+              variant="h5"
+              fontWeight="bold"
+            >
+              📅 My Lessons
+            </Typography>
 
-        <Box
-          sx={{
-            p: {
-              xs: 2,
-              md: 4,
-            },
-          }}
-        >
-          <Card>
-            <CardContent>
-              <Typography
-                variant="h5"
-                fontWeight="bold"
+            <Typography
+              color="text.secondary"
+              sx={{ mt: 1 }}
+            >
+              View your scheduled and completed
+              driving lessons.
+            </Typography>
+
+            <Divider
+              sx={{ my: 3 }}
+            />
+
+            {loading ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent:
+                    "center",
+                  p: 5,
+                }}
               >
-                📅 My Lessons
+                <CircularProgress />
+              </Box>
+            ) : error ? (
+              <Typography
+                color="error"
+              >
+                {error}
               </Typography>
-
+            ) : lessons.length === 0 ? (
               <Typography
                 color="text.secondary"
-                sx={{ mt: 1 }}
+                sx={{ py: 4 }}
               >
-                View your scheduled and completed
-                driving lessons.
+                You currently have no
+                lessons booked.
               </Typography>
+            ) : (
+              <TableContainer
+                component={Paper}
+                elevation={0}
+              >
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <strong>
+                          Date
+                        </strong>
+                      </TableCell>
 
-              <Divider
-                sx={{ my: 3 }}
-              />
+                      <TableCell>
+                        <strong>
+                          Time
+                        </strong>
+                      </TableCell>
 
-              {loading ? (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent:
-                      "center",
-                    p: 5,
-                  }}
-                >
-                  <CircularProgress />
-                </Box>
-              ) : error ? (
-                <Typography
-                  color="error"
-                >
-                  {error}
-                </Typography>
-              ) : lessons.length === 0 ? (
-                <Typography
-                  color="text.secondary"
-                  sx={{ py: 4 }}
-                >
-                  You currently have no
-                  lessons booked.
-                </Typography>
-              ) : (
-                <TableContainer
-                  component={Paper}
-                  elevation={0}
-                >
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>
-                          <strong>
-                            Date
-                          </strong>
-                        </TableCell>
+                      <TableCell>
+                        <strong>
+                          Instructor
+                        </strong>
+                      </TableCell>
 
-                        <TableCell>
-                          <strong>
-                            Time
-                          </strong>
-                        </TableCell>
+                      <TableCell>
+                        <strong>
+                          Vehicle
+                        </strong>
+                      </TableCell>
 
-                        <TableCell>
-                          <strong>
-                            Instructor
-                          </strong>
-                        </TableCell>
+                      <TableCell>
+                        <strong>
+                          Status
+                        </strong>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
 
-                        <TableCell>
-                          <strong>
-                            Vehicle
-                          </strong>
-                        </TableCell>
+                  <TableBody>
+                    {lessons.map(
+                      (lesson) => (
+                        <TableRow
+                          key={
+                            lesson.id
+                          }
+                        >
+                          <TableCell>
+                            {formatDate(
+                              lesson.lesson_date
+                            )}
+                          </TableCell>
 
-                        <TableCell>
-                          <strong>
-                            Status
-                          </strong>
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
+                          <TableCell>
+                            {lesson.lesson_time ||
+                              "-"}
+                          </TableCell>
 
-                    <TableBody>
-                      {lessons.map(
-                        (lesson) => (
-                          <TableRow
-                            key={
-                              lesson.id
-                            }
-                          >
-                            <TableCell>
-                              {formatDate(
-                                lesson.lesson_date
+                          <TableCell>
+                            {lesson.instructor ||
+                              "-"}
+                          </TableCell>
+
+                          <TableCell>
+                            {lesson.vehicle ||
+                              "-"}
+                          </TableCell>
+
+                          <TableCell>
+                            <Chip
+                              label={
+                                lesson.status ||
+                                "Booked"
+                              }
+                              color={getStatusColor(
+                                lesson.status
                               )}
-                            </TableCell>
-
-                            <TableCell>
-                              {lesson.lesson_time ||
-                                "-"}
-                            </TableCell>
-
-                            <TableCell>
-                              {lesson.instructor ||
-                                "-"}
-                            </TableCell>
-
-                            <TableCell>
-                              {lesson.vehicle ||
-                                "-"}
-                            </TableCell>
-
-                            <TableCell>
-                              <Chip
-                                label={
-                                  lesson.status ||
-                                  "Booked"
-                                }
-                                color={getStatusColor(
-                                  lesson.status
-                                )}
-                                size="small"
-                              />
-                            </TableCell>
-                          </TableRow>
-                        )
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
       </Box>
     </Box>
   );
