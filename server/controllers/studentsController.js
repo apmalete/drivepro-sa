@@ -1,14 +1,55 @@
 import db from "../database/database.js";
 
 // =====================================================
-// GET SCHOOL ID FROM AUTHENTICATED USER
+// GET SCHOOL ID
+// =====================================================
+//
+// SYSTEM ADMINISTRATOR:
+// Can request students from a selected school using:
+//
+//     /students?school_id=5
+//
+// NORMAL USERS:
+// Always use the school contained in their JWT.
+//
 // =====================================================
 
 const getSchoolId = (req) => {
 
-  const schoolId = Number(
-    req.user?.school_id
-  );
+  const role = String(
+    req.user?.role || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  // ===================================================
+  // SYSTEM ADMINISTRATOR
+  // ===================================================
+
+  if (
+    role === "system administrator"
+  ) {
+
+    const requestedSchoolId =
+      Number(req.query?.school_id);
+
+    if (
+      Number.isInteger(
+        requestedSchoolId
+      ) &&
+      requestedSchoolId > 0
+    ) {
+
+      return requestedSchoolId;
+    }
+  }
+
+  // ===================================================
+  // NORMAL USER
+  // ===================================================
+
+  const schoolId =
+    Number(req.user?.school_id);
 
   if (!schoolId) {
     return null;
@@ -16,6 +57,7 @@ const getSchoolId = (req) => {
 
   return schoolId;
 };
+
 
 // =====================================================
 // GET USER ROLE
@@ -30,6 +72,7 @@ const getRole = (req) => {
     .toLowerCase();
 };
 
+
 // =====================================================
 // GET USER NAME
 // =====================================================
@@ -42,6 +85,7 @@ const getUserName = (req) => {
     ""
   ).trim();
 };
+
 
 // =====================================================
 // GET USER ID
@@ -60,6 +104,7 @@ const getUserId = (req) => {
   return userId;
 };
 
+
 // =====================================================
 // CHECK ADMINISTRATOR
 // =====================================================
@@ -75,6 +120,7 @@ const isAdministrator = (req) => {
   );
 };
 
+
 // =====================================================
 // CHECK INSTRUCTOR
 // =====================================================
@@ -86,6 +132,7 @@ const isInstructor = (req) => {
   );
 };
 
+
 // =====================================================
 // CHECK STUDENT
 // =====================================================
@@ -96,6 +143,7 @@ const isStudent = (req) => {
     getRole(req) === "student"
   );
 };
+
 
 // =====================================================
 // GET STUDENTS
@@ -115,7 +163,8 @@ export const getStudents = (req, res) => {
     });
   }
 
-  const role = getRole(req);
+  const role =
+    getRole(req);
 
   const userName =
     getUserName(req);
@@ -123,11 +172,20 @@ export const getStudents = (req, res) => {
   const userId =
     getUserId(req);
 
+
   // ===================================================
   // ADMINISTRATOR
   // ===================================================
 
   if (isAdministrator(req)) {
+
+    console.log(
+      "GET STUDENTS:",
+      "Role:",
+      role,
+      "School:",
+      schoolId
+    );
 
     return db.all(
       `
@@ -136,7 +194,9 @@ export const getStudents = (req, res) => {
       WHERE school_id = ?
       ORDER BY id DESC
       `,
-      [schoolId],
+      [
+        schoolId,
+      ],
       (err, rows) => {
 
         if (err) {
@@ -158,6 +218,7 @@ export const getStudents = (req, res) => {
       }
     );
   }
+
 
   // ===================================================
   // INSTRUCTOR
@@ -200,21 +261,22 @@ export const getStudents = (req, res) => {
     );
   }
 
+
   // ===================================================
   // STUDENT
   // ===================================================
+  //
+  // STUDENT LOOKUP ORDER:
+  //
+  // 1. user_id
+  // 2. studentNo
+  // 3. learnerNumber
+  // 4. learnerCode
+  // 5. fullname
+  //
+  // ===================================================
 
   if (isStudent(req)) {
-
-    /*
-      STUDENT LOOKUP ORDER:
-
-      1. user_id
-      2. studentNo
-      3. learnerNumber
-      4. learnerCode
-      5. fullname
-    */
 
     return db.all(
       `
@@ -350,6 +412,7 @@ export const getStudents = (req, res) => {
           });
         }
 
+
         // =================================================
         // AUTOMATICALLY LINK STUDENT TO USER
         // =================================================
@@ -422,6 +485,7 @@ export const getStudents = (req, res) => {
     );
   }
 
+
   // ===================================================
   // UNKNOWN / UNSUPPORTED ROLE
   // ===================================================
@@ -432,6 +496,7 @@ export const getStudents = (req, res) => {
       "You do not have permission to view students.",
   });
 };
+
 
 // =====================================================
 // ADD STUDENT
@@ -451,6 +516,7 @@ export const addStudent = (req, res) => {
     });
   }
 
+
   // ===================================================
   // ONLY ADMINISTRATORS CAN ADD STUDENTS
   // ===================================================
@@ -464,10 +530,12 @@ export const addStudent = (req, res) => {
     });
   }
 
+
   console.log(
     "Student received:",
     req.body
   );
+
 
   // ===================================================
   // STUDENT DATA
@@ -496,6 +564,7 @@ export const addStudent = (req, res) => {
     status,
   } = req.body;
 
+
   // ===================================================
   // CLEAN DATA
   // ===================================================
@@ -510,6 +579,7 @@ export const addStudent = (req, res) => {
 
   const cleanFullname =
     String(fullname || "").trim();
+
 
   // ===================================================
   // FIND EXISTING STUDENT ACCOUNT
@@ -583,6 +653,7 @@ export const addStudent = (req, res) => {
       );
     }
 
+
     // -------------------------------------------------
     // 2. MATCH BY PHONE NUMBER
     //
@@ -636,6 +707,7 @@ export const addStudent = (req, res) => {
               user
             );
           }
+
 
           // -------------------------------------------
           // 3. MATCH BY EXACT FULLNAME
@@ -696,6 +768,7 @@ export const addStudent = (req, res) => {
       );
     }
 
+
     // -------------------------------------------------
     // NO PHONE
     // TRY EXACT FULLNAME
@@ -754,6 +827,7 @@ export const addStudent = (req, res) => {
     );
   };
 
+
   // ===================================================
   // FIND USER
   // THEN INSERT STUDENT
@@ -779,6 +853,7 @@ export const addStudent = (req, res) => {
               null
             );
 
+
       console.log(
         "Student account matching result:",
         matchedUser
@@ -790,6 +865,7 @@ export const addStudent = (req, res) => {
             }
           : "No existing Student account found"
       );
+
 
       // =================================================
       // INSERT STUDENT
@@ -943,6 +1019,7 @@ export const addStudent = (req, res) => {
   );
 };
 
+
 // =====================================================
 // UPDATE STUDENT
 // =====================================================
@@ -961,6 +1038,7 @@ export const updateStudent = (req, res) => {
     });
   }
 
+
   // ===================================================
   // ONLY ADMINISTRATORS CAN UPDATE STUDENTS
   // ===================================================
@@ -973,6 +1051,7 @@ export const updateStudent = (req, res) => {
         "Only administrators can update students.",
     });
   }
+
 
   // ===================================================
   // STUDENT DATA
@@ -1000,6 +1079,7 @@ export const updateStudent = (req, res) => {
     photo,
     status,
   } = req.body;
+
 
   // ===================================================
   // UPDATE STUDENT
@@ -1100,6 +1180,7 @@ export const updateStudent = (req, res) => {
         });
       }
 
+
       if (this.changes === 0) {
 
         return res.status(404).json({
@@ -1109,9 +1190,11 @@ export const updateStudent = (req, res) => {
         });
       }
 
+
       console.log(
         `Student ${req.params.id} updated successfully`
       );
+
 
       return res.json({
 
@@ -1124,6 +1207,7 @@ export const updateStudent = (req, res) => {
     }
   );
 };
+
 
 // =====================================================
 // DELETE STUDENT
@@ -1143,6 +1227,7 @@ export const deleteStudent = (req, res) => {
     });
   }
 
+
   // ===================================================
   // ONLY ADMINISTRATORS CAN DELETE STUDENTS
   // ===================================================
@@ -1155,6 +1240,7 @@ export const deleteStudent = (req, res) => {
         "Only administrators can delete students.",
     });
   }
+
 
   // ===================================================
   // DELETE STUDENT
@@ -1185,6 +1271,7 @@ export const deleteStudent = (req, res) => {
         });
       }
 
+
       if (this.changes === 0) {
 
         return res.status(404).json({
@@ -1194,9 +1281,11 @@ export const deleteStudent = (req, res) => {
         });
       }
 
+
       console.log(
         `Student ${req.params.id} deleted successfully`
       );
+
 
       return res.json({
 
