@@ -39,10 +39,60 @@ const getUsername = (req) => {
 const getUserFullName = (req) => {
   return String(
     req.user?.fullname ||
-    req.user?.fullName ||
-    req.user?.username ||
-    ""
+      req.user?.fullName ||
+      req.user?.username ||
+      ""
   ).trim();
+};
+
+// =====================================================
+// GET AUTHENTICATED INSTRUCTOR PROFILE
+// =====================================================
+//
+// Instructor identification is done through:
+// instructors.user_id
+//
+// We DO NOT trust the login fullname.
+// =====================================================
+
+const getInstructorProfile = (req, callback) => {
+  const userId = Number(req.user?.id);
+  const schoolId = getSchoolId(req);
+
+  if (!userId || !schoolId) {
+    return callback(null, null);
+  }
+
+  db.get(
+    `
+      SELECT
+        id,
+        name,
+        phone,
+        licence,
+        experience,
+        status,
+        school_id,
+        user_id
+      FROM instructors
+      WHERE user_id = ?
+        AND school_id = ?
+      LIMIT 1
+    `,
+    [userId, schoolId],
+    (err, instructor) => {
+      if (err) {
+        console.error(
+          "GET AUTHENTICATED INSTRUCTOR ERROR:",
+          err.message
+        );
+
+        return callback(err, null);
+      }
+
+      callback(null, instructor || null);
+    }
+  );
 };
 
 // =====================================================
@@ -74,9 +124,51 @@ const isSystemAdministrator = (req) => {
 };
 
 // =====================================================
+// CHECK RECEPTIONIST
+// =====================================================
+
+const isReceptionist = (req) => {
+  return getUserRole(req) === "receptionist";
+};
+
+// =====================================================
+// CHECK INSTRUCTOR
+// =====================================================
+
+const isInstructor = (req) => {
+  return getUserRole(req) === "instructor";
+};
+
+// =====================================================
+// CHECK STUDENT
+// =====================================================
+
+const isStudent = (req) => {
+  return getUserRole(req) === "student";
+};
+
+// =====================================================
+// STAFF WHO CAN MANAGE LESSONS
+//
+// Administrator
+// System Administrator
+// Receptionist
+// =====================================================
+
+const canManageLessons = (req) => {
+  return (
+    isAdministrator(req) ||
+    isReceptionist(req)
+  );
+};
+
+// =====================================================
 // GET LESSONS
 //
 // ADMINISTRATOR
+//   -> sees all lessons for their school
+//
+// RECEPTIONIST
 //   -> sees all lessons for their school
 //
 // INSTRUCTOR
@@ -101,13 +193,14 @@ export const getLessons = (req, res) => {
   }
 
   // ===================================================
-  // SYSTEM ADMIN / ADMINISTRATOR
+  // ADMINISTRATOR / SYSTEM ADMINISTRATOR / RECEPTIONIST
   // ===================================================
 
   if (
     role === "system administrator" ||
     role === "administrator" ||
-    role === "admin"
+    role === "admin" ||
+    role === "receptionist"
   ) {
     db.all(
       `
@@ -120,7 +213,7 @@ export const getLessons = (req, res) => {
       (err, rows) => {
         if (err) {
           console.error(
-            "GET ADMIN LESSONS ERROR:",
+            "GET STAFF LESSONS ERROR:",
             err.message
           );
 
@@ -141,44 +234,55 @@ export const getLessons = (req, res) => {
   // INSTRUCTOR
   // ===================================================
 
-  if (role === "instructor") {
-    const instructorName = getUserFullName(req);
-
-    if (!instructorName) {
-      return res.status(403).json({
-        success: false,
-        message: "Instructor information not found.",
-      });
-    }
-
-    db.all(
-      `
-      SELECT *
-      FROM lessons
-      WHERE school_id = ?
-        AND LOWER(TRIM(instructor))
-            =
-            LOWER(TRIM(?))
-      ORDER BY lesson_date, lesson_time
-      `,
-      [
-        schoolId,
-        instructorName,
-      ],
-      (err, rows) => {
-        if (err) {
-          console.error(
-            "GET INSTRUCTOR LESSONS ERROR:",
-            err.message
-          );
-
+  if (isInstructor(req)) {
+    getInstructorProfile(
+      req,
+      (instructorErr, instructorProfile) => {
+        if (instructorErr) {
           return res.status(500).json({
             success: false,
-            message: err.message,
+            message:
+              "Failed to find instructor profile.",
           });
         }
 
-        return res.json(rows || []);
+        if (!instructorProfile) {
+          return res.status(403).json({
+            success: false,
+            message:
+              "Your instructor profile is not linked to this account.",
+          });
+        }
+
+        db.all(
+          `
+          SELECT *
+          FROM lessons
+          WHERE school_id = ?
+            AND LOWER(TRIM(instructor)) =
+                LOWER(TRIM(?))
+          ORDER BY lesson_date, lesson_time
+          `,
+          [
+            schoolId,
+            instructorProfile.name,
+          ],
+          (err, rows) => {
+            if (err) {
+              console.error(
+                "GET INSTRUCTOR LESSONS ERROR:",
+                err.message
+              );
+
+              return res.status(500).json({
+                success: false,
+                message: err.message,
+              });
+            }
+
+            return res.json(rows || []);
+          }
+        );
       }
     );
 
@@ -187,28 +291,18 @@ export const getLessons = (req, res) => {
 
   // ===================================================
   // STUDENT
-  //
-  // IMPORTANT:
-  // Find the student using the authenticated user's
-  // user_id rather than relying on the login fullname.
-  //
-  // This allows the student account name and the
-  // student profile name to be different.
   // ===================================================
 
-  if (role === "student") {
+  if (isStudent(req)) {
     const userId = Number(req.user?.id);
 
     if (!userId) {
       return res.status(403).json({
         success: false,
-        message: "Student account information not found.",
+        message:
+          "Student account information not found.",
       });
     }
-
-    // -------------------------------------------------
-    // FIND STUDENT PROFILE USING USER ID
-    // -------------------------------------------------
 
     db.get(
       `
@@ -227,7 +321,6 @@ export const getLessons = (req, res) => {
         schoolId,
       ],
       (studentErr, studentProfile) => {
-
         if (studentErr) {
           console.error(
             "GET STUDENT PROFILE FOR LESSONS ERROR:",
@@ -236,7 +329,8 @@ export const getLessons = (req, res) => {
 
           return res.status(500).json({
             success: false,
-            message: "Failed to find student profile.",
+            message:
+              "Failed to find student profile.",
           });
         }
 
@@ -248,17 +342,12 @@ export const getLessons = (req, res) => {
           });
         }
 
-        // -------------------------------------------------
-        // GET LESSONS USING STUDENT PROFILE NAME
-        // -------------------------------------------------
-
         db.all(
           `
           SELECT *
           FROM lessons
           WHERE school_id = ?
-            AND LOWER(TRIM(student))
-                =
+            AND LOWER(TRIM(student)) =
                 LOWER(TRIM(?))
           ORDER BY lesson_date, lesson_time
           `,
@@ -267,7 +356,6 @@ export const getLessons = (req, res) => {
             studentProfile.fullname,
           ],
           (err, rows) => {
-
             if (err) {
               console.error(
                 "GET STUDENT LESSONS ERROR:",
@@ -295,17 +383,17 @@ export const getLessons = (req, res) => {
 
   return res.status(403).json({
     success: false,
-    message: "You are not authorised to view lessons.",
+    message:
+      "You are not authorised to view lessons.",
   });
 };
 
 // =====================================================
 // GET LESSONS FOR ONE STUDENT
 //
-// /lessons/student/:studentName
-//
 // ADMINISTRATOR
-//   -> can view requested student
+// RECEPTIONIST
+//   -> can view requested student lessons
 //
 // INSTRUCTOR
 //   -> can only view students assigned to that instructor
@@ -315,12 +403,9 @@ export const getLessons = (req, res) => {
 // =====================================================
 
 export const getStudentLessons = (req, res) => {
-  const {
-    studentName,
-  } = req.params;
+  const { studentName } = req.params;
 
   const schoolId = getSchoolId(req);
-  const role = getUserRole(req);
 
   if (!schoolId) {
     return res.status(403).json({
@@ -338,44 +423,59 @@ export const getStudentLessons = (req, res) => {
 
   // ===================================================
   // INSTRUCTOR
-  //
-  // Instructor can only view lessons for a student
-  // assigned to that instructor.
   // ===================================================
 
-  if (role === "instructor") {
-    const instructorName = getUserFullName(req);
-
-    db.all(
-      `
-      SELECT *
-      FROM lessons
-      WHERE student = ?
-        AND school_id = ?
-        AND LOWER(TRIM(instructor))
-            =
-            LOWER(TRIM(?))
-      ORDER BY lesson_date DESC, lesson_time DESC
-      `,
-      [
-        studentName,
-        schoolId,
-        instructorName,
-      ],
-      (err, rows) => {
-        if (err) {
-          console.error(
-            "GET INSTRUCTOR STUDENT LESSONS ERROR:",
-            err.message
-          );
-
+  if (isInstructor(req)) {
+    getInstructorProfile(
+      req,
+      (instructorErr, instructorProfile) => {
+        if (instructorErr) {
           return res.status(500).json({
             success: false,
-            message: err.message,
+            message:
+              "Failed to find instructor profile.",
           });
         }
 
-        return res.json(rows || []);
+        if (!instructorProfile) {
+          return res.status(403).json({
+            success: false,
+            message:
+              "Your instructor profile is not linked to this account.",
+          });
+        }
+
+        db.all(
+          `
+          SELECT *
+          FROM lessons
+          WHERE student = ?
+            AND school_id = ?
+            AND LOWER(TRIM(instructor)) =
+                LOWER(TRIM(?))
+          ORDER BY lesson_date DESC, lesson_time DESC
+          `,
+          [
+            studentName,
+            schoolId,
+            instructorProfile.name,
+          ],
+          (err, rows) => {
+            if (err) {
+              console.error(
+                "GET INSTRUCTOR STUDENT LESSONS ERROR:",
+                err.message
+              );
+
+              return res.status(500).json({
+                success: false,
+                message: err.message,
+              });
+            }
+
+            return res.json(rows || []);
+          }
+        );
       }
     );
 
@@ -384,43 +484,18 @@ export const getStudentLessons = (req, res) => {
 
   // ===================================================
   // STUDENT
-  //
-  // IMPORTANT:
-  // Do not compare the requested student name against
-  // the login fullname.
-  //
-  // Instead, find the authenticated student's profile
-  // using user_id and school_id.
-  //
-  // This prevents problems when:
-  //
-  // Login account:
-  //     Malete Kgopotso
-  //
-  // Student profile:
-  //     Kgopotso
-  //
-  // Lesson booking:
-  //     Kgopotso
-  //
-  // The account remains protected because the student
-  // profile is found from the authenticated user_id.
   // ===================================================
 
-  if (role === "student") {
-
+  if (isStudent(req)) {
     const userId = Number(req.user?.id);
 
     if (!userId) {
       return res.status(403).json({
         success: false,
-        message: "Student account information not found.",
+        message:
+          "Student account information not found.",
       });
     }
-
-    // -------------------------------------------------
-    // FIND STUDENT PROFILE LINKED TO LOGGED-IN USER
-    // -------------------------------------------------
 
     db.get(
       `
@@ -439,7 +514,6 @@ export const getStudentLessons = (req, res) => {
         schoolId,
       ],
       (studentErr, studentProfile) => {
-
         if (studentErr) {
           console.error(
             "GET STUDENT PROFILE FOR LESSONS ERROR:",
@@ -448,7 +522,8 @@ export const getStudentLessons = (req, res) => {
 
           return res.status(500).json({
             success: false,
-            message: "Failed to find student profile.",
+            message:
+              "Failed to find student profile.",
           });
         }
 
@@ -460,17 +535,12 @@ export const getStudentLessons = (req, res) => {
           });
         }
 
-        // -------------------------------------------------
-        // GET LESSONS FOR THE LINKED STUDENT PROFILE
-        // -------------------------------------------------
-
         db.all(
           `
           SELECT *
           FROM lessons
           WHERE school_id = ?
-            AND LOWER(TRIM(student))
-                =
+            AND LOWER(TRIM(student)) =
                 LOWER(TRIM(?))
           ORDER BY lesson_date DESC, lesson_time DESC
           `,
@@ -479,7 +549,6 @@ export const getStudentLessons = (req, res) => {
             studentProfile.fullname,
           ],
           (err, rows) => {
-
             if (err) {
               console.error(
                 "GET STUDENT LESSONS ERROR:",
@@ -502,10 +571,13 @@ export const getStudentLessons = (req, res) => {
   }
 
   // ===================================================
-  // ADMINISTRATOR / SYSTEM ADMINISTRATOR
+  // ADMINISTRATOR / SYSTEM ADMINISTRATOR / RECEPTIONIST
   // ===================================================
 
-  if (isAdministrator(req)) {
+  if (
+    isAdministrator(req) ||
+    isReceptionist(req)
+  ) {
     db.all(
       `
       SELECT *
@@ -521,7 +593,7 @@ export const getStudentLessons = (req, res) => {
       (err, rows) => {
         if (err) {
           console.error(
-            "GET ADMIN STUDENT LESSONS ERROR:",
+            "GET STAFF STUDENT LESSONS ERROR:",
             err.message
           );
 
@@ -548,7 +620,14 @@ export const getStudentLessons = (req, res) => {
 // =====================================================
 // ADD LESSON
 //
-// ONLY ADMINISTRATORS CAN CREATE LESSONS
+// ALLOWED:
+// - System Administrator
+// - Administrator
+// - Receptionist
+//
+// NOT ALLOWED:
+// - Instructor
+// - Student
 // =====================================================
 
 export const addLesson = (req, res) => {
@@ -561,11 +640,11 @@ export const addLesson = (req, res) => {
     });
   }
 
-  if (!isAdministrator(req)) {
+  if (!canManageLessons(req)) {
     return res.status(403).json({
       success: false,
       message:
-        "Only administrators can add lessons.",
+        "Only administrators and receptionists can add lessons.",
     });
   }
 
@@ -577,6 +656,10 @@ export const addLesson = (req, res) => {
     lesson_time,
     status,
   } = req.body;
+
+  // ===================================================
+  // REQUIRED FIELDS
+  // ===================================================
 
   if (!student) {
     return res.status(400).json({
@@ -614,119 +697,299 @@ export const addLesson = (req, res) => {
   }
 
   // ===================================================
-  // CHECK INSTRUCTOR / VEHICLE CONFLICT
+  // VERIFY STUDENT BELONGS TO SCHOOL
   // ===================================================
 
   db.get(
     `
     SELECT *
-    FROM lessons
-    WHERE lesson_date = ?
-      AND lesson_time = ?
-      AND school_id = ?
-      AND (
-        instructor = ?
-        OR vehicle = ?
-      )
+    FROM students
+    WHERE school_id = ?
+      AND LOWER(TRIM(fullname)) =
+          LOWER(TRIM(?))
+    LIMIT 1
     `,
     [
-      lesson_date,
-      lesson_time,
       schoolId,
-      instructor,
-      vehicle,
+      student,
     ],
-    (err, existingLesson) => {
-
-      if (err) {
+    (studentErr, studentRow) => {
+      if (studentErr) {
         console.error(
-          "CHECK LESSON CONFLICT ERROR:",
-          err.message
+          "CHECK LESSON STUDENT ERROR:",
+          studentErr.message
         );
 
         return res.status(500).json({
           success: false,
-          message: err.message,
+          message: studentErr.message,
         });
       }
 
-      // =================================================
-      // INSTRUCTOR CONFLICT
-      // =================================================
-
-      if (
-        existingLesson &&
-        existingLesson.instructor === instructor
-      ) {
+      if (!studentRow) {
         return res.status(400).json({
           success: false,
           message:
-            "This instructor is already booked for the selected date and time.",
+            "Selected student does not belong to your school.",
         });
       }
 
       // =================================================
-      // VEHICLE CONFLICT
+      // VERIFY INSTRUCTOR BELONGS TO SCHOOL
       // =================================================
 
-      if (
-        existingLesson &&
-        existingLesson.vehicle === vehicle
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "This vehicle is already booked for the selected date and time.",
-        });
-      }
-
-      // =================================================
-      // INSERT LESSON
-      // =================================================
-
-      db.run(
+      db.get(
         `
-        INSERT INTO lessons
-        (
-          student,
-          instructor,
-          vehicle,
-          lesson_date,
-          lesson_time,
-          status,
-          school_id
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        SELECT *
+        FROM instructors
+        WHERE school_id = ?
+          AND LOWER(TRIM(name)) =
+              LOWER(TRIM(?))
+        LIMIT 1
         `,
         [
-          student,
-          instructor,
-          vehicle,
-          lesson_date,
-          lesson_time,
-          status || "Booked",
           schoolId,
+          instructor,
         ],
-        function (err) {
-
-          if (err) {
+        (instructorErr, instructorRow) => {
+          if (instructorErr) {
             console.error(
-              "ADD LESSON ERROR:",
-              err.message
+              "CHECK LESSON INSTRUCTOR ERROR:",
+              instructorErr.message
             );
 
             return res.status(500).json({
               success: false,
-              message: err.message,
+              message: instructorErr.message,
             });
           }
 
-          return res.json({
-            success: true,
-            message:
-              "Lesson created successfully.",
-            id: this.lastID,
-          });
+          if (!instructorRow) {
+            return res.status(400).json({
+              success: false,
+              message:
+                "Selected instructor does not belong to your school.",
+            });
+          }
+
+          // =================================================
+          // VERIFY VEHICLE BELONGS TO SCHOOL
+          //
+          // VEHICLES TABLE:
+          // id
+          // registration
+          // make
+          // model
+          // year
+          // transmission
+          // fuel
+          // status
+          // school_id
+          //
+          // IMPORTANT:
+          // There is NO "name" column.
+          // =================================================
+
+          db.get(
+            `
+            SELECT *
+            FROM vehicles
+            WHERE school_id = ?
+              AND (
+                LOWER(TRIM(registration)) =
+                  LOWER(TRIM(?))
+
+                OR
+
+                LOWER(TRIM(model)) =
+                  LOWER(TRIM(?))
+
+                OR
+
+                LOWER(TRIM(
+                  COALESCE(registration, '') ||
+                  CASE
+                    WHEN registration IS NOT NULL
+                         AND TRIM(registration) != ''
+                         AND model IS NOT NULL
+                         AND TRIM(model) != ''
+                    THEN ' - '
+                    ELSE ''
+                  END ||
+                  COALESCE(model, '')
+                )) =
+                  LOWER(TRIM(?))
+              )
+            LIMIT 1
+            `,
+            [
+              schoolId,
+              vehicle,
+              vehicle,
+              vehicle,
+            ],
+            (vehicleErr, vehicleRow) => {
+              if (vehicleErr) {
+                console.error(
+                  "CHECK LESSON VEHICLE ERROR:",
+                  vehicleErr.message
+                );
+
+                return res.status(500).json({
+                  success: false,
+                  message: vehicleErr.message,
+                });
+              }
+
+              if (!vehicleRow) {
+                return res.status(400).json({
+                  success: false,
+                  message:
+                    "Selected vehicle does not belong to your school.",
+                });
+              }
+
+              checkLessonConflictAndInsert();
+            }
+          );
+
+          // =================================================
+          // CHECK CONFLICT AND INSERT
+          // =================================================
+
+          function checkLessonConflictAndInsert() {
+            db.get(
+              `
+              SELECT *
+              FROM lessons
+              WHERE lesson_date = ?
+                AND lesson_time = ?
+                AND school_id = ?
+                AND (
+                  LOWER(TRIM(instructor)) =
+                    LOWER(TRIM(?))
+                  OR
+                  LOWER(TRIM(vehicle)) =
+                    LOWER(TRIM(?))
+                )
+              LIMIT 1
+              `,
+              [
+                lesson_date,
+                lesson_time,
+                schoolId,
+                instructor,
+                vehicle,
+              ],
+              (err, existingLesson) => {
+                if (err) {
+                  console.error(
+                    "CHECK LESSON CONFLICT ERROR:",
+                    err.message
+                  );
+
+                  return res.status(500).json({
+                    success: false,
+                    message: err.message,
+                  });
+                }
+
+                // ---------------------------------------------
+                // INSTRUCTOR CONFLICT
+                // ---------------------------------------------
+
+                if (
+                  existingLesson &&
+                  String(
+                    existingLesson.instructor || ""
+                  )
+                    .trim()
+                    .toLowerCase() ===
+                    String(instructor)
+                      .trim()
+                      .toLowerCase()
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message:
+                      "This instructor is already booked for the selected date and time.",
+                  });
+                }
+
+                // ---------------------------------------------
+                // VEHICLE CONFLICT
+                // ---------------------------------------------
+
+                if (
+                  existingLesson &&
+                  String(
+                    existingLesson.vehicle || ""
+                  )
+                    .trim()
+                    .toLowerCase() ===
+                    String(vehicle)
+                      .trim()
+                      .toLowerCase()
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message:
+                      "This vehicle is already booked for the selected date and time.",
+                  });
+                }
+
+                // ---------------------------------------------
+                // INSERT LESSON
+                // ---------------------------------------------
+
+                db.run(
+                  `
+                  INSERT INTO lessons
+                  (
+                    student,
+                    instructor,
+                    vehicle,
+                    lesson_date,
+                    lesson_time,
+                    status,
+                    school_id
+                  )
+                  VALUES (?, ?, ?, ?, ?, ?, ?)
+                  `,
+                  [
+                    student,
+                    instructor,
+                    vehicle,
+                    lesson_date,
+                    lesson_time,
+                    status || "Booked",
+                    schoolId,
+                  ],
+                  function (insertErr) {
+                    if (insertErr) {
+                      console.error(
+                        "ADD LESSON ERROR:",
+                        insertErr.message
+                      );
+
+                      return res.status(500).json({
+                        success: false,
+                        message:
+                          insertErr.message,
+                      });
+                    }
+
+                    return res.json({
+                      success: true,
+                      message:
+                        "Lesson created successfully.",
+                      id: this.lastID,
+                    });
+                  }
+                );
+              }
+            );
+          }
         }
       );
     }
@@ -736,14 +999,18 @@ export const addLesson = (req, res) => {
 // =====================================================
 // UPDATE LESSON
 //
-// ONLY ADMINISTRATORS CAN UPDATE LESSONS
+// ADMINISTRATOR / RECEPTIONIST
+//   -> can edit lesson details
+//
+// INSTRUCTOR
+//   -> can ONLY change own lesson to Completed/Cancelled
+//
+// STUDENT
+//   -> cannot update
 // =====================================================
 
 export const updateLesson = (req, res) => {
-  const {
-    id,
-  } = req.params;
-
+  const { id } = req.params;
   const schoolId = getSchoolId(req);
 
   if (!schoolId) {
@@ -753,30 +1020,19 @@ export const updateLesson = (req, res) => {
     });
   }
 
-    // ===================================================
+  // ===================================================
   // INSTRUCTOR
   //
-  // Instructors can update ONLY lessons assigned to them.
-  // They can change the lesson status to:
-  //   - Completed
-  //   - Cancelled
-  //
-  // They cannot change the student, instructor, vehicle,
-  // date or time.
+  // Instructor can update ONLY their own lesson status.
   // ===================================================
 
-  if (getUserRole(req) === "instructor") {
-    const instructorName = getUserFullName(req);
+  if (isInstructor(req)) {
     const { status } = req.body;
 
-    if (!instructorName) {
-      return res.status(403).json({
-        success: false,
-        message: "Instructor information not found.",
-      });
-    }
-
-    const allowedStatuses = ["Completed", "Cancelled"];
+    const allowedStatuses = [
+      "Completed",
+      "Cancelled",
+    ];
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
@@ -786,94 +1042,105 @@ export const updateLesson = (req, res) => {
       });
     }
 
-    // -------------------------------------------------
-    // FIND THE LESSON AND VERIFY IT BELONGS TO
-    // THE LOGGED-IN INSTRUCTOR
-    // -------------------------------------------------
-
-    db.get(
-      `
-        SELECT *
-        FROM lessons
-        WHERE id = ?
-          AND school_id = ?
-          AND LOWER(TRIM(instructor))
-              =
-              LOWER(TRIM(?))
-        LIMIT 1
-      `,
-      [
-        id,
-        schoolId,
-        instructorName,
-      ],
-      (findErr, lesson) => {
-        if (findErr) {
-          console.error(
-            "FIND INSTRUCTOR LESSON ERROR:",
-            findErr.message
-          );
-
+    getInstructorProfile(
+      req,
+      (instructorErr, instructorProfile) => {
+        if (instructorErr) {
           return res.status(500).json({
             success: false,
-            message: findErr.message,
+            message:
+              "Failed to find instructor profile.",
           });
         }
 
-        if (!lesson) {
+        if (!instructorProfile) {
           return res.status(403).json({
             success: false,
             message:
-              "You can only update lessons assigned to you.",
+              "Your instructor profile is not linked to this account.",
           });
         }
 
-        // -------------------------------------------------
-        // UPDATE STATUS ONLY
-        // -------------------------------------------------
-
-        db.run(
+        db.get(
           `
-            UPDATE lessons
-            SET status = ?
-            WHERE id = ?
-              AND school_id = ?
-              AND LOWER(TRIM(instructor))
-                  =
-                  LOWER(TRIM(?))
+          SELECT *
+          FROM lessons
+          WHERE id = ?
+            AND school_id = ?
+            AND LOWER(TRIM(instructor)) =
+                LOWER(TRIM(?))
+          LIMIT 1
           `,
           [
-            status,
             id,
             schoolId,
-            instructorName,
+            instructorProfile.name,
           ],
-          function (updateErr) {
-            if (updateErr) {
+          (findErr, lesson) => {
+            if (findErr) {
               console.error(
-                "INSTRUCTOR UPDATE LESSON ERROR:",
-                updateErr.message
+                "FIND INSTRUCTOR LESSON ERROR:",
+                findErr.message
               );
 
               return res.status(500).json({
                 success: false,
-                message: updateErr.message,
+                message: findErr.message,
               });
             }
 
-            if (this.changes === 0) {
-              return res.status(404).json({
+            if (!lesson) {
+              return res.status(403).json({
                 success: false,
                 message:
-                  "Lesson could not be updated.",
+                  "You can only update lessons assigned to you.",
               });
             }
 
-            return res.json({
-              success: true,
-              message:
-                `Lesson marked as ${status}.`,
-            });
+            db.run(
+              `
+              UPDATE lessons
+              SET status = ?
+              WHERE id = ?
+                AND school_id = ?
+                AND LOWER(TRIM(instructor)) =
+                    LOWER(TRIM(?))
+              `,
+              [
+                status,
+                id,
+                schoolId,
+                instructorProfile.name,
+              ],
+              function (updateErr) {
+                if (updateErr) {
+                  console.error(
+                    "INSTRUCTOR UPDATE LESSON ERROR:",
+                    updateErr.message
+                  );
+
+                  return res.status(500).json({
+                    success: false,
+                    message:
+                      updateErr.message,
+                  });
+                }
+
+                if (this.changes === 0) {
+                  return res.status(404).json({
+                    success: false,
+                    message:
+                      "Lesson could not be updated.",
+                  });
+                }
+
+                return res.json({
+                  success: true,
+                  message:
+                    `Lesson marked as ${status}.`,
+                });
+              }
+            );
           }
         );
       }
@@ -883,10 +1150,10 @@ export const updateLesson = (req, res) => {
   }
 
   // ===================================================
-  // STUDENTS CANNOT UPDATE LESSONS
+  // STUDENT CANNOT UPDATE
   // ===================================================
 
-  if (getUserRole(req) === "student") {
+  if (isStudent(req)) {
     return res.status(403).json({
       success: false,
       message:
@@ -895,14 +1162,14 @@ export const updateLesson = (req, res) => {
   }
 
   // ===================================================
-  // ADMINISTRATOR / SYSTEM ADMINISTRATOR
+  // ADMINISTRATOR / RECEPTIONIST
   // ===================================================
 
-  if (!isAdministrator(req)) {
+  if (!canManageLessons(req)) {
     return res.status(403).json({
       success: false,
       message:
-        "Only administrators can update lessons.",
+        "Only administrators and receptionists can update lessons.",
     });
   }
 
@@ -916,133 +1183,322 @@ export const updateLesson = (req, res) => {
   } = req.body;
 
   // ===================================================
-  // CHECK INSTRUCTOR / VEHICLE CONFLICT
+  // REQUIRED FIELDS
+  // ===================================================
+
+  if (!student || !instructor || !vehicle) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Student, instructor and vehicle are required.",
+    });
+  }
+
+  if (!lesson_date || !lesson_time) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Lesson date and time are required.",
+    });
+  }
+
+  // ===================================================
+  // VERIFY STUDENT BELONGS TO SCHOOL
   // ===================================================
 
   db.get(
     `
     SELECT *
-    FROM lessons
-    WHERE lesson_date = ?
-      AND lesson_time = ?
-      AND id != ?
-      AND school_id = ?
-      AND (
-        instructor = ?
-        OR vehicle = ?
-      )
+    FROM students
+    WHERE school_id = ?
+      AND LOWER(TRIM(fullname)) =
+          LOWER(TRIM(?))
+    LIMIT 1
     `,
     [
-      lesson_date,
-      lesson_time,
-      id,
       schoolId,
-      instructor,
-      vehicle,
+      student,
     ],
-    (err, existingLesson) => {
-
-      if (err) {
+    (studentErr, studentRow) => {
+      if (studentErr) {
         console.error(
-          "CHECK LESSON UPDATE CONFLICT ERROR:",
-          err.message
+          "CHECK UPDATE STUDENT ERROR:",
+          studentErr.message
         );
 
         return res.status(500).json({
           success: false,
-          message: err.message,
+          message: studentErr.message,
         });
       }
 
-      // =================================================
-      // INSTRUCTOR CONFLICT
-      // =================================================
-
-      if (
-        existingLesson &&
-        existingLesson.instructor === instructor
-      ) {
+      if (!studentRow) {
         return res.status(400).json({
           success: false,
           message:
-            "This instructor is already booked for the selected date and time.",
+            "Selected student does not belong to your school.",
         });
       }
 
       // =================================================
-      // VEHICLE CONFLICT
+      // VERIFY INSTRUCTOR BELONGS TO SCHOOL
       // =================================================
 
-      if (
-        existingLesson &&
-        existingLesson.vehicle === vehicle
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "This vehicle is already booked for the selected date and time.",
-        });
-      }
-
-      // =================================================
-      // UPDATE LESSON
-      //
-      // Reset WhatsApp notification flags because
-      // the lesson may have changed.
-      // =================================================
-
-      db.run(
+      db.get(
         `
-        UPDATE lessons
-        SET
-          student = ?,
-          instructor = ?,
-          vehicle = ?,
-          lesson_date = ?,
-          lesson_time = ?,
-          status = ?,
-          notification_sent = 0,
-          day_reminder_sent = 0
-        WHERE id = ?
-          AND school_id = ?
+        SELECT *
+        FROM instructors
+        WHERE school_id = ?
+          AND LOWER(TRIM(name)) =
+              LOWER(TRIM(?))
+        LIMIT 1
         `,
         [
-          student,
-          instructor,
-          vehicle,
-          lesson_date,
-          lesson_time,
-          status,
-          id,
           schoolId,
+          instructor,
         ],
-        function (err) {
-
-          if (err) {
+        (instructorErr, instructorRow) => {
+          if (instructorErr) {
             console.error(
-              "UPDATE LESSON ERROR:",
-              err.message
+              "CHECK UPDATE INSTRUCTOR ERROR:",
+              instructorErr.message
             );
 
             return res.status(500).json({
               success: false,
-              message: err.message,
+              message: instructorErr.message,
             });
           }
 
-          if (this.changes === 0) {
-            return res.status(404).json({
+          if (!instructorRow) {
+            return res.status(400).json({
               success: false,
               message:
-                "Lesson not found for this school.",
+                "Selected instructor does not belong to your school.",
             });
           }
 
-          return res.json({
-            success: true,
-            message:
-              "Lesson updated successfully.",
-          });
+          // =================================================
+          // VERIFY VEHICLE BELONGS TO SCHOOL
+          //
+          // IMPORTANT:
+          // vehicles table uses:
+          // registration + model
+          //
+          // There is NO "name" column.
+          // =================================================
+
+          db.get(
+            `
+            SELECT *
+            FROM vehicles
+            WHERE school_id = ?
+              AND (
+                LOWER(TRIM(registration)) =
+                  LOWER(TRIM(?))
+
+                OR
+
+                LOWER(TRIM(model)) =
+                  LOWER(TRIM(?))
+
+                OR
+
+                LOWER(TRIM(
+                  COALESCE(registration, '') ||
+                  CASE
+                    WHEN registration IS NOT NULL
+                         AND TRIM(registration) != ''
+                         AND model IS NOT NULL
+                         AND TRIM(model) != ''
+                    THEN ' - '
+                    ELSE ''
+                  END ||
+                  COALESCE(model, '')
+                )) =
+                  LOWER(TRIM(?))
+              )
+            LIMIT 1
+            `,
+            [
+              schoolId,
+              vehicle,
+              vehicle,
+              vehicle,
+            ],
+            (vehicleErr, vehicleRow) => {
+              if (vehicleErr) {
+                console.error(
+                  "CHECK UPDATE VEHICLE ERROR:",
+                  vehicleErr.message
+                );
+
+                return res.status(500).json({
+                  success: false,
+                  message: vehicleErr.message,
+                });
+              }
+
+              if (!vehicleRow) {
+                return res.status(400).json({
+                  success: false,
+                  message:
+                    "Selected vehicle does not belong to your school.",
+                });
+              }
+
+              checkLessonConflictAndUpdate();
+            }
+          );
+
+          // =================================================
+          // CHECK CONFLICT AND UPDATE
+          // =================================================
+
+          function checkLessonConflictAndUpdate() {
+            db.get(
+              `
+              SELECT *
+              FROM lessons
+              WHERE lesson_date = ?
+                AND lesson_time = ?
+                AND id != ?
+                AND school_id = ?
+                AND (
+                  LOWER(TRIM(instructor)) =
+                    LOWER(TRIM(?))
+                  OR
+                  LOWER(TRIM(vehicle)) =
+                    LOWER(TRIM(?))
+                )
+              LIMIT 1
+              `,
+              [
+                lesson_date,
+                lesson_time,
+                id,
+                schoolId,
+                instructor,
+                vehicle,
+              ],
+              (err, existingLesson) => {
+                if (err) {
+                  console.error(
+                    "CHECK LESSON UPDATE CONFLICT ERROR:",
+                    err.message
+                  );
+
+                  return res.status(500).json({
+                    success: false,
+                    message: err.message,
+                  });
+                }
+
+                // ---------------------------------------------
+                // INSTRUCTOR CONFLICT
+                // ---------------------------------------------
+
+                if (
+                  existingLesson &&
+                  String(
+                    existingLesson.instructor || ""
+                  )
+                    .trim()
+                    .toLowerCase() ===
+                    String(instructor)
+                      .trim()
+                      .toLowerCase()
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message:
+                      "This instructor is already booked for the selected date and time.",
+                  });
+                }
+
+                // ---------------------------------------------
+                // VEHICLE CONFLICT
+                // ---------------------------------------------
+
+                if (
+                  existingLesson &&
+                  String(
+                    existingLesson.vehicle || ""
+                  )
+                    .trim()
+                    .toLowerCase() ===
+                    String(vehicle)
+                      .trim()
+                      .toLowerCase()
+                ) {
+                  return res.status(400).json({
+                    success: false,
+                    message:
+                      "This vehicle is already booked for the selected date and time.",
+                  });
+                }
+
+                // =================================================
+                // UPDATE LESSON
+                // =================================================
+
+                db.run(
+                  `
+                  UPDATE lessons
+                  SET
+                    student = ?,
+                    instructor = ?,
+                    vehicle = ?,
+                    lesson_date = ?,
+                    lesson_time = ?,
+                    status = ?,
+                    notification_sent = 0,
+                    day_reminder_sent = 0
+                  WHERE id = ?
+                    AND school_id = ?
+                  `,
+                  [
+                    student,
+                    instructor,
+                    vehicle,
+                    lesson_date,
+                    lesson_time,
+                    status || "Booked",
+                    id,
+                    schoolId,
+                  ],
+                  function (updateErr) {
+                    if (updateErr) {
+                      console.error(
+                        "UPDATE LESSON ERROR:",
+                        updateErr.message
+                      );
+
+                      return res.status(500).json({
+                        success: false,
+                        message:
+                          updateErr.message,
+                      });
+                    }
+
+                    if (this.changes === 0) {
+                      return res.status(404).json({
+                        success: false,
+                        message:
+                          "Lesson not found for this school.",
+                      });
+                    }
+
+                    return res.json({
+                      success: true,
+                      message:
+                        "Lesson updated successfully.",
+                    });
+                  }
+                );
+              }
+            );
+          }
         }
       );
     }
@@ -1053,12 +1509,14 @@ export const updateLesson = (req, res) => {
 // DELETE LESSON
 //
 // ONLY ADMINISTRATORS CAN DELETE LESSONS
+//
+// RECEPTIONIST CANNOT DELETE
+// INSTRUCTOR CANNOT DELETE
+// STUDENT CANNOT DELETE
 // =====================================================
 
 export const deleteLesson = (req, res) => {
-  const {
-    id,
-  } = req.params;
+  const { id } = req.params;
 
   const schoolId = getSchoolId(req);
 
@@ -1088,7 +1546,6 @@ export const deleteLesson = (req, res) => {
       schoolId,
     ],
     function (err) {
-
       if (err) {
         console.error(
           "DELETE LESSON ERROR:",

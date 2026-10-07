@@ -1,4 +1,4 @@
-import db from "../database/database.js";
+﻿import db from "../database/database.js";
 import jwt from "jsonwebtoken";
 
 // =====================================================
@@ -9,15 +9,11 @@ const JWT_SECRET =
   process.env.JWT_SECRET ||
   "drivepro-sa-secret-key-change-later";
 
-
 // =====================================================
 // GET SCHOOL ID FROM AUTHENTICATED USER
-// IMPORTANT:
-// DO NOT DEFAULT NORMAL USERS TO SCHOOL 1
 // =====================================================
 
 const getAuthenticatedSchoolId = (req) => {
-
   const schoolId =
     Number(req.user?.school_id);
 
@@ -31,13 +27,11 @@ const getAuthenticatedSchoolId = (req) => {
   return schoolId;
 };
 
-
 // =====================================================
 // CHECK SYSTEM ADMINISTRATOR
 // =====================================================
 
 const isSystemAdministrator = (req) => {
-
   const role =
     String(
       req.user?.role || ""
@@ -58,13 +52,11 @@ const isSystemAdministrator = (req) => {
   );
 };
 
-
 // =====================================================
 // LOGIN
 // =====================================================
 
 export const loginUser = (req, res) => {
-
   const username =
     String(
       req.body.username || ""
@@ -75,34 +67,21 @@ export const loginUser = (req, res) => {
       req.body.password || ""
     );
 
-
-  // ===================================================
-  // VALIDATION
-  // ===================================================
-
   if (
     !username ||
     !password
   ) {
-
     return res.status(400).json({
       success: false,
       message:
         "Username and password are required.",
     });
-
   }
-
 
   console.log(
     "LOGIN ATTEMPT:",
     username
   );
-
-
-  // ===================================================
-  // FIND USER
-  // ===================================================
 
   db.get(
     `
@@ -119,7 +98,6 @@ export const loginUser = (req, res) => {
     (err, user) => {
 
       if (err) {
-
         console.error(
           "LOGIN DATABASE ERROR:",
           err.message
@@ -130,46 +108,26 @@ export const loginUser = (req, res) => {
           message:
             "Database error during login.",
         });
-
       }
 
-
-      // ===============================================
-      // USER NOT FOUND
-      // ===============================================
-
       if (!user) {
-
         return res.status(401).json({
           success: false,
           message:
             "Invalid username or password.",
         });
-
       }
-
-
-      // ===============================================
-      // PASSWORD
-      // ===============================================
 
       if (
         String(user.password) !==
         password
       ) {
-
         return res.status(401).json({
           success: false,
           message:
             "Invalid username or password.",
         });
-
       }
-
-
-      // ===============================================
-      // USER STATUS
-      // ===============================================
 
       if (
         String(user.status)
@@ -177,27 +135,19 @@ export const loginUser = (req, res) => {
           .toLowerCase() !==
         "active"
       ) {
-
         return res.status(403).json({
           success: false,
           message:
             "This user account is inactive.",
         });
-
       }
-
-
-      // ===============================================
-      // DETERMINE ROLE
-      // ===============================================
 
       let userRole =
         user.role;
 
-
-      // ===============================================
+      // =================================================
       // MAIN ADMIN
-      // ===============================================
+      // =================================================
 
       if (
         String(user.username)
@@ -205,10 +155,8 @@ export const loginUser = (req, res) => {
           .toLowerCase() ===
         "admin"
       ) {
-
         userRole =
           "System Administrator";
-
 
         db.run(
           `
@@ -223,39 +171,27 @@ export const loginUser = (req, res) => {
           (updateErr) => {
 
             if (updateErr) {
-
               console.error(
                 "SYSTEM ADMIN ROLE UPDATE ERROR:",
                 updateErr.message
               );
-
             }
-
           }
         );
-
       }
-
-
-      // ===============================================
-      // SCHOOL ID
-      // ===============================================
 
       const schoolId =
         Number(user.school_id) || 1;
 
-
-      // ===============================================
+      // =================================================
       // SYSTEM ADMINISTRATOR
-      // ===============================================
+      // =================================================
 
       if (
         userRole ===
         "System Administrator"
       ) {
-
         const safeUser = {
-
           id:
             user.id,
 
@@ -273,14 +209,11 @@ export const loginUser = (req, res) => {
 
           school_id:
             schoolId,
-
         };
-
 
         const token =
           jwt.sign(
             {
-
               id:
                 user.id,
 
@@ -292,7 +225,6 @@ export const loginUser = (req, res) => {
 
               school_id:
                 schoolId,
-
             },
 
             JWT_SECRET,
@@ -303,7 +235,6 @@ export const loginUser = (req, res) => {
             }
           );
 
-
         console.log(
           "LOGIN SUCCESS:",
           username,
@@ -313,9 +244,7 @@ export const loginUser = (req, res) => {
           schoolId
         );
 
-
         return res.json({
-
           success:
             true,
 
@@ -324,15 +253,12 @@ export const loginUser = (req, res) => {
 
           user:
             safeUser,
-
         });
-
       }
 
-
-      // ===============================================
+      // =================================================
       // NORMAL USER MUST HAVE VALID SCHOOL
-      // ===============================================
+      // =================================================
 
       if (
         !Number.isInteger(
@@ -340,19 +266,16 @@ export const loginUser = (req, res) => {
         ) ||
         schoolId <= 0
       ) {
-
         return res.status(403).json({
           success: false,
           message:
             "This user is not assigned to a valid school.",
         });
-
       }
 
-
-      // ===============================================
+      // =================================================
       // CHECK SCHOOL
-      // ===============================================
+      // =================================================
 
       db.get(
         `
@@ -369,7 +292,6 @@ export const loginUser = (req, res) => {
         (schoolErr, school) => {
 
           if (schoolErr) {
-
             console.error(
               "SCHOOL CHECK ERROR:",
               schoolErr.message
@@ -380,24 +302,15 @@ export const loginUser = (req, res) => {
               message:
                 "Unable to verify school.",
             });
-
           }
 
-
           if (!school) {
-
             return res.status(403).json({
               success: false,
               message:
                 "The school assigned to this user does not exist.",
             });
-
           }
-
-
-          // =========================================
-          // INACTIVE SCHOOL
-          // =========================================
 
           if (
             String(school.status)
@@ -405,22 +318,14 @@ export const loginUser = (req, res) => {
               .toLowerCase() !==
             "active"
           ) {
-
             return res.status(403).json({
               success: false,
               message:
                 "This school is inactive. Please contact the system administrator.",
             });
-
           }
 
-
-          // =========================================
-          // SAFE USER
-          // =========================================
-
           const safeUser = {
-
             id:
               user.id,
 
@@ -438,18 +343,11 @@ export const loginUser = (req, res) => {
 
             school_id:
               schoolId,
-
           };
-
-
-          // =========================================
-          // JWT
-          // =========================================
 
           const token =
             jwt.sign(
               {
-
                 id:
                   user.id,
 
@@ -461,7 +359,6 @@ export const loginUser = (req, res) => {
 
                 school_id:
                   schoolId,
-
               },
 
               JWT_SECRET,
@@ -472,7 +369,6 @@ export const loginUser = (req, res) => {
               }
             );
 
-
           console.log(
             "LOGIN SUCCESS:",
             username,
@@ -482,9 +378,7 @@ export const loginUser = (req, res) => {
             schoolId
           );
 
-
           return res.json({
-
             success:
               true,
 
@@ -493,17 +387,12 @@ export const loginUser = (req, res) => {
 
             user:
               safeUser,
-
           });
-
         }
       );
-
     }
   );
-
 };
-
 
 // =====================================================
 // GET USERS
@@ -519,25 +408,38 @@ export const getUsers = (req, res) => {
   if (
     isSystemAdministrator(req)
   ) {
-
-    db.all(
+    return db.all(
       `
       SELECT
-        id,
-        fullname,
-        username,
-        role,
-        status,
-        school_id,
-        created_at
+        users.id,
+        users.fullname,
+        users.username,
+        users.role,
+        users.status,
+        users.school_id,
+        users.created_at,
+
+        (
+          SELECT students.id
+          FROM students
+          WHERE students.user_id = users.id
+          LIMIT 1
+        ) AS student_id,
+
+        (
+          SELECT instructors.id
+          FROM instructors
+          WHERE instructors.user_id = users.id
+          LIMIT 1
+        ) AS instructor_id
+
       FROM users
-      ORDER BY id DESC
+      ORDER BY users.id DESC
       `,
       [],
       (err, rows) => {
 
         if (err) {
-
           console.error(
             "GET ALL USERS ERROR:",
             err.message
@@ -548,19 +450,14 @@ export const getUsers = (req, res) => {
             message:
               err.message,
           });
-
         }
 
         return res.json(
           rows || []
         );
-
       }
     );
-
-    return;
   }
-
 
   // ===================================================
   // NORMAL ADMIN
@@ -570,31 +467,42 @@ export const getUsers = (req, res) => {
   const schoolId =
     getAuthenticatedSchoolId(req);
 
-
   if (!schoolId) {
-
     return res.status(403).json({
       success: false,
       message:
         "School information not found.",
     });
-
   }
-
 
   db.all(
     `
     SELECT
-      id,
-      fullname,
-      username,
-      role,
-      status,
-      school_id,
-      created_at
+      users.id,
+      users.fullname,
+      users.username,
+      users.role,
+      users.status,
+      users.school_id,
+      users.created_at,
+
+      (
+        SELECT students.id
+        FROM students
+        WHERE students.user_id = users.id
+        LIMIT 1
+      ) AS student_id,
+
+      (
+        SELECT instructors.id
+        FROM instructors
+        WHERE instructors.user_id = users.id
+        LIMIT 1
+      ) AS instructor_id
+
     FROM users
-    WHERE school_id = ?
-    ORDER BY id DESC
+    WHERE users.school_id = ?
+    ORDER BY users.id DESC
     `,
     [
       schoolId,
@@ -602,7 +510,6 @@ export const getUsers = (req, res) => {
     (err, rows) => {
 
       if (err) {
-
         console.error(
           "GET USERS ERROR:",
           err.message
@@ -613,18 +520,14 @@ export const getUsers = (req, res) => {
           message:
             err.message,
         });
-
       }
 
       return res.json(
         rows || []
       );
-
     }
   );
-
 };
-
 
 // =====================================================
 // ADD USER
@@ -639,8 +542,9 @@ export const addUser = (req, res) => {
     role,
     status,
     school_id,
+    student_id,
+    instructor_id,
   } = req.body;
-
 
   // ===================================================
   // VALIDATION
@@ -650,74 +554,63 @@ export const addUser = (req, res) => {
     !fullname ||
     !String(fullname).trim()
   ) {
-
     return res.status(400).json({
       success: false,
       message:
         "Full name is required.",
     });
-
   }
-
 
   if (
     !username ||
     !String(username).trim()
   ) {
-
     return res.status(400).json({
       success: false,
       message:
         "Username is required.",
     });
-
   }
 
-
   if (!password) {
-
     return res.status(400).json({
       success: false,
       message:
         "Password is required.",
     });
-
   }
 
-
   if (!role) {
-
     return res.status(400).json({
       success: false,
       message:
         "User role is required.",
     });
-
   }
 
-console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
   const allowedRoles = [
-  "Administrator",
-  "Receptionist",
-  "Instructor",
-  "Student",
-];
-
+    "Administrator",
+    "Receptionist",
+    "Instructor",
+    "Student",
+  ];
 
   if (
     !allowedRoles.includes(
       role
     )
   ) {
-
     return res.status(400).json({
       success: false,
       message:
         "Invalid user role.",
     });
-
   }
 
+  console.log(
+    "ADD USER ROLE RECEIVED:",
+    JSON.stringify(role)
+  );
 
   // ===================================================
   // DETERMINE SCHOOL
@@ -725,14 +618,11 @@ console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
 
   let schoolId;
 
-
   if (
     isSystemAdministrator(req)
   ) {
-
     schoolId =
       Number(school_id);
-
 
     if (
       !Number.isInteger(
@@ -740,37 +630,555 @@ console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
       ) ||
       schoolId <= 0
     ) {
-
       return res.status(400).json({
         success: false,
         message:
           "Please select a valid school.",
       });
-
     }
-
   } else {
-
     schoolId =
       getAuthenticatedSchoolId(req);
 
-
     if (!schoolId) {
-
       return res.status(403).json({
         success: false,
         message:
           "School information not found.",
       });
-
     }
-
   }
 
+  // ===================================================
+  // STUDENT VALIDATION BEFORE CREATING ACCOUNT
+  // ===================================================
+  //
+  // A Student account MUST have an exact student_id.
+  //
+  // ===================================================
+
+  if (
+    String(role)
+      .trim()
+      .toLowerCase() ===
+    "student"
+  ) {
+
+    const selectedStudentId =
+      Number(student_id);
+
+    if (
+      !Number.isInteger(
+        selectedStudentId
+      ) ||
+      selectedStudentId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please select a Student Profile before creating the Student account.",
+      });
+    }
+
+    // -----------------------------------------------
+    // VERIFY EXACT PROFILE
+    // -----------------------------------------------
+
+    return db.get(
+      `
+      SELECT
+        id,
+        fullname,
+        school_id,
+        user_id
+      FROM students
+      WHERE id = ?
+        AND school_id = ?
+      LIMIT 1
+      `,
+      [
+        selectedStudentId,
+        schoolId,
+      ],
+      (studentErr, studentProfile) => {
+
+        if (studentErr) {
+          console.error(
+            "STUDENT PROFILE CHECK ERROR:",
+            studentErr.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message:
+              "Unable to verify the selected Student Profile.",
+          });
+        }
+
+        if (!studentProfile) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "The selected Student Profile does not exist in the selected school.",
+          });
+        }
+
+        // ---------------------------------------------
+        // PROFILE ALREADY LINKED
+        // ---------------------------------------------
+
+        if (
+          studentProfile.user_id !== null &&
+          Number(studentProfile.user_id) > 0
+        ) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "This Student Profile is already linked to another login account.",
+          });
+        }
+
+        // ---------------------------------------------
+        // CREATE STUDENT USER
+        // ---------------------------------------------
+
+        db.run(
+          `
+          INSERT INTO users
+          (
+            fullname,
+            username,
+            password,
+            role,
+            status,
+            school_id
+          )
+          VALUES
+          (?, ?, ?, ?, ?, ?)
+          `,
+          [
+            String(
+              fullname
+            ).trim(),
+
+            String(
+              username
+            ).trim(),
+
+            password,
+
+            role,
+
+            status ||
+              "Active",
+
+            schoolId,
+          ],
+          function (err) {
+
+            if (err) {
+              console.error(
+                "ADD STUDENT USER ERROR:",
+                err.message
+              );
+
+              if (
+                err.message.includes(
+                  "UNIQUE constraint failed"
+                )
+              ) {
+                return res.status(409).json({
+                  success: false,
+                  message:
+                    "This username already exists.",
+                });
+              }
+
+              return res.status(500).json({
+                success: false,
+                message:
+                  err.message,
+              });
+            }
+
+            const newUserId =
+              this.lastID;
+
+            // -----------------------------------------
+            // LINK EXACT STUDENT PROFILE
+            // -----------------------------------------
+
+            db.run(
+              `
+              UPDATE students
+              SET user_id = ?
+              WHERE id = ?
+                AND school_id = ?
+                AND user_id IS NULL
+              `,
+              [
+                newUserId,
+                selectedStudentId,
+                schoolId,
+              ],
+              function (linkErr) {
+
+                if (linkErr) {
+                  console.error(
+                    "STUDENT USER LINK ERROR:",
+                    linkErr.message
+                  );
+
+                  // Remove account if linking failed.
+
+                  db.run(
+                    `
+                    DELETE FROM users
+                    WHERE id = ?
+                    `,
+                    [newUserId]
+                  );
+
+                  return res.status(500).json({
+                    success: false,
+                    message:
+                      "Student account could not be linked to the selected profile.",
+                  });
+                }
+
+                if (
+                  this.changes === 0
+                ) {
+                  console.error(
+                    "STUDENT PROFILE LINK FAILED:",
+                    selectedStudentId
+                  );
+
+                  db.run(
+                    `
+                    DELETE FROM users
+                    WHERE id = ?
+                    `,
+                    [newUserId]
+                  );
+
+                  return res.status(409).json({
+                    success: false,
+                    message:
+                      "The selected Student Profile is already linked to another account.",
+                  });
+                }
+
+                console.log(
+                  "STUDENT ACCOUNT LINKED SUCCESSFULLY:",
+                  "User:",
+                  newUserId,
+                  "Student:",
+                  selectedStudentId,
+                  "School:",
+                  schoolId,
+                  "Name:",
+                  studentProfile.fullname
+                );
+
+                return res.status(201).json({
+                  success:
+                    true,
+
+                  message:
+                    "Student account created and linked successfully.",
+
+                  id:
+                    newUserId,
+
+                  student_id:
+                    selectedStudentId,
+
+                  school_id:
+                    schoolId,
+                });
+              }
+            );
+          }
+        );
+      }
+    );
+  }
 
   // ===================================================
-  // VERIFY SCHOOL
+  // INSTRUCTOR VALIDATION BEFORE CREATING ACCOUNT
   // ===================================================
+  //
+  // An Instructor account MUST have an exact
+  // Instructor Profile.
+  //
+  // User Account
+  //      ↓
+  // instructors.user_id
+  //
+  // ===================================================
+
+  if (
+    String(role)
+      .trim()
+      .toLowerCase() ===
+    "instructor"
+  ) {
+
+    const selectedInstructorId =
+      Number(instructor_id);
+
+    if (
+      !Number.isInteger(
+        selectedInstructorId
+      ) ||
+      selectedInstructorId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please select the existing instructor profile before creating the Instructor account.",
+      });
+    }
+
+    // -----------------------------------------------
+    // VERIFY EXACT INSTRUCTOR PROFILE
+    // -----------------------------------------------
+
+    return db.get(
+      `
+      SELECT
+        id,
+        name,
+        school_id,
+        user_id
+      FROM instructors
+      WHERE id = ?
+        AND school_id = ?
+      LIMIT 1
+      `,
+      [
+        selectedInstructorId,
+        schoolId,
+      ],
+      (instructorErr, instructorProfile) => {
+
+        if (instructorErr) {
+          console.error(
+            "INSTRUCTOR PROFILE CHECK ERROR:",
+            instructorErr.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message:
+              "Unable to verify the selected Instructor Profile.",
+          });
+        }
+
+        // ---------------------------------------------
+        // PROFILE DOES NOT EXIST
+        // ---------------------------------------------
+
+        if (!instructorProfile) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "The selected Instructor Profile does not exist in the selected school.",
+          });
+        }
+
+        // ---------------------------------------------
+        // PROFILE ALREADY LINKED
+        // ---------------------------------------------
+
+        if (
+          instructorProfile.user_id !== null &&
+          Number(instructorProfile.user_id) > 0
+        ) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "This Instructor Profile is already linked to another login account.",
+          });
+        }
+
+        // ---------------------------------------------
+        // CREATE INSTRUCTOR USER
+        // ---------------------------------------------
+
+        db.run(
+          `
+          INSERT INTO users
+          (
+            fullname,
+            username,
+            password,
+            role,
+            status,
+            school_id
+          )
+          VALUES
+          (?, ?, ?, ?, ?, ?)
+          `,
+          [
+            String(
+              fullname
+            ).trim(),
+
+            String(
+              username
+            ).trim(),
+
+            password,
+
+            role,
+
+            status ||
+              "Active",
+
+            schoolId,
+          ],
+          function (err) {
+
+            if (err) {
+              console.error(
+                "ADD INSTRUCTOR USER ERROR:",
+                err.message
+              );
+
+              if (
+                err.message.includes(
+                  "UNIQUE constraint failed"
+                )
+              ) {
+                return res.status(409).json({
+                  success: false,
+                  message:
+                    "This username already exists.",
+                });
+              }
+
+              return res.status(500).json({
+                success: false,
+                message:
+                  err.message,
+              });
+            }
+
+            const newUserId =
+              this.lastID;
+
+            // -----------------------------------------
+            // LINK EXACT INSTRUCTOR PROFILE
+            // -----------------------------------------
+
+            db.run(
+              `
+              UPDATE instructors
+              SET user_id = ?
+              WHERE id = ?
+                AND school_id = ?
+                AND user_id IS NULL
+              `,
+              [
+                newUserId,
+                selectedInstructorId,
+                schoolId,
+              ],
+              function (linkErr) {
+
+                if (linkErr) {
+                  console.error(
+                    "INSTRUCTOR USER LINK ERROR:",
+                    linkErr.message
+                  );
+
+                  // Remove account if linking failed.
+
+                  db.run(
+                    `
+                    DELETE FROM users
+                    WHERE id = ?
+                    `,
+                    [newUserId]
+                  );
+
+                  return res.status(500).json({
+                    success: false,
+                    message:
+                      "Instructor account could not be linked to the selected profile.",
+                  });
+                }
+
+                // -----------------------------------------
+                // LINK FAILED
+                // -----------------------------------------
+
+                if (
+                  this.changes === 0
+                ) {
+                  console.error(
+                    "INSTRUCTOR PROFILE LINK FAILED:",
+                    selectedInstructorId
+                  );
+
+                  db.run(
+                    `
+                    DELETE FROM users
+                    WHERE id = ?
+                    `,
+                    [newUserId]
+                  );
+
+                  return res.status(409).json({
+                    success: false,
+                    message:
+                      "The selected Instructor Profile is already linked to another account.",
+                  });
+                }
+
+                console.log(
+                  "INSTRUCTOR ACCOUNT LINKED SUCCESSFULLY:",
+                  "User:",
+                  newUserId,
+                  "Instructor:",
+                  selectedInstructorId,
+                  "School:",
+                  schoolId,
+                  "Name:",
+                  instructorProfile.name
+                );
+
+                return res.status(201).json({
+                  success:
+                    true,
+
+                  message:
+                    "Instructor account created and linked successfully.",
+
+                  id:
+                    newUserId,
+
+                  instructor_id:
+                    selectedInstructorId,
+
+                  school_id:
+                    schoolId,
+                });
+              }
+            );
+          }
+        );
+      }
+    );
+  }
+
+  // ===================================================
+  // NORMAL USER
+  // ===================================================
+
+  // Verify school before creating non-student user.
 
   db.get(
     `
@@ -786,26 +1194,20 @@ console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
     (schoolErr, school) => {
 
       if (schoolErr) {
-
         return res.status(500).json({
           success: false,
           message:
             schoolErr.message,
         });
-
       }
 
-
       if (!school) {
-
         return res.status(400).json({
           success: false,
           message:
             "Selected school does not exist.",
         });
-
       }
-
 
       if (
         String(school.status)
@@ -813,19 +1215,12 @@ console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
           .toLowerCase() !==
         "active"
       ) {
-
         return res.status(403).json({
           success: false,
           message:
             "You cannot create a user for an inactive school.",
         });
-
       }
-
-
-      // =============================================
-      // INSERT
-      // =============================================
 
       db.run(
         `
@@ -842,7 +1237,6 @@ console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
         (?, ?, ?, ?, ?, ?)
         `,
         [
-
           String(
             fullname
           ).trim(),
@@ -859,165 +1253,52 @@ console.log("ADD USER ROLE RECEIVED:", JSON.stringify(role));
             "Active",
 
           schoolId,
-
         ],
         function (err) {
 
           if (err) {
-
             console.error(
               "ADD USER ERROR:",
               err.message
             );
-
 
             if (
               err.message.includes(
                 "UNIQUE constraint failed"
               )
             ) {
-
               return res.status(409).json({
                 success: false,
                 message:
                   "This username already exists.",
               });
-
             }
-
 
             return res.status(500).json({
               success: false,
               message:
                 err.message,
             });
-
           }
 
+          return res.status(201).json({
+            success:
+              true,
 
-          // =============================================
-// STUDENT ACCOUNT LINK
-// =============================================
-//
-// When a Student user is created, automatically
-// connect the user account to the existing student
-// profile in the same school.
-//
-// We match the student by:
-// 1. School
-// 2. Full name
-//
-// We only update an existing student profile.
-// We DO NOT create a new student.
-//
+            message:
+              "User added successfully.",
 
-const newUserId =
-  this.lastID;
+            id:
+              this.lastID,
 
-if (
-  String(role)
-    .trim()
-    .toLowerCase() ===
-  "student"
-) {
-
-  db.run(
-    `
-    UPDATE students
-    SET user_id = ?
-    WHERE id = (
-      SELECT id
-      FROM students
-      WHERE school_id = ?
-        AND LOWER(TRIM(fullname)) =
-            LOWER(TRIM(?))
-        AND (
-          user_id IS NULL
-          OR user_id = ?
-        )
-      ORDER BY id DESC
-      LIMIT 1
-    )
-    `,
-    [
-      newUserId,
-      schoolId,
-      String(fullname).trim(),
-      newUserId,
-    ],
-    (linkErr) => {
-
-      if (linkErr) {
-
-        console.error(
-          "STUDENT USER LINK ERROR:",
-          linkErr.message
-        );
-
-      } else {
-
-        console.log(
-          "STUDENT USER LINK CHECK:",
-          "User:",
-          newUserId,
-          "School:",
-          schoolId,
-          "Name:",
-          String(fullname).trim()
-        );
-
-      }
-
-      return res.status(201).json({
-
-        success:
-          true,
-
-        message:
-          "User added successfully.",
-
-        id:
-          newUserId,
-
-        school_id:
-          schoolId,
-
-      });
-
-    }
-  );
-
-  return;
-}
-
-// =============================================
-// NORMAL USER RESPONSE
-// =============================================
-
-return res.status(201).json({
-
-  success:
-    true,
-
-  message:
-    "User added successfully.",
-
-  id:
-    newUserId,
-
-  school_id:
-    schoolId,
-
-});
-
+            school_id:
+              schoolId,
+          });
         }
       );
-
     }
   );
-
 };
-
 
 // =====================================================
 // UPDATE USER
@@ -1029,83 +1310,64 @@ export const updateUser = (req, res) => {
     id,
   } = req.params;
 
-
   const {
     fullname,
     username,
     password,
     role,
     status,
-    school_id,       // IMPORTANT FIX
+    school_id,
   } = req.body;
-
-
-  // ===================================================
-  // VALIDATION
-  // ===================================================
 
   if (
     !fullname ||
     !String(fullname).trim()
   ) {
-
     return res.status(400).json({
       success: false,
       message:
         "Full name is required.",
     });
-
   }
-
 
   if (
     !username ||
     !String(username).trim()
   ) {
-
     return res.status(400).json({
       success: false,
       message:
         "Username is required.",
     });
-
   }
 
-
   if (!role) {
-
     return res.status(400).json({
       success: false,
       message:
         "User role is required.",
     });
-
   }
 
-
   const allowedRoles = [
-  "Administrator",
-  "Receptionist",
-  "Instructor",
-  "Student",
-  "System Administrator",
-];
-
+    "Administrator",
+    "Receptionist",
+    "Instructor",
+    "Student",
+    "System Administrator",
+  ];
 
   if (
     !allowedRoles.includes(
       role
     )
   ) {
-
     return res.status(400).json({
       success: false,
       message:
         "Invalid user role.",
     });
-
   }
-
 
   // ===================================================
   // MAIN SYSTEM ADMINISTRATOR
@@ -1119,34 +1381,24 @@ export const updateUser = (req, res) => {
       role !==
       "System Administrator"
     ) {
-
       return res.status(403).json({
         success: false,
         message:
           "The main System Administrator role cannot be changed.",
       });
-
     }
-
 
     if (
       status &&
       status !==
       "Active"
     ) {
-
       return res.status(403).json({
         success: false,
         message:
           "The main System Administrator cannot be deactivated.",
       });
-
     }
-
-
-    // ===============================================
-    // UPDATE MAIN ADMIN
-    // ===============================================
 
     if (password) {
 
@@ -1162,7 +1414,6 @@ export const updateUser = (req, res) => {
         WHERE id = ?
         `,
         [
-
           String(
             fullname
           ).trim(),
@@ -1179,12 +1430,10 @@ export const updateUser = (req, res) => {
             "Active",
 
           id,
-
         ],
         function (err) {
 
           if (err) {
-
             console.error(
               "SYSTEM ADMIN UPDATE ERROR:",
               err.message
@@ -1195,23 +1444,20 @@ export const updateUser = (req, res) => {
               message:
                 err.message,
             });
-
           }
-
 
           return res.json({
             success:
               true,
+
             message:
               "User updated successfully.",
           });
-
         }
       );
 
       return;
     }
-
 
     db.run(
       `
@@ -1224,7 +1470,6 @@ export const updateUser = (req, res) => {
       WHERE id = ?
       `,
       [
-
         String(
           fullname
         ).trim(),
@@ -1239,34 +1484,29 @@ export const updateUser = (req, res) => {
           "Active",
 
         id,
-
       ],
       function (err) {
 
         if (err) {
-
           return res.status(500).json({
             success: false,
             message:
               err.message,
           });
-
         }
-
 
         return res.json({
           success:
             true,
+
           message:
             "User updated successfully.",
         });
-
       }
     );
 
     return;
   }
-
 
   // ===================================================
   // SYSTEM ADMINISTRATOR
@@ -1280,30 +1520,18 @@ export const updateUser = (req, res) => {
     const newSchoolId =
       Number(school_id);
 
-
-    // ===============================================
-    // SCHOOL REQUIRED
-    // ===============================================
-
     if (
       !Number.isInteger(
         newSchoolId
       ) ||
       newSchoolId <= 0
     ) {
-
       return res.status(400).json({
         success: false,
         message:
           "Please select a valid school.",
       });
-
     }
-
-
-    // ===============================================
-    // CHECK SCHOOL
-    // ===============================================
 
     db.get(
       `
@@ -1320,7 +1548,6 @@ export const updateUser = (req, res) => {
       (schoolErr, school) => {
 
         if (schoolErr) {
-
           console.error(
             "CHECK SCHOOL ERROR:",
             schoolErr.message
@@ -1331,24 +1558,15 @@ export const updateUser = (req, res) => {
             message:
               schoolErr.message,
           });
-
         }
 
-
         if (!school) {
-
           return res.status(400).json({
             success: false,
             message:
               "Selected school does not exist.",
           });
-
         }
-
-
-        // =============================================
-        // DO NOT ASSIGN USER TO INACTIVE SCHOOL
-        // =============================================
 
         if (
           String(school.status)
@@ -1356,19 +1574,12 @@ export const updateUser = (req, res) => {
             .toLowerCase() !==
           "active"
         ) {
-
           return res.status(403).json({
             success: false,
             message:
               "You cannot assign a user to an inactive school.",
           });
-
         }
-
-
-        // =============================================
-        // UPDATE WITH PASSWORD
-        // =============================================
 
         if (password) {
 
@@ -1385,7 +1596,6 @@ export const updateUser = (req, res) => {
             WHERE id = ?
             `,
             [
-
               String(
                 fullname
               ).trim(),
@@ -1404,54 +1614,43 @@ export const updateUser = (req, res) => {
               newSchoolId,
 
               id,
-
             ],
             function (err) {
 
               if (err) {
-
                 console.error(
                   "SYSTEM ADMIN UPDATE USER ERROR:",
                   err.message
                 );
-
 
                 if (
                   err.message.includes(
                     "UNIQUE constraint failed"
                   )
                 ) {
-
                   return res.status(409).json({
                     success: false,
                     message:
                       "This username already exists.",
                   });
-
                 }
-
 
                 return res.status(500).json({
                   success: false,
                   message:
                     err.message,
                 });
-
               }
-
 
               if (
                 this.changes === 0
               ) {
-
                 return res.status(404).json({
                   success: false,
                   message:
                     "User not found.",
                 });
-
               }
-
 
               console.log(
                 "USER SCHOOL UPDATED:",
@@ -1460,9 +1659,7 @@ export const updateUser = (req, res) => {
                 newSchoolId
               );
 
-
               return res.json({
-
                 success:
                   true,
 
@@ -1471,19 +1668,12 @@ export const updateUser = (req, res) => {
 
                 school_id:
                   newSchoolId,
-
               });
-
             }
           );
 
           return;
         }
-
-
-        // =============================================
-        // UPDATE WITHOUT PASSWORD
-        // =============================================
 
         db.run(
           `
@@ -1497,7 +1687,6 @@ export const updateUser = (req, res) => {
           WHERE id = ?
           `,
           [
-
             String(
               fullname
             ).trim(),
@@ -1514,54 +1703,43 @@ export const updateUser = (req, res) => {
             newSchoolId,
 
             id,
-
           ],
           function (err) {
 
             if (err) {
-
               console.error(
                 "SYSTEM ADMIN UPDATE USER ERROR:",
                 err.message
               );
-
 
               if (
                 err.message.includes(
                   "UNIQUE constraint failed"
                 )
               ) {
-
                 return res.status(409).json({
                   success: false,
                   message:
                     "This username already exists.",
                 });
-
               }
-
 
               return res.status(500).json({
                 success: false,
                 message:
                   err.message,
               });
-
             }
-
 
             if (
               this.changes === 0
             ) {
-
               return res.status(404).json({
                 success: false,
                 message:
                   "User not found.",
               });
-
             }
-
 
             console.log(
               "USER SCHOOL UPDATED:",
@@ -1570,9 +1748,7 @@ export const updateUser = (req, res) => {
               newSchoolId
             );
 
-
             return res.json({
-
               success:
                 true,
 
@@ -1581,18 +1757,14 @@ export const updateUser = (req, res) => {
 
               school_id:
                 newSchoolId,
-
             });
-
           }
         );
-
       }
     );
 
     return;
   }
-
 
   // ===================================================
   // NORMAL SCHOOL ADMINISTRATOR
@@ -1601,43 +1773,24 @@ export const updateUser = (req, res) => {
   const schoolId =
     getAuthenticatedSchoolId(req);
 
-
   if (!schoolId) {
-
     return res.status(403).json({
       success: false,
       message:
         "School information not found.",
     });
-
   }
-
-
-  // ===================================================
-  // NORMAL ADMIN CANNOT CREATE SYSTEM ADMIN
-  // ===================================================
 
   if (
     role ===
     "System Administrator"
   ) {
-
     return res.status(403).json({
       success: false,
       message:
         "Only the System Administrator can assign this role.",
     });
-
   }
-
-
-  // ===================================================
-  // NORMAL ADMIN CANNOT CHANGE SCHOOL
-  // ===================================================
-
-  // We deliberately ignore school_id from the form.
-  // Normal administrators can only manage their own school.
-
 
   // ===================================================
   // UPDATE WITH PASSWORD
@@ -1658,7 +1811,6 @@ export const updateUser = (req, res) => {
       AND school_id = ?
       `,
       [
-
         String(
           fullname
         ).trim(),
@@ -1677,12 +1829,10 @@ export const updateUser = (req, res) => {
         id,
 
         schoolId,
-
       ],
       function (err) {
 
         if (err) {
-
           console.error(
             "UPDATE USER ERROR:",
             err.message
@@ -1693,36 +1843,30 @@ export const updateUser = (req, res) => {
             message:
               err.message,
           });
-
         }
-
 
         if (
           this.changes === 0
         ) {
-
           return res.status(404).json({
             success: false,
             message:
               "User not found for this school.",
           });
-
         }
-
 
         return res.json({
           success:
             true,
+
           message:
             "User updated successfully.",
         });
-
       }
     );
 
     return;
   }
-
 
   // ===================================================
   // UPDATE WITHOUT PASSWORD
@@ -1740,7 +1884,6 @@ export const updateUser = (req, res) => {
     AND school_id = ?
     `,
     [
-
       String(
         fullname
       ).trim(),
@@ -1757,12 +1900,10 @@ export const updateUser = (req, res) => {
       id,
 
       schoolId,
-
     ],
     function (err) {
 
       if (err) {
-
         console.error(
           "UPDATE USER ERROR:",
           err.message
@@ -1773,35 +1914,28 @@ export const updateUser = (req, res) => {
           message:
             err.message,
         });
-
       }
-
 
       if (
         this.changes === 0
       ) {
-
         return res.status(404).json({
           success: false,
           message:
             "User not found for this school.",
         });
-
       }
-
 
       return res.json({
         success:
           true,
+
         message:
           "User updated successfully.",
       });
-
     }
   );
-
 };
-
 
 // =====================================================
 // DELETE USER
@@ -1813,7 +1947,6 @@ export const deleteUser = (req, res) => {
     id,
   } = req.params;
 
-
   // ===================================================
   // PROTECT MAIN ADMIN
   // ===================================================
@@ -1821,15 +1954,12 @@ export const deleteUser = (req, res) => {
   if (
     Number(id) === 1
   ) {
-
     return res.status(403).json({
       success: false,
       message:
         "The main System Administrator account cannot be deleted.",
     });
-
   }
-
 
   // ===================================================
   // SYSTEM ADMIN
@@ -1839,53 +1969,75 @@ export const deleteUser = (req, res) => {
     isSystemAdministrator(req)
   ) {
 
+    // -----------------------------------------------
+    // UNLINK INSTRUCTOR PROFILE FIRST
+    // -----------------------------------------------
+
     db.run(
       `
-      DELETE FROM users
-      WHERE id = ?
+      UPDATE instructors
+      SET user_id = NULL
+      WHERE user_id = ?
       `,
       [
         id,
       ],
-      function (err) {
+      (unlinkErr) => {
 
-        if (err) {
-
+        if (unlinkErr) {
           return res.status(500).json({
             success: false,
             message:
-              err.message,
+              "Unable to unlink the Instructor Profile before deleting the user.",
           });
-
         }
 
+        // ---------------------------------------------
+        // DELETE USER
+        // ---------------------------------------------
 
-        if (
-          this.changes === 0
-        ) {
+        db.run(
+          `
+          DELETE FROM users
+          WHERE id = ?
+          `,
+          [
+            id,
+          ],
+          function (err) {
 
-          return res.status(404).json({
-            success: false,
-            message:
-              "User not found.",
-          });
+            if (err) {
+              return res.status(500).json({
+                success: false,
+                message:
+                  err.message,
+              });
+            }
 
-        }
+            if (
+              this.changes === 0
+            ) {
+              return res.status(404).json({
+                success: false,
+                message:
+                  "User not found.",
+              });
+            }
 
+            return res.json({
+              success:
+                true,
 
-        return res.json({
-          success:
-            true,
-          message:
-            "User deleted successfully.",
-        });
-
+              message:
+                "User deleted successfully.",
+            });
+          }
+        );
       }
     );
 
     return;
   }
-
 
   // ===================================================
   // NORMAL ADMIN
@@ -1894,62 +2046,82 @@ export const deleteUser = (req, res) => {
   const schoolId =
     getAuthenticatedSchoolId(req);
 
-
   if (!schoolId) {
-
     return res.status(403).json({
       success: false,
       message:
         "School information not found.",
     });
-
   }
 
+  // -----------------------------------------------
+  // UNLINK INSTRUCTOR PROFILE FIRST
+  // -----------------------------------------------
 
   db.run(
     `
-    DELETE FROM users
-    WHERE id = ?
-    AND school_id = ?
+    UPDATE instructors
+    SET user_id = NULL
+    WHERE user_id = ?
+      AND school_id = ?
     `,
     [
       id,
       schoolId,
     ],
-    function (err) {
+    (unlinkErr) => {
 
-      if (err) {
-
+      if (unlinkErr) {
         return res.status(500).json({
           success: false,
           message:
-            err.message,
+            "Unable to unlink the Instructor Profile before deleting the user.",
         });
-
       }
 
+      // ---------------------------------------------
+      // DELETE USER
+      // ---------------------------------------------
 
-      if (
-        this.changes === 0
-      ) {
+      db.run(
+        `
+        DELETE FROM users
+        WHERE id = ?
+        AND school_id = ?
+        `,
+        [
+          id,
+          schoolId,
+        ],
+        function (err) {
 
-        return res.status(404).json({
-          success: false,
-          message:
-            "User not found for this school.",
-        });
+          if (err) {
+            return res.status(500).json({
+              success: false,
+              message:
+                err.message,
+            });
+          }
 
-      }
+          if (
+            this.changes === 0
+          ) {
+            return res.status(404).json({
+              success: false,
+              message:
+                "User not found for this school.",
+            });
+          }
 
+          return res.json({
+            success:
+              true,
 
-      return res.json({
-        success:
-          true,
-        message:
-          "User deleted successfully.",
-      });
-
+            message:
+              "User deleted successfully.",
+          });
+        }
+      );
     }
   );
-
 };

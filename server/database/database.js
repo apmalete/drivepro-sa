@@ -156,7 +156,8 @@ const createTables = (callback) => {
                   licence TEXT NOT NULL,
                   experience TEXT NOT NULL,
                   status TEXT DEFAULT 'Active',
-                  school_id INTEGER DEFAULT 1
+                  school_id INTEGER DEFAULT 1,
+                  user_id INTEGER
                 )
                 `,
                 [],
@@ -353,7 +354,31 @@ const createTables = (callback) => {
     }
   );
 };
+// =====================================================
+// TEST BOOKINGS - INSTRUCTOR FIELDS
+// =====================================================
 
+db.run(
+  `ALTER TABLE test_bookings ADD COLUMN instructor_id INTEGER`,
+  (err) => {
+    if (err && !err.message.includes("duplicate column name")) {
+      console.error("Error adding instructor_id:", err.message);
+    } else if (!err) {
+      console.log("✅ test_bookings instructor_id added");
+    }
+  }
+);
+
+db.run(
+  `ALTER TABLE test_bookings ADD COLUMN instructor_name TEXT`,
+  (err) => {
+    if (err && !err.message.includes("duplicate column name")) {
+      console.error("Error adding instructor_name:", err.message);
+    } else if (!err) {
+      console.log("✅ test_bookings instructor_name added");
+    }
+  }
+);
 // =====================================================
 // MIGRATE SETTINGS TABLE
 // =====================================================
@@ -1488,6 +1513,192 @@ const migrateStudentUserId = (callback) => {
 };
 
 // =====================================================
+// MIGRATE INSTRUCTOR USER ID
+// =====================================================
+//
+// This connects:
+//
+// USERS
+//   id
+//   fullname
+//   role = Instructor
+//   school_id
+//
+// to:
+//
+// INSTRUCTORS
+//   user_id
+//
+// Existing instructor records are linked only when there
+// is exactly ONE matching Instructor user in the same school.
+// This avoids incorrectly linking two instructors who have
+// the same name.
+//
+// =====================================================
+
+const migrateInstructorUserId = (callback) => {
+
+  db.all(
+    `PRAGMA table_info(instructors)`,
+    [],
+    (err, columns) => {
+
+      if (err) {
+
+        console.error(
+          "INSTRUCTOR USER ID MIGRATION CHECK ERROR:",
+          err.message
+        );
+
+        return callback(err);
+      }
+
+      const exists = (columns || []).some(
+        (column) =>
+          String(column.name).toLowerCase() === "user_id"
+      );
+
+      const addUserIdColumn = (next) => {
+
+        if (exists) {
+
+          console.log(
+            "Instructor user_id column already exists"
+          );
+
+          return next(null);
+        }
+
+        db.run(
+          `
+          ALTER TABLE instructors
+          ADD COLUMN user_id INTEGER
+          `,
+          [],
+          (alterErr) => {
+
+            if (alterErr) {
+
+              console.error(
+                "INSTRUCTOR USER ID COLUMN MIGRATION ERROR:",
+                alterErr.message
+              );
+
+              return next(alterErr);
+            }
+
+            console.log(
+              "Instructor user_id column added"
+            );
+
+            next(null);
+          }
+        );
+      };
+
+      addUserIdColumn((columnErr) => {
+
+        if (columnErr) {
+          return callback(columnErr);
+        }
+
+        // =================================================
+        // LINK EXISTING INSTRUCTORS TO INSTRUCTOR USERS
+        // =================================================
+        //
+        // Only link when there is exactly ONE matching
+        // instructor user with the same name in the same
+        // school.
+        //
+        // If two instructors have the same name, the record
+        // remains unlinked so we do not connect the wrong
+        // person.
+        // =================================================
+
+        db.run(
+          `
+          UPDATE instructors
+          SET user_id = (
+            SELECT users.id
+            FROM users
+            WHERE users.school_id = instructors.school_id
+              AND LOWER(TRIM(users.fullname)) =
+                  LOWER(TRIM(instructors.name))
+              AND LOWER(TRIM(users.role)) = 'instructor'
+              AND (
+                SELECT COUNT(*)
+                FROM users AS matching_users
+                WHERE matching_users.school_id = instructors.school_id
+                  AND LOWER(TRIM(matching_users.fullname)) =
+                      LOWER(TRIM(instructors.name))
+                  AND LOWER(TRIM(matching_users.role)) = 'instructor'
+              ) = 1
+            LIMIT 1
+          )
+          WHERE user_id IS NULL
+            AND (
+              SELECT COUNT(*)
+              FROM users
+              WHERE users.school_id = instructors.school_id
+                AND LOWER(TRIM(users.fullname)) =
+                    LOWER(TRIM(instructors.name))
+                AND LOWER(TRIM(users.role)) = 'instructor'
+            ) = 1
+          `,
+          [],
+          (updateErr) => {
+
+            if (updateErr) {
+
+              console.error(
+                "INSTRUCTOR USER ID BACKFILL ERROR:",
+                updateErr.message
+              );
+
+              return callback(updateErr);
+            }
+
+            console.log(
+              "Existing instructor/user records linked where name and school matched uniquely"
+            );
+
+            // =================================================
+            // CREATE USER ID INDEX
+            // =================================================
+
+            db.run(
+              `
+              CREATE INDEX IF NOT EXISTS idx_instructors_user_id
+              ON instructors(user_id)
+              `,
+              [],
+              (indexErr) => {
+
+                if (indexErr) {
+
+                  console.error(
+                    "INSTRUCTOR USER ID INDEX ERROR:",
+                    indexErr.message
+                  );
+
+                  return callback(indexErr);
+                }
+
+                console.log(
+                  "Instructor user_id index ready"
+                );
+
+                callback(null);
+              }
+            );
+          }
+        );
+      });
+    }
+  );
+};
+
+// =====================================================
 // CREATE INDEXES
 // =====================================================
 
@@ -1500,6 +1711,14 @@ const createIndexes = (callback) => {
       sql: `
         CREATE INDEX IF NOT EXISTS idx_students_user_id
         ON students(user_id)
+      `
+    },
+
+    {
+      name: "idx_instructors_user_id",
+      sql: `
+        CREATE INDEX IF NOT EXISTS idx_instructors_user_id
+        ON instructors(user_id)
       `
     },
 
@@ -1876,10 +2095,11 @@ const databaseReadyCheck = () => {
 // 6. Migrate lesson WhatsApp reminders
 // 7. Migrate student numbers
 // 8. Migrate student user ID
-// 9. Create indexes
-// 10. Create default school
-// 11. Create/update admin
-// 12. Run ready checks
+// 9. Migrate instructor user ID
+// 10. Create indexes
+// 11. Create default school
+// 12. Create/update admin
+// 13. Run ready checks
 //
 // =====================================================
 
@@ -1984,15 +2204,15 @@ createTables((err) => {
                 }
 
                 // =================================================
-                // CREATE INDEXES
+                // INSTRUCTOR USER ID MIGRATION
                 // =================================================
 
-                createIndexes((err) => {
+                migrateInstructorUserId((err) => {
 
                   if (err) {
 
                     console.error(
-                      "DATABASE INDEX CREATION FAILED:",
+                      "DATABASE INSTRUCTOR USER ID MIGRATION FAILED:",
                       err.message
                     );
 
@@ -2000,15 +2220,15 @@ createTables((err) => {
                   }
 
                   // =================================================
-                  // DEFAULT SCHOOL
+                  // CREATE INDEXES
                   // =================================================
 
-                  setupDefaultSchool((err) => {
+                  createIndexes((err) => {
 
                     if (err) {
 
                       console.error(
-                        "DEFAULT SCHOOL SETUP FAILED:",
+                        "DATABASE INDEX CREATION FAILED:",
                         err.message
                       );
 
@@ -2016,15 +2236,15 @@ createTables((err) => {
                     }
 
                     // =================================================
-                    // DEFAULT ADMIN
+                    // DEFAULT SCHOOL
                     // =================================================
 
-                    setupDefaultAdmin((err) => {
+                    setupDefaultSchool((err) => {
 
                       if (err) {
 
                         console.error(
-                          "DEFAULT ADMIN SETUP FAILED:",
+                          "DEFAULT SCHOOL SETUP FAILED:",
                           err.message
                         );
 
@@ -2032,10 +2252,28 @@ createTables((err) => {
                       }
 
                       // =================================================
-                      // DATABASE READY
+                      // DEFAULT ADMIN
                       // =================================================
 
-                      databaseReadyCheck();
+                      setupDefaultAdmin((err) => {
+
+                        if (err) {
+
+                          console.error(
+                            "DEFAULT ADMIN SETUP FAILED:",
+                            err.message
+                          );
+
+                          return;
+                        }
+
+                        // =================================================
+                        // DATABASE READY
+                        // =================================================
+
+                        databaseReadyCheck();
+
+                      });
 
                     });
 

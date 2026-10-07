@@ -1,14 +1,51 @@
 import db from "../database/database.js";
 
 // =====================================================
-// GET SCHOOL ID FROM AUTHENTICATED USER
+// ROLE HELPERS
+// =====================================================
+
+const getRole = (req) => {
+  return String(req.user?.role || "")
+    .trim()
+    .toLowerCase();
+};
+
+const isSystemAdministrator = (req) => {
+  const role = getRole(req);
+
+  return (
+    role === "system administrator" ||
+    String(req.user?.username || "").trim().toLowerCase() === "admin"
+  );
+};
+
+const isSchoolAdministrator = (req) => {
+  const role = getRole(req);
+
+  return (
+    role === "administrator" ||
+    role === "admin" ||
+    role === "school administrator" ||
+    role === "school admin"
+  );
+};
+
+const isReceptionist = (req) => {
+  return getRole(req) === "receptionist";
+};
+
+const isInstructor = (req) => {
+  return getRole(req) === "instructor";
+};
+
+// =====================================================
+// GET SCHOOL ID
 // =====================================================
 
 const getSchoolId = (req) => {
-  const schoolId =
-    Number(req.user?.school_id);
+  const schoolId = Number(req.user?.school_id);
 
-  if (!schoolId) {
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
     return null;
   }
 
@@ -16,64 +53,174 @@ const getSchoolId = (req) => {
 };
 
 // =====================================================
-// GET ALL INSTRUCTORS
+// GET INSTRUCTORS
+//
+// SYSTEM ADMINISTRATOR
+// -> All instructors
+//
+// SCHOOL ADMINISTRATOR
+// -> All instructors in own school
+//
+// RECEPTIONIST
+// -> All instructors in own school
+//
+// INSTRUCTOR
+// -> Only own instructor profile
+//
+// STUDENT
+// -> Not allowed
 // =====================================================
 
 export const getInstructors = (req, res) => {
+  // ===================================================
+  // SYSTEM ADMINISTRATOR
+  // ===================================================
 
-  const schoolId =
-    getSchoolId(req);
+  if (isSystemAdministrator(req)) {
+    return db.all(
+      `
+      SELECT *
+      FROM instructors
+      ORDER BY school_id, name
+      `,
+      [],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET ALL INSTRUCTORS ERROR:",
+            err.message
+          );
 
-  if (!schoolId) {
-    return res.status(403).json({
-      success: false,
-      message:
-        "School information not found.",
-    });
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
   }
 
-  db.all(
-    `
-    SELECT *
-    FROM instructors
-    WHERE school_id = ?
-    ORDER BY name
-    `,
-    [schoolId],
-    (err, rows) => {
+  // ===================================================
+  // SCHOOL ADMINISTRATOR OR RECEPTIONIST
+  //
+  // Both need to see instructors in order to make
+  // lesson bookings.
+  // ===================================================
 
-      if (err) {
+  if (isSchoolAdministrator(req) || isReceptionist(req)) {
+    const schoolId = getSchoolId(req);
 
-        console.error(
-          "GET INSTRUCTORS ERROR:",
-          err.message
-        );
-
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      res.json(rows || []);
+    if (!schoolId) {
+      return res.status(403).json({
+        success: false,
+        message: "School information not found.",
+      });
     }
-  );
+
+    return db.all(
+      `
+      SELECT *
+      FROM instructors
+      WHERE school_id = ?
+        AND LOWER(TRIM(COALESCE(status, 'Active'))) != 'inactive'
+      ORDER BY name
+      `,
+      [schoolId],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET SCHOOL INSTRUCTORS ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
+  }
+
+  // ===================================================
+  // INSTRUCTOR
+  //
+  // Instructor only sees own profile.
+  // ===================================================
+
+  if (isInstructor(req)) {
+    const schoolId = getSchoolId(req);
+    const userId = Number(req.user?.id);
+
+    if (!schoolId || !userId) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Instructor account information not found.",
+      });
+    }
+
+    return db.all(
+      `
+      SELECT *
+      FROM instructors
+      WHERE user_id = ?
+        AND school_id = ?
+      LIMIT 1
+      `,
+      [userId, schoolId],
+      (err, rows) => {
+        if (err) {
+          console.error(
+            "GET OWN INSTRUCTOR PROFILE ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        return res.json(rows || []);
+      }
+    );
+  }
+
+  // ===================================================
+  // ALL OTHER ROLES
+  // ===================================================
+
+  return res.status(403).json({
+    success: false,
+    message:
+      "You are not authorised to view instructor profiles.",
+  });
 };
 
 // =====================================================
 // ADD INSTRUCTOR
+//
+// ONLY:
+// - System Administrator
+// - School Administrator
+//
+// RECEPTIONIST CANNOT ADD INSTRUCTORS.
 // =====================================================
 
 export const addInstructor = (req, res) => {
-
-  const schoolId =
-    getSchoolId(req);
-
-  if (!schoolId) {
+  if (
+    !isSystemAdministrator(req) &&
+    !isSchoolAdministrator(req)
+  ) {
     return res.status(403).json({
       success: false,
       message:
-        "School information not found.",
+        "You are not authorised to add instructors.",
     });
   }
 
@@ -83,73 +230,146 @@ export const addInstructor = (req, res) => {
     licence,
     experience,
     status,
+    school_id,
   } = req.body;
 
-  db.run(
+  let targetSchoolId;
+
+  // ---------------------------------------------------
+  // SYSTEM ADMINISTRATOR
+  // ---------------------------------------------------
+
+  if (isSystemAdministrator(req)) {
+    targetSchoolId =
+      Number(school_id) ||
+      getSchoolId(req);
+  }
+
+  // ---------------------------------------------------
+  // SCHOOL ADMINISTRATOR
+  // ---------------------------------------------------
+
+  if (isSchoolAdministrator(req)) {
+    targetSchoolId = getSchoolId(req);
+  }
+
+  if (!targetSchoolId) {
+    return res.status(403).json({
+      success: false,
+      message: "School information not found.",
+    });
+  }
+
+  if (!name || !phone || !licence || !experience) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Please complete all instructor fields.",
+    });
+  }
+
+  // ---------------------------------------------------
+  // FIND EXISTING INSTRUCTOR USER ACCOUNT
+  // ---------------------------------------------------
+
+  db.get(
     `
-    INSERT INTO instructors
-    (
-      name,
-      phone,
-      licence,
-      experience,
-      status,
-      school_id
-    )
-    VALUES (?, ?, ?, ?, ?, ?)
+    SELECT id
+    FROM users
+    WHERE school_id = ?
+      AND LOWER(TRIM(fullname)) =
+          LOWER(TRIM(?))
+      AND LOWER(TRIM(role)) = 'instructor'
+    LIMIT 1
     `,
-    [
-      name,
-      phone,
-      licence,
-      experience,
-      status || "Active",
-      schoolId,
-    ],
-    function (err) {
-
-      if (err) {
-
+    [targetSchoolId, name],
+    (userErr, userRow) => {
+      if (userErr) {
         console.error(
-          "ADD INSTRUCTOR ERROR:",
-          err.message
+          "FIND INSTRUCTOR USER ERROR:",
+          userErr.message
         );
 
         return res.status(500).json({
           success: false,
-          message: err.message,
+          message: userErr.message,
         });
       }
 
-      res.json({
-        success: true,
-        id: this.lastID,
-        message:
-          "Instructor added successfully",
-      });
+      const linkedUserId = userRow?.id || null;
+
+      db.run(
+        `
+        INSERT INTO instructors
+        (
+          name,
+          phone,
+          licence,
+          experience,
+          status,
+          school_id,
+          user_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          name,
+          phone,
+          licence,
+          experience,
+          status || "Active",
+          targetSchoolId,
+          linkedUserId,
+        ],
+        function (err) {
+          if (err) {
+            console.error(
+              "ADD INSTRUCTOR ERROR:",
+              err.message
+            );
+
+            return res.status(500).json({
+              success: false,
+              message: err.message,
+            });
+          }
+
+          return res.json({
+            success: true,
+            id: this.lastID,
+            message:
+              "Instructor added successfully",
+            user_id: linkedUserId,
+          });
+        }
+      );
     }
   );
 };
 
 // =====================================================
 // UPDATE INSTRUCTOR
+//
+// ONLY:
+// - System Administrator
+// - School Administrator
+//
+// RECEPTIONIST CANNOT EDIT INSTRUCTORS.
 // =====================================================
 
 export const updateInstructor = (req, res) => {
-
-  const { id } =
-    req.params;
-
-  const schoolId =
-    getSchoolId(req);
-
-  if (!schoolId) {
+  if (
+    !isSystemAdministrator(req) &&
+    !isSchoolAdministrator(req)
+  ) {
     return res.status(403).json({
       success: false,
       message:
-        "School information not found.",
+        "You are not authorised to edit instructors.",
     });
   }
+
+  const { id } = req.params;
 
   const {
     name,
@@ -159,7 +379,81 @@ export const updateInstructor = (req, res) => {
     status,
   } = req.body;
 
-  db.run(
+  if (!name || !phone || !licence || !experience) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Please complete all instructor fields.",
+    });
+  }
+
+  // ===================================================
+  // SYSTEM ADMINISTRATOR
+  // ===================================================
+
+  if (isSystemAdministrator(req)) {
+    return db.run(
+      `
+      UPDATE instructors
+      SET
+        name = ?,
+        phone = ?,
+        licence = ?,
+        experience = ?,
+        status = ?
+      WHERE id = ?
+      `,
+      [
+        name,
+        phone,
+        licence,
+        experience,
+        status || "Active",
+        id,
+      ],
+      function (err) {
+        if (err) {
+          console.error(
+            "SYSTEM ADMIN UPDATE INSTRUCTOR ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        if (this.changes === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Instructor not found.",
+          });
+        }
+
+        return res.json({
+          success: true,
+          message:
+            "Instructor updated successfully",
+        });
+      }
+    );
+  }
+
+  // ===================================================
+  // SCHOOL ADMINISTRATOR
+  // ===================================================
+
+  const schoolId = getSchoolId(req);
+
+  if (!schoolId) {
+    return res.status(403).json({
+      success: false,
+      message: "School information not found.",
+    });
+  }
+
+  return db.run(
     `
     UPDATE instructors
     SET
@@ -176,16 +470,14 @@ export const updateInstructor = (req, res) => {
       phone,
       licence,
       experience,
-      status,
+      status || "Active",
       id,
       schoolId,
     ],
     function (err) {
-
       if (err) {
-
         console.error(
-          "UPDATE INSTRUCTOR ERROR:",
+          "SCHOOL ADMIN UPDATE INSTRUCTOR ERROR:",
           err.message
         );
 
@@ -196,15 +488,14 @@ export const updateInstructor = (req, res) => {
       }
 
       if (this.changes === 0) {
-
         return res.status(404).json({
           success: false,
           message:
-            "Instructor not found for this school.",
+            "Instructor not found for your school.",
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         message:
           "Instructor updated successfully",
@@ -215,40 +506,90 @@ export const updateInstructor = (req, res) => {
 
 // =====================================================
 // DELETE INSTRUCTOR
+//
+// ONLY:
+// - System Administrator
+// - School Administrator
 // =====================================================
 
 export const deleteInstructor = (req, res) => {
+  if (
+    !isSystemAdministrator(req) &&
+    !isSchoolAdministrator(req)
+  ) {
+    return res.status(403).json({
+      success: false,
+      message:
+        "You are not authorised to delete instructors.",
+    });
+  }
 
-  const { id } =
-    req.params;
+  const { id } = req.params;
 
-  const schoolId =
-    getSchoolId(req);
+  // ===================================================
+  // SYSTEM ADMINISTRATOR
+  // ===================================================
+
+  if (isSystemAdministrator(req)) {
+    return db.run(
+      `
+      DELETE FROM instructors
+      WHERE id = ?
+      `,
+      [id],
+      function (err) {
+        if (err) {
+          console.error(
+            "SYSTEM ADMIN DELETE INSTRUCTOR ERROR:",
+            err.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        if (this.changes === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "Instructor not found.",
+          });
+        }
+
+        return res.json({
+          success: true,
+          message:
+            "Instructor deleted successfully",
+        });
+      }
+    );
+  }
+
+  // ===================================================
+  // SCHOOL ADMINISTRATOR
+  // ===================================================
+
+  const schoolId = getSchoolId(req);
 
   if (!schoolId) {
     return res.status(403).json({
       success: false,
-      message:
-        "School information not found.",
+      message: "School information not found.",
     });
   }
 
-  db.run(
+  return db.run(
     `
     DELETE FROM instructors
     WHERE id = ?
       AND school_id = ?
     `,
-    [
-      id,
-      schoolId,
-    ],
+    [id, schoolId],
     function (err) {
-
       if (err) {
-
         console.error(
-          "DELETE INSTRUCTOR ERROR:",
+          "SCHOOL ADMIN DELETE INSTRUCTOR ERROR:",
           err.message
         );
 
@@ -259,15 +600,14 @@ export const deleteInstructor = (req, res) => {
       }
 
       if (this.changes === 0) {
-
         return res.status(404).json({
           success: false,
           message:
-            "Instructor not found for this school.",
+            "Instructor not found for your school.",
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         message:
           "Instructor deleted successfully",

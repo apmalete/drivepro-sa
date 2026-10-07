@@ -122,6 +122,18 @@ const isAdministrator = (req) => {
 
 
 // =====================================================
+// CHECK RECEPTIONIST
+// =====================================================
+
+const isReceptionist = (req) => {
+
+  return (
+    getRole(req) === "receptionist"
+  );
+};
+
+
+// =====================================================
 // CHECK INSTRUCTOR
 // =====================================================
 
@@ -141,6 +153,33 @@ const isStudent = (req) => {
 
   return (
     getRole(req) === "student"
+  );
+};
+
+
+// =====================================================
+// CHECK STUDENT MANAGEMENT PERMISSION
+// =====================================================
+//
+// Administrator:
+//     Add + Edit
+//
+// Receptionist:
+//     Add + Edit
+//
+// Instructor:
+//     No
+//
+// Student:
+//     No
+//
+// =====================================================
+
+const canManageStudents = (req) => {
+
+  return (
+    isAdministrator(req) ||
+    isReceptionist(req)
   );
 };
 
@@ -174,10 +213,18 @@ export const getStudents = (req, res) => {
 
 
   // ===================================================
-  // ADMINISTRATOR
+  // ADMINISTRATOR + RECEPTIONIST
+  // ===================================================
+  //
+  // They can see all students belonging to
+  // their school.
+  //
   // ===================================================
 
-  if (isAdministrator(req)) {
+  if (
+    isAdministrator(req) ||
+    isReceptionist(req)
+  ) {
 
     console.log(
       "GET STUDENTS:",
@@ -222,6 +269,11 @@ export const getStudents = (req, res) => {
 
   // ===================================================
   // INSTRUCTOR
+  // ===================================================
+  //
+  // Instructor can only see students assigned
+  // to that instructor.
+  //
   // ===================================================
 
   if (isInstructor(req)) {
@@ -501,6 +553,13 @@ export const getStudents = (req, res) => {
 // =====================================================
 // ADD STUDENT
 // =====================================================
+//
+// ADMINISTRATOR  -> ALLOWED
+// RECEPTIONIST   -> ALLOWED
+// INSTRUCTOR     -> NOT ALLOWED
+// STUDENT        -> NOT ALLOWED
+//
+// =====================================================
 
 export const addStudent = (req, res) => {
 
@@ -518,15 +577,15 @@ export const addStudent = (req, res) => {
 
 
   // ===================================================
-  // ONLY ADMINISTRATORS CAN ADD STUDENTS
+  // ADMINISTRATOR + RECEPTIONIST
   // ===================================================
 
-  if (!isAdministrator(req)) {
+  if (!canManageStudents(req)) {
 
     return res.status(403).json({
       success: false,
       message:
-        "Only administrators can add students.",
+        "Only administrators and receptionists can add students.",
     });
   }
 
@@ -1023,6 +1082,13 @@ export const addStudent = (req, res) => {
 // =====================================================
 // UPDATE STUDENT
 // =====================================================
+//
+// ADMINISTRATOR  -> ALLOWED
+// RECEPTIONIST   -> ALLOWED
+// INSTRUCTOR     -> NOT ALLOWED
+// STUDENT        -> NOT ALLOWED
+//
+// =====================================================
 
 export const updateStudent = (req, res) => {
 
@@ -1040,15 +1106,15 @@ export const updateStudent = (req, res) => {
 
 
   // ===================================================
-  // ONLY ADMINISTRATORS CAN UPDATE STUDENTS
+  // ADMINISTRATOR + RECEPTIONIST
   // ===================================================
 
-  if (!isAdministrator(req)) {
+  if (!canManageStudents(req)) {
 
     return res.status(403).json({
       success: false,
       message:
-        "Only administrators can update students.",
+        "Only administrators and receptionists can update students.",
     });
   }
 
@@ -1211,6 +1277,19 @@ export const updateStudent = (req, res) => {
 
 // =====================================================
 // DELETE STUDENT
+// =====================================================
+//
+// ADMINISTRATOR ONLY
+//
+// Receptionist:
+//     NOT ALLOWED
+//
+// Instructor:
+//     NOT ALLOWED
+//
+// Student:
+//     NOT ALLOWED
+//
 // =====================================================
 
 export const deleteStudent = (req, res) => {

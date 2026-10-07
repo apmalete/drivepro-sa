@@ -8,12 +8,22 @@ export const getMe = (req, res) => {
 
   const user = req.user;
 
+  // ===================================================
+  // CHECK AUTHENTICATION
+  // ===================================================
+
   if (!user) {
+
     return res.status(401).json({
       success: false,
       message: "User not authenticated.",
     });
+
   }
+
+  // ===================================================
+  // USER INFORMATION
+  // ===================================================
 
   const userId =
     Number(user.id);
@@ -34,11 +44,13 @@ export const getMe = (req, res) => {
     !Number.isInteger(schoolId) ||
     schoolId <= 0
   ) {
+
     return res.status(403).json({
       success: false,
       message:
         "User is not assigned to a valid school.",
     });
+
   }
 
   // ===================================================
@@ -51,9 +63,11 @@ export const getMe = (req, res) => {
   ) {
 
     return res.json({
+
       success: true,
 
       user: {
+
         id:
           userId,
 
@@ -68,11 +82,14 @@ export const getMe = (req, res) => {
 
         school_id:
           schoolId,
+
       },
 
       profile:
         null,
+
     });
+
   }
 
   // ===================================================
@@ -116,6 +133,7 @@ export const getMe = (req, res) => {
             message:
               "Failed to load user profile.",
           });
+
         }
 
         return res.json({
@@ -125,6 +143,7 @@ export const getMe = (req, res) => {
 
           user:
             row || {
+
               id:
                 userId,
 
@@ -139,15 +158,17 @@ export const getMe = (req, res) => {
 
               school_id:
                 schoolId,
+
             },
 
           profile:
             null,
+
         });
+
       }
     );
 
-    return;
   }
 
   // ===================================================
@@ -196,6 +217,7 @@ export const getMe = (req, res) => {
             message:
               "Failed to load instructor profile.",
           });
+
         }
 
         return res.json({
@@ -204,6 +226,7 @@ export const getMe = (req, res) => {
             true,
 
           user: {
+
             id:
               userId,
 
@@ -218,32 +241,33 @@ export const getMe = (req, res) => {
 
             school_id:
               schoolId,
+
           },
 
           profile:
             instructor ||
             null,
+
         });
+
       }
     );
 
-    return;
   }
 
   // ===================================================
   // STUDENT
   // ===================================================
   //
-  // IMPORTANT:
+  // STUDENT PROFILE MATCHING ORDER:
   //
-  // FIRST:
-  // Find the student using students.user_id.
+  // 1. Match by students.user_id
+  // 2. Match by phone number = username
+  // 3. Match by full name
+  // 4. Permanently link the profile to user_id
   //
-  // SECOND:
-  // If the account has not yet been linked,
-  // fall back to matching the student's name.
+  // The student must always belong to the same school.
   //
-  // This makes the student relationship permanent.
   // ===================================================
 
   if (
@@ -252,7 +276,8 @@ export const getMe = (req, res) => {
   ) {
 
     // =================================================
-    // FIRST SEARCH BY USER ID
+    // FIRST:
+    // SEARCH BY PERMANENT USER ID
     // =================================================
 
     return db.get(
@@ -270,6 +295,10 @@ export const getMe = (req, res) => {
       ],
       (err, student) => {
 
+        // =============================================
+        // DATABASE ERROR
+        // =============================================
+
         if (err) {
 
           console.error(
@@ -282,6 +311,7 @@ export const getMe = (req, res) => {
             message:
               "Failed to load student profile.",
           });
+
         }
 
         // =============================================
@@ -294,7 +324,9 @@ export const getMe = (req, res) => {
             "STUDENT PROFILE FOUND BY USER ID:",
             userId,
             "Student ID:",
-            student.id
+            student.id,
+            "School:",
+            schoolId
           );
 
           return res.json({
@@ -303,6 +335,7 @@ export const getMe = (req, res) => {
               true,
 
             user: {
+
               id:
                 userId,
 
@@ -317,15 +350,30 @@ export const getMe = (req, res) => {
 
               school_id:
                 schoolId,
+
             },
 
             profile:
               student,
+
           });
+
         }
 
         // =============================================
-        // FALLBACK: MATCH BY NAME
+        // SECOND:
+        // SEARCH BY PHONE NUMBER
+        //
+        // Example:
+        //
+        // User username:
+        //     0736258819
+        //
+        // Student phone:
+        //     0736258819
+        //
+        // Only profiles that are currently unlinked
+        // or already belong to this same user can match.
         // =============================================
 
         db.get(
@@ -334,23 +382,43 @@ export const getMe = (req, res) => {
             s.*
           FROM students s
           WHERE s.school_id = ?
-            AND LOWER(TRIM(s.fullname)) =
-                LOWER(TRIM(?))
+            AND (
+              s.user_id IS NULL
+              OR s.user_id = ?
+            )
+            AND LOWER(
+              REPLACE(
+                TRIM(COALESCE(s.phone, '')),
+                ' ',
+                ''
+              )
+            ) =
+            LOWER(
+              REPLACE(
+                TRIM(?),
+                ' ',
+                ''
+              )
+            )
           ORDER BY s.id DESC
           LIMIT 1
           `,
           [
             schoolId,
-            user.fullname ||
-              user.username,
+            userId,
+            user.username || "",
           ],
-          (nameErr, nameStudent) => {
+          (phoneErr, phoneStudent) => {
 
-            if (nameErr) {
+            // =========================================
+            // PHONE SEARCH ERROR
+            // =========================================
+
+            if (phoneErr) {
 
               console.error(
-                "GET ME STUDENT NAME ERROR:",
-                nameErr.message
+                "GET ME STUDENT PHONE ERROR:",
+                phoneErr.message
               );
 
               return res.status(500).json({
@@ -358,128 +426,309 @@ export const getMe = (req, res) => {
                 message:
                   "Failed to load student profile.",
               });
+
             }
 
             // =========================================
-            // NO STUDENT FOUND
+            // STUDENT FOUND BY PHONE
             // =========================================
 
-            if (!nameStudent) {
+            if (phoneStudent) {
 
               console.log(
-                "NO STUDENT PROFILE FOUND:",
-                "User ID:",
-                userId,
+                "STUDENT PROFILE FOUND BY PHONE:",
+                user.username,
+                "Student ID:",
+                phoneStudent.id,
                 "School:",
-                schoolId,
-                "Name:",
-                user.fullname
+                schoolId
               );
 
-              return res.json({
+              // =======================================
+              // PERMANENTLY LINK USER TO STUDENT
+              // =======================================
 
-                success:
-                  true,
+              return db.run(
+                `
+                UPDATE students
+                SET user_id = ?
+                WHERE id = ?
+                  AND school_id = ?
+                  AND (
+                    user_id IS NULL
+                    OR user_id = ?
+                  )
+                `,
+                [
+                  userId,
+                  phoneStudent.id,
+                  schoolId,
+                  userId,
+                ],
+                (linkErr) => {
 
-                user: {
-                  id:
-                    userId,
+                  if (linkErr) {
 
-                  username:
-                    user.username,
+                    console.error(
+                      "STUDENT PHONE AUTO LINK ERROR:",
+                      linkErr.message
+                    );
 
-                  fullname:
-                    user.fullname,
+                  } else {
 
-                  role:
-                    "Student",
+                    console.log(
+                      "STUDENT AUTO LINKED BY PHONE:",
+                      "User:",
+                      userId,
+                      "Student:",
+                      phoneStudent.id,
+                      "School:",
+                      schoolId
+                    );
 
-                  school_id:
-                    schoolId,
-                },
+                    phoneStudent.user_id =
+                      userId;
 
-                profile:
-                  null,
-              });
+                  }
+
+                  // =================================
+                  // RETURN STUDENT PROFILE
+                  // =================================
+
+                  return res.json({
+
+                    success:
+                      true,
+
+                    user: {
+
+                      id:
+                        userId,
+
+                      username:
+                        user.username,
+
+                      fullname:
+                        user.fullname,
+
+                      role:
+                        "Student",
+
+                      school_id:
+                        schoolId,
+
+                    },
+
+                    profile:
+                      phoneStudent,
+
+                  });
+
+                }
+              );
+
             }
 
             // =========================================
-            // LINK STUDENT TO USER
+            // THIRD:
+            // FALLBACK TO FULL NAME
             // =========================================
 
-            db.run(
+            db.get(
               `
-              UPDATE students
-              SET user_id = ?
-              WHERE id = ?
-                AND school_id = ?
+              SELECT
+                s.*
+              FROM students s
+              WHERE s.school_id = ?
                 AND (
-                  user_id IS NULL
-                  OR user_id = ?
+                  s.user_id IS NULL
+                  OR s.user_id = ?
                 )
+                AND LOWER(TRIM(s.fullname)) =
+                    LOWER(TRIM(?))
+              ORDER BY s.id DESC
+              LIMIT 1
               `,
               [
-                userId,
-                nameStudent.id,
                 schoolId,
                 userId,
+                user.fullname ||
+                  user.username ||
+                  "",
               ],
-              (linkErr) => {
+              (nameErr, nameStudent) => {
 
-                if (linkErr) {
+                // =====================================
+                // NAME SEARCH ERROR
+                // =====================================
+
+                if (nameErr) {
 
                   console.error(
-                    "STUDENT AUTO LINK ERROR:",
-                    linkErr.message
+                    "GET ME STUDENT NAME ERROR:",
+                    nameErr.message
                   );
 
-                  // Do not fail the profile request.
-                  // We can still return the student.
-                } else {
+                  return res.status(500).json({
+                    success: false,
+                    message:
+                      "Failed to load student profile.",
+                  });
 
-                  console.log(
-                    "STUDENT AUTO LINKED:",
-                    "User:",
-                    userId,
-                    "Student:",
-                    nameStudent.id,
-                    "School:",
-                    schoolId
-                  );
-
-                  nameStudent.user_id =
-                    userId;
                 }
 
-                return res.json({
+                // =====================================
+                // NO STUDENT FOUND
+                // =====================================
 
-                  success:
-                    true,
+                if (!nameStudent) {
 
-                  user: {
-                    id:
-                      userId,
+                  console.log(
+                    "NO STUDENT PROFILE FOUND:",
+                    "User ID:",
+                    userId,
+                    "School:",
+                    schoolId,
+                    "Username:",
+                    user.username,
+                    "Name:",
+                    user.fullname
+                  );
 
-                    username:
-                      user.username,
+                  return res.json({
 
-                    fullname:
-                      user.fullname,
+                    success:
+                      true,
 
-                    role:
-                      "Student",
+                    user: {
 
-                    school_id:
-                      schoolId,
-                  },
+                      id:
+                        userId,
 
-                  profile:
-                    nameStudent,
-                });
+                      username:
+                        user.username,
+
+                      fullname:
+                        user.fullname,
+
+                      role:
+                        "Student",
+
+                      school_id:
+                        schoolId,
+
+                    },
+
+                    profile:
+                      null,
+
+                  });
+
+                }
+
+                // =====================================
+                // STUDENT FOUND BY NAME
+                // =====================================
+
+                console.log(
+                  "STUDENT PROFILE FOUND BY NAME:",
+                  user.fullname ||
+                    user.username,
+                  "Student ID:",
+                  nameStudent.id,
+                  "School:",
+                  schoolId
+                );
+
+                // =====================================
+                // PERMANENTLY LINK USER TO STUDENT
+                // =====================================
+
+                db.run(
+                  `
+                  UPDATE students
+                  SET user_id = ?
+                  WHERE id = ?
+                    AND school_id = ?
+                    AND (
+                      user_id IS NULL
+                      OR user_id = ?
+                    )
+                  `,
+                  [
+                    userId,
+                    nameStudent.id,
+                    schoolId,
+                    userId,
+                  ],
+                  (linkErr) => {
+
+                    if (linkErr) {
+
+                      console.error(
+                        "STUDENT NAME AUTO LINK ERROR:",
+                        linkErr.message
+                      );
+
+                    } else {
+
+                      console.log(
+                        "STUDENT AUTO LINKED BY NAME:",
+                        "User:",
+                        userId,
+                        "Student:",
+                        nameStudent.id,
+                        "School:",
+                        schoolId
+                      );
+
+                      nameStudent.user_id =
+                        userId;
+
+                    }
+
+                    // =================================
+                    // RETURN STUDENT PROFILE
+                    // =================================
+
+                    return res.json({
+
+                      success:
+                        true,
+
+                      user: {
+
+                        id:
+                          userId,
+
+                        username:
+                          user.username,
+
+                        fullname:
+                          user.fullname,
+
+                        role:
+                          "Student",
+
+                        school_id:
+                          schoolId,
+
+                      },
+
+                      profile:
+                        nameStudent,
+
+                    });
+
+                  }
+                );
+
               }
             );
+
           }
         );
+
       }
     );
 
@@ -494,4 +743,5 @@ export const getMe = (req, res) => {
     message:
       "Unsupported user role.",
   });
+
 };
