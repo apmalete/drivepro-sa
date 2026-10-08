@@ -1,4 +1,4 @@
-import db from "../database/database.js";
+﻿import db from "../database/database.js";
 
 // =====================================================
 // GET SCHOOL ID FROM AUTHENTICATED USER
@@ -340,127 +340,117 @@ export const getStudentTestBookings = (
   req,
   res
 ) => {
-  const { studentId } = req.params;
 
-  const schoolId = getSchoolId(req);
-  const role = getUserRole(req);
+  const {
+    studentId,
+  } = req.params;
+
+  const schoolId =
+    Number(req.user?.school_id);
+
+  const userId =
+    Number(req.user?.id);
+
+  const role =
+    String(req.user?.role || "")
+      .trim()
+      .toLowerCase();
 
   if (!schoolId) {
+
     return res.status(403).json({
       success: false,
-      message: "School information not found.",
+      message:
+        "School information not found.",
     });
   }
 
   // ===================================================
-  // ADMIN / RECEPTIONIST
+  // STUDENT
+  // A student can ONLY see bookings linked to
+  // their own authenticated user account.
   // ===================================================
 
-  if (isSchoolAdministrator(req)) {
-    db.all(
+  if (role === "student") {
+
+    if (!userId) {
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "Authenticated student account not found.",
+      });
+    }
+
+    db.get(
       `
-      SELECT *
-      FROM test_bookings
-      WHERE student_id = ?
+      SELECT
+        id,
+        fullname
+      FROM students
+      WHERE user_id = ?
         AND school_id = ?
-      ORDER BY booking_date DESC, booking_time DESC
+      LIMIT 1
       `,
-      [studentId, schoolId],
-      (err, rows) => {
-        if (err) {
+      [
+        userId,
+        schoolId,
+      ],
+      (studentErr, student) => {
+
+        if (studentErr) {
+
           console.error(
-            "GET STUDENT TEST BOOKINGS ERROR:",
-            err.message
+            "GET OWN STUDENT ERROR:",
+            studentErr.message
           );
 
           return res.status(500).json({
             success: false,
-            message: err.message,
+            message:
+              studentErr.message,
           });
         }
 
-        return res.json(rows || []);
-      }
-    );
+        if (!student) {
 
-    return;
-  }
-
-  // ===================================================
-  // INSTRUCTOR
-  // ===================================================
-
-  if (role === "instructor") {
-    getInstructorProfile(
-      req,
-      (instructorErr, instructor) => {
-        if (instructorErr) {
-          return res.status(500).json({
+          return res.status(404).json({
             success: false,
             message:
-              "Failed to find instructor profile.",
+              "Your student profile is not linked to your login account.",
           });
         }
 
-        if (!instructor) {
-          return res.status(403).json({
-            success: false,
-            message:
-              "Your instructor profile is not linked to this account.",
-          });
-        }
+        db.all(
+          `
+          SELECT *
+          FROM test_bookings
+          WHERE student_id = ?
+            AND school_id = ?
+          ORDER BY booking_date DESC, booking_time DESC
+          `,
+          [
+            student.id,
+            schoolId,
+          ],
+          (err, rows) => {
 
-        getStudentWithInstructor(
-          studentId,
-          schoolId,
-          (studentErr, student) => {
-            if (studentErr) {
+            if (err) {
+
+              console.error(
+                "GET OWN STUDENT TEST BOOKINGS ERROR:",
+                err.message
+              );
+
               return res.status(500).json({
                 success: false,
-                message: studentErr.message,
-              });
-            }
-
-            if (!student) {
-              return res.status(404).json({
-                success: false,
-                message: "Student not found.",
-              });
-            }
-
-            if (
-              !instructorCanAccessStudent(
-                instructor,
-                student
-              )
-            ) {
-              return res.status(403).json({
-                success: false,
                 message:
-                  "You do not have permission to view this student's test bookings.",
+                  err.message,
               });
             }
 
-            db.all(
-              `
-              SELECT *
-              FROM test_bookings
-              WHERE student_id = ?
-                AND school_id = ?
-              ORDER BY booking_date DESC,
-                       booking_time DESC
-              `,
-              [studentId, schoolId],
-              (err, rows) => {
-                if (err) {
-                  return res.status(500).json({
-                    success: false,
-                    message: err.message,
-                  });
-                }
-
-                return res.json(rows || []);
-              }
+            return res.json(
+              rows || []
             );
           }
         );
@@ -470,12 +460,46 @@ export const getStudentTestBookings = (
     return;
   }
 
-  return res.status(403).json({
-    success: false,
-    message:
-      "You do not have permission to view test bookings.",
-  });
+  // ===================================================
+  // ADMINISTRATORS
+  // They may request a specific student in their school.
+  // ===================================================
+
+  db.all(
+    `
+    SELECT *
+    FROM test_bookings
+    WHERE student_id = ?
+      AND school_id = ?
+    ORDER BY booking_date DESC, booking_time DESC
+    `,
+    [
+      studentId,
+      schoolId,
+    ],
+    (err, rows) => {
+
+      if (err) {
+
+        console.error(
+          "GET STUDENT TEST BOOKINGS ERROR:",
+          err.message
+        );
+
+        return res.status(500).json({
+          success: false,
+          message:
+            err.message,
+        });
+      }
+
+      res.json(
+        rows || []
+      );
+    }
+  );
 };
+
 
 // =====================================================
 // ADD TEST BOOKING

@@ -52,23 +52,85 @@ export default function StudentProfile({
   const [lessons, setLessons] = useState<Lesson[]>([]);
 
   // =========================================
+  // GET CURRENT LOGGED-IN USER
+  // =========================================
+
+  const getCurrentUser = () => {
+    try {
+      const storedUser = localStorage.getItem("user");
+
+      if (!storedUser) {
+        return null;
+      }
+
+      return JSON.parse(storedUser);
+    } catch (error) {
+      console.error(
+        "ERROR READING CURRENT USER:",
+        error
+      );
+
+      return null;
+    }
+  };
+
+  const currentUser = getCurrentUser();
+
+  const currentRole = String(
+    currentUser?.role || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  // =========================================
+  // FINANCIAL PERMISSIONS
+  // =========================================
+
+  const canViewFinancialInformation =
+    currentRole === "administrator" ||
+    currentRole === "admin" ||
+    currentRole === "system administrator" ||
+    currentRole === "receptionist";
+
+  // =========================================
   // LOAD PAYMENT AND LESSON HISTORY
   // =========================================
 
   useEffect(() => {
     if (open && student?.id) {
-      loadPayments(student.id);
+
+      // ---------------------------------------
+      // ONLY USERS WITH FINANCIAL PERMISSION
+      // MAY REQUEST PAYMENT INFORMATION
+      // ---------------------------------------
+
+      if (canViewFinancialInformation) {
+        loadPayments(student.id);
+      } else {
+        // Make absolutely sure old payment data
+        // is not left in React state.
+        setPayments([]);
+      }
+
+      // Lessons are still available to instructors.
       loadLessons(student.fullname);
     }
-  }, [open, student]);
+  }, [
+    open,
+    student,
+    canViewFinancialInformation,
+  ]);
 
   // =========================================
   // LOAD PAYMENTS
   // =========================================
 
-  const loadPayments = async (studentId: number) => {
+  const loadPayments = async (
+    studentId: number
+  ) => {
     try {
-      const data = await getStudentPayments(studentId);
+      const data =
+        await getStudentPayments(studentId);
 
       setPayments(data);
     } catch (error) {
@@ -85,9 +147,12 @@ export default function StudentProfile({
   // LOAD LESSONS
   // =========================================
 
-  const loadLessons = async (studentName: string) => {
+  const loadLessons = async (
+    studentName: string
+  ) => {
     try {
-      const data = await getStudentLessons(studentName);
+      const data =
+        await getStudentLessons(studentName);
 
       setLessons(data);
     } catch (error) {
@@ -105,7 +170,11 @@ export default function StudentProfile({
   // =========================================
 
   const handlePrintStatement = () => {
-    if (!student) {
+    // Extra security check
+    if (
+      !student ||
+      !canViewFinancialInformation
+    ) {
       return;
     }
 
@@ -261,172 +330,179 @@ export default function StudentProfile({
 
         {/* ===================================
             FINANCIAL INFORMATION
+            ADMIN / RECEPTIONIST ONLY
         ==================================== */}
 
-        <Typography
-          variant="h6"
-          sx={{ mt: 4 }}
-        >
-          Financial Information
-        </Typography>
-
-        <Divider sx={{ mb: 2 }} />
-
-        <Grid container spacing={2}>
-
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Paper
-              variant="outlined"
-              sx={{ p: 2 }}
+        {canViewFinancialInformation && (
+          <>
+            <Typography
+              variant="h6"
+              sx={{ mt: 4 }}
             >
-              <Typography variant="body2">
-                Course Fee
-              </Typography>
+              Financial Information
+            </Typography>
 
-              <Typography
-                variant="h6"
-                sx={{ mt: 1 }}
-              >
-                R{" "}
-                {Number(
-                  student.courseFee
-                ).toFixed(2)}
-              </Typography>
-            </Paper>
-          </Grid>
+            <Divider sx={{ mb: 2 }} />
 
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Paper
-              variant="outlined"
-              sx={{ p: 2 }}
-            >
-              <Typography variant="body2">
-                Amount Paid
-              </Typography>
+            <Grid container spacing={2}>
 
-              <Typography
-                variant="h6"
-                sx={{ mt: 1 }}
-              >
-                R{" "}
-                {Number(
-                  student.amountPaid
-                ).toFixed(2)}
-              </Typography>
-            </Paper>
-          </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{ p: 2 }}
+                >
+                  <Typography variant="body2">
+                    Course Fee
+                  </Typography>
 
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Paper
-              variant="outlined"
-              sx={{ p: 2 }}
-            >
-              <Typography variant="body2">
-                Balance
-              </Typography>
-
-              <Typography
-                variant="h6"
-                sx={{ mt: 1 }}
-              >
-                R{" "}
-                {Number(
-                  student.balance
-                ).toFixed(2)}
-              </Typography>
-            </Paper>
-          </Grid>
-
-        </Grid>
-
-        {/* ===================================
-            PAYMENT HISTORY
-        ==================================== */}
-
-        <Typography
-          variant="h6"
-          sx={{ mt: 4 }}
-        >
-          💳 Payment History
-        </Typography>
-
-        <Divider sx={{ mb: 2 }} />
-
-        <Paper variant="outlined">
-          <Table size="small">
-
-            <TableHead>
-              <TableRow>
-
-                <TableCell>
-                  <strong>Receipt</strong>
-                </TableCell>
-
-                <TableCell>
-                  <strong>Date</strong>
-                </TableCell>
-
-                <TableCell>
-                  <strong>Method</strong>
-                </TableCell>
-
-                <TableCell align="right">
-                  <strong>Amount</strong>
-                </TableCell>
-
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-
-              {payments.length === 0 ? (
-
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    align="center"
+                  <Typography
+                    variant="h6"
+                    sx={{ mt: 1 }}
                   >
-                    No payment history found.
-                  </TableCell>
-                </TableRow>
+                    R{" "}
+                    {Number(
+                      student.courseFee
+                    ).toFixed(2)}
+                  </Typography>
+                </Paper>
+              </Grid>
 
-              ) : (
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{ p: 2 }}
+                >
+                  <Typography variant="body2">
+                    Amount Paid
+                  </Typography>
 
-                payments.map((payment) => (
-
-                  <TableRow
-                    key={payment.id}
+                  <Typography
+                    variant="h6"
+                    sx={{ mt: 1 }}
                   >
+                    R{" "}
+                    {Number(
+                      student.amountPaid
+                    ).toFixed(2)}
+                  </Typography>
+                </Paper>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{ p: 2 }}
+                >
+                  <Typography variant="body2">
+                    Balance
+                  </Typography>
+
+                  <Typography
+                    variant="h6"
+                    sx={{ mt: 1 }}
+                  >
+                    R{" "}
+                    {Number(
+                      student.balance
+                    ).toFixed(2)}
+                  </Typography>
+                </Paper>
+              </Grid>
+
+            </Grid>
+
+            {/* ===================================
+                PAYMENT HISTORY
+            ==================================== */}
+
+            <Typography
+              variant="h6"
+              sx={{ mt: 4 }}
+            >
+              💳 Payment History
+            </Typography>
+
+            <Divider sx={{ mb: 2 }} />
+
+            <Paper variant="outlined">
+
+              <Table size="small">
+
+                <TableHead>
+                  <TableRow>
 
                     <TableCell>
-                      {payment.receiptNo}
+                      <strong>Receipt</strong>
                     </TableCell>
 
                     <TableCell>
-                      {payment.paymentDate}
+                      <strong>Date</strong>
                     </TableCell>
 
                     <TableCell>
-                      {payment.paymentMethod}
+                      <strong>Method</strong>
                     </TableCell>
 
                     <TableCell align="right">
-                      R{" "}
-                      {Number(
-                        payment.amount
-                      ).toFixed(2)}
+                      <strong>Amount</strong>
                     </TableCell>
 
                   </TableRow>
+                </TableHead>
 
-                ))
+                <TableBody>
 
-              )}
+                  {payments.length === 0 ? (
 
-            </TableBody>
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        align="center"
+                      >
+                        No payment history found.
+                      </TableCell>
+                    </TableRow>
 
-          </Table>
-        </Paper>
+                  ) : (
+
+                    payments.map((payment) => (
+
+                      <TableRow
+                        key={payment.id}
+                      >
+
+                        <TableCell>
+                          {payment.receiptNo}
+                        </TableCell>
+
+                        <TableCell>
+                          {payment.paymentDate}
+                        </TableCell>
+
+                        <TableCell>
+                          {payment.paymentMethod}
+                        </TableCell>
+
+                        <TableCell align="right">
+                          R{" "}
+                          {Number(
+                            payment.amount
+                          ).toFixed(2)}
+                        </TableCell>
+
+                      </TableRow>
+
+                    ))
+
+                  )}
+
+                </TableBody>
+
+              </Table>
+
+            </Paper>
+          </>
+        )}
 
         {/* ===================================
             LESSON HISTORY
@@ -521,6 +597,7 @@ export default function StudentProfile({
             </TableBody>
 
           </Table>
+
         </Paper>
 
       </DialogContent>
@@ -531,23 +608,37 @@ export default function StudentProfile({
 
       <DialogActions>
 
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handlePrintStatement}
-        >
-          🖨 Print Statement
-        </Button>
+        {/* -----------------------------------
+            FINANCIAL ACTIONS
+            ADMIN / RECEPTIONIST ONLY
+        ------------------------------------ */}
 
-        <Button
-          variant="contained"
-          color="success"
-          onClick={() =>
-            onNewPayment(student)
-          }
-        >
-          💳 New Payment
-        </Button>
+        {canViewFinancialInformation && (
+          <>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handlePrintStatement}
+            >
+              🖨 Print Statement
+            </Button>
+
+            <Button
+              variant="contained"
+              color="success"
+              onClick={() =>
+                onNewPayment(student)
+              }
+            >
+              💳 New Payment
+            </Button>
+          </>
+        )}
+
+        {/* -----------------------------------
+            LESSON ACTION
+            INSTRUCTOR CAN USE THIS
+        ------------------------------------ */}
 
         <Button
           variant="contained"
@@ -558,6 +649,10 @@ export default function StudentProfile({
         >
           📅 Book Lesson
         </Button>
+
+        {/* -----------------------------------
+            CLOSE
+        ------------------------------------ */}
 
         <Button
           color="inherit"

@@ -1,11 +1,129 @@
 import db from "../database/database.js";
 
 // =====================================================
-// GET SCHOOL ID
+// FINANCIAL ACCESS ROLES
 // =====================================================
 
-const getSchoolId = (req) => {
-  return Number(req.query.school_id) || 1;
+const FINANCIAL_ROLES = [
+  "administrator",
+  "admin",
+  "system administrator",
+  "receptionist",
+];
+
+
+// =====================================================
+// GET AUTHENTICATED USER ROLE
+// =====================================================
+
+const getUserRole = (req) => {
+  return String(req.user?.role || "")
+    .trim()
+    .toLowerCase();
+};
+
+
+// =====================================================
+// GET AUTHENTICATED SCHOOL ID
+// =====================================================
+
+const getAuthenticatedSchoolId = (req) => {
+  return Number(req.user?.school_id) || 0;
+};
+
+
+// =====================================================
+// CHECK FINANCIAL ACCESS
+// =====================================================
+
+const hasFinancialAccess = (req) => {
+  const role = getUserRole(req);
+
+  return FINANCIAL_ROLES.includes(role);
+};
+
+
+// =====================================================
+// FIND STUDENT LINKED TO LOGGED-IN STUDENT USER
+// =====================================================
+
+const getLoggedInStudent = (req, callback) => {
+
+  const userId = Number(req.user?.id);
+  const schoolId = getAuthenticatedSchoolId(req);
+
+  if (!userId || !schoolId) {
+    return callback(
+      null,
+      null,
+      "Student account is not properly linked to a school."
+    );
+  }
+
+  db.get(
+    `
+    SELECT *
+    FROM students
+    WHERE user_id = ?
+      AND school_id = ?
+    LIMIT 1
+    `,
+    [
+      userId,
+      schoolId,
+    ],
+    (err, student) => {
+
+      if (err) {
+        return callback(
+          err,
+          null,
+          null
+        );
+      }
+
+      if (!student) {
+        return callback(
+          null,
+          null,
+          "Student profile could not be found."
+        );
+      }
+
+      callback(
+        null,
+        student,
+        null
+      );
+    }
+  );
+};
+
+
+// =====================================================
+// CHECK WHETHER REQUESTED STUDENT BELONGS TO SCHOOL
+// =====================================================
+
+const verifyStudentSchool = (
+  studentId,
+  schoolId,
+  callback
+) => {
+
+  db.get(
+    `
+    SELECT *
+    FROM students
+    WHERE id = ?
+      AND school_id = ?
+    LIMIT 1
+    `,
+    [
+      studentId,
+      schoolId,
+    ],
+    callback
+  );
 };
 
 
@@ -15,7 +133,118 @@ const getSchoolId = (req) => {
 
 export const getPayments = (req, res) => {
 
-  const schoolId = getSchoolId(req);
+  const role = getUserRole(req);
+  const schoolId = getAuthenticatedSchoolId(req);
+
+  if (!schoolId) {
+    return res.status(403).json({
+      success: false,
+      message:
+        "Authenticated school could not be determined.",
+    });
+  }
+
+
+  // ===================================================
+  // STUDENT
+  // A STUDENT MAY ONLY SEE THEIR OWN PAYMENTS
+  // ===================================================
+
+  if (role === "student") {
+
+    return getLoggedInStudent(
+      req,
+      (studentErr, student, studentMessage) => {
+
+        if (studentErr) {
+
+          console.error(
+            "GET LOGGED-IN STUDENT PAYMENTS ERROR:",
+            studentErr.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: studentErr.message,
+          });
+        }
+
+        if (!student) {
+
+          return res.status(404).json({
+            success: false,
+            message:
+              studentMessage ||
+              "Student profile not found.",
+          });
+        }
+
+
+        db.all(
+          `
+          SELECT *
+          FROM payments
+          WHERE studentId = ?
+            AND school_id = ?
+          ORDER BY paymentDate DESC, id DESC
+          `,
+          [
+            student.id,
+            schoolId,
+          ],
+          (err, rows) => {
+
+            if (err) {
+
+              console.error(
+                "GET STUDENT OWN PAYMENTS ERROR:",
+                err.message
+              );
+
+              return res.status(500).json({
+                success: false,
+                message: err.message,
+              });
+            }
+
+            return res.json(
+              rows || []
+            );
+          }
+        );
+      }
+    );
+  }
+
+
+  // ===================================================
+  // INSTRUCTOR
+  // INSTRUCTORS CANNOT VIEW FINANCIAL INFORMATION
+  // ===================================================
+
+  if (role === "instructor") {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Instructors are not allowed to view financial information.",
+    });
+  }
+
+
+  // ===================================================
+  // ADMINISTRATOR / RECEPTIONIST
+  // ===================================================
+
+  if (!hasFinancialAccess(req)) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Financial access is not permitted for this account.",
+    });
+  }
+
 
   db.all(
     `
@@ -24,10 +253,13 @@ export const getPayments = (req, res) => {
     WHERE school_id = ?
     ORDER BY id DESC
     `,
-    [schoolId],
+    [
+      schoolId,
+    ],
     (err, rows) => {
 
       if (err) {
+
         console.error(
           "GET PAYMENTS ERROR:",
           err.message
@@ -39,7 +271,9 @@ export const getPayments = (req, res) => {
         });
       }
 
-      res.json(rows || []);
+      res.json(
+        rows || []
+      );
     }
   );
 };
@@ -49,39 +283,225 @@ export const getPayments = (req, res) => {
 // GET PAYMENTS FOR ONE STUDENT
 // =====================================================
 
-export const getStudentPayments = (req, res) => {
+export const getStudentPayments = (
+  req,
+  res
+) => {
 
-  const { studentId } = req.params;
+  const requestedStudentId =
+    Number(req.params.studentId);
 
-  const schoolId = getSchoolId(req);
+  const role = getUserRole(req);
+  const schoolId =
+    getAuthenticatedSchoolId(req);
 
-  db.all(
-    `
-    SELECT *
-    FROM payments
-    WHERE studentId = ?
-      AND school_id = ?
-    ORDER BY paymentDate DESC, id DESC
-    `,
-    [
-      studentId,
-      schoolId,
-    ],
-    (err, rows) => {
 
-      if (err) {
+  if (!schoolId) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Authenticated school could not be determined.",
+    });
+  }
+
+
+  if (!requestedStudentId) {
+
+    return res.status(400).json({
+      success: false,
+      message:
+        "Invalid student ID.",
+    });
+  }
+
+
+  // ===================================================
+  // STUDENT
+  // FORCE STUDENT TO THEIR OWN STUDENT RECORD
+  // ===================================================
+
+  if (role === "student") {
+
+    return getLoggedInStudent(
+      req,
+      (studentErr, student, studentMessage) => {
+
+        if (studentErr) {
+
+          console.error(
+            "GET STUDENT PAYMENT PROFILE ERROR:",
+            studentErr.message
+          );
+
+          return res.status(500).json({
+            success: false,
+            message: studentErr.message,
+          });
+        }
+
+
+        if (!student) {
+
+          return res.status(404).json({
+            success: false,
+            message:
+              studentMessage ||
+              "Student profile not found.",
+          });
+        }
+
+
+        // =============================================
+        // IMPORTANT SECURITY CHECK
+        //
+        // The studentId in the URL is NOT trusted.
+        // It must match the authenticated student's ID.
+        // =============================================
+
+        if (
+          Number(student.id) !==
+          requestedStudentId
+        ) {
+
+          return res.status(403).json({
+            success: false,
+            message:
+              "You are only allowed to view your own payment information.",
+          });
+        }
+
+
+        db.all(
+          `
+          SELECT *
+          FROM payments
+          WHERE studentId = ?
+            AND school_id = ?
+          ORDER BY paymentDate DESC, id DESC
+          `,
+          [
+            student.id,
+            schoolId,
+          ],
+          (err, rows) => {
+
+            if (err) {
+
+              console.error(
+                "GET OWN STUDENT PAYMENTS ERROR:",
+                err.message
+              );
+
+              return res.status(500).json({
+                success: false,
+                message: err.message,
+              });
+            }
+
+            res.json(
+              rows || []
+            );
+          }
+        );
+      }
+    );
+  }
+
+
+  // ===================================================
+  // INSTRUCTOR
+  // ===================================================
+
+  if (role === "instructor") {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Instructors are not allowed to view student financial information.",
+    });
+  }
+
+
+  // ===================================================
+  // ADMIN / RECEPTIONIST
+  // ===================================================
+
+  if (!hasFinancialAccess(req)) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Financial access is not permitted for this account.",
+    });
+  }
+
+
+  // ===================================================
+  // VERIFY STUDENT BELONGS TO AUTHENTICATED SCHOOL
+  // ===================================================
+
+  verifyStudentSchool(
+    requestedStudentId,
+    schoolId,
+    (studentErr, student) => {
+
+      if (studentErr) {
+
         console.error(
-          "GET STUDENT PAYMENTS ERROR:",
-          err.message
+          "VERIFY PAYMENT STUDENT ERROR:",
+          studentErr.message
         );
 
         return res.status(500).json({
           success: false,
-          message: err.message,
+          message: studentErr.message,
         });
       }
 
-      res.json(rows || []);
+
+      if (!student) {
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "Student not found for this school.",
+        });
+      }
+
+
+      db.all(
+        `
+        SELECT *
+        FROM payments
+        WHERE studentId = ?
+          AND school_id = ?
+        ORDER BY paymentDate DESC, id DESC
+        `,
+        [
+          requestedStudentId,
+          schoolId,
+        ],
+        (err, rows) => {
+
+          if (err) {
+
+            console.error(
+              "GET STUDENT PAYMENTS ERROR:",
+              err.message
+            );
+
+            return res.status(500).json({
+              success: false,
+              message: err.message,
+            });
+          }
+
+          res.json(
+            rows || []
+          );
+        }
+      );
     }
   );
 };
@@ -89,12 +509,37 @@ export const getStudentPayments = (req, res) => {
 
 // =====================================================
 // ADD PAYMENT
+// ADMIN / RECEPTIONIST ONLY
 // =====================================================
 
-export const addPayment = (req, res) => {
+export const addPayment = (
+  req,
+  res
+) => {
+
+  if (!hasFinancialAccess(req)) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "You are not allowed to add payments.",
+    });
+  }
+
 
   const schoolId =
-    Number(req.body.school_id) || 1;
+    getAuthenticatedSchoolId(req);
+
+
+  if (!schoolId) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Authenticated school could not be determined.",
+    });
+  }
+
 
   const {
     receiptNo,
@@ -109,20 +554,12 @@ export const addPayment = (req, res) => {
 
 
   // ===================================================
-  // CHECK THAT STUDENT BELONGS TO THIS SCHOOL
+  // CHECK THAT STUDENT BELONGS TO AUTHENTICATED SCHOOL
   // ===================================================
 
-  db.get(
-    `
-    SELECT *
-    FROM students
-    WHERE id = ?
-      AND school_id = ?
-    `,
-    [
-      studentId,
-      schoolId,
-    ],
+  verifyStudentSchool(
+    studentId,
+    schoolId,
     (studentErr, student) => {
 
       if (studentErr) {
@@ -154,21 +591,21 @@ export const addPayment = (req, res) => {
       // =================================================
 
       db.run(
-  `
-  INSERT INTO payments
-  (
-    receiptNo,
-    studentId,
-    studentName,
-    paymentDate,
-    paymentMethod,
-    amount,
-    reference,
-    notes,
-    school_id
-  )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `,
+        `
+        INSERT INTO payments
+        (
+          receiptNo,
+          studentId,
+          studentName,
+          paymentDate,
+          paymentMethod,
+          amount,
+          reference,
+          notes,
+          school_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
         [
           receiptNo,
           studentId,
@@ -273,14 +710,42 @@ export const addPayment = (req, res) => {
 
 // =====================================================
 // UPDATE PAYMENT
+// ADMIN / RECEPTIONIST ONLY
 // =====================================================
 
-export const updatePayment = (req, res) => {
+export const updatePayment = (
+  req,
+  res
+) => {
 
-  const { id } = req.params;
+  if (!hasFinancialAccess(req)) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "You are not allowed to update payments.",
+    });
+  }
+
+
+  const {
+    id,
+  } = req.params;
+
 
   const schoolId =
-    Number(req.body.school_id) || 1;
+    getAuthenticatedSchoolId(req);
+
+
+  if (!schoolId) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Authenticated school could not be determined.",
+    });
+  }
+
 
   const {
     receiptNo,
@@ -339,17 +804,9 @@ export const updatePayment = (req, res) => {
       // CHECK NEW STUDENT
       // =================================================
 
-      db.get(
-        `
-        SELECT *
-        FROM students
-        WHERE id = ?
-          AND school_id = ?
-        `,
-        [
-          studentId,
-          schoolId,
-        ],
+      verifyStudentSchool(
+        studentId,
+        schoolId,
         (studentErr, student) => {
 
           if (studentErr) {
@@ -542,14 +999,41 @@ export const updatePayment = (req, res) => {
 
 // =====================================================
 // DELETE PAYMENT
+// ADMIN / RECEPTIONIST ONLY
 // =====================================================
 
-export const deletePayment = (req, res) => {
+export const deletePayment = (
+  req,
+  res
+) => {
 
-  const { id } = req.params;
+  if (!hasFinancialAccess(req)) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "You are not allowed to delete payments.",
+    });
+  }
+
+
+  const {
+    id,
+  } = req.params;
+
 
   const schoolId =
-    Number(req.query.school_id) || 1;
+    getAuthenticatedSchoolId(req);
+
+
+  if (!schoolId) {
+
+    return res.status(403).json({
+      success: false,
+      message:
+        "Authenticated school could not be determined.",
+    });
+  }
 
 
   // ===================================================
