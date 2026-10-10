@@ -30,6 +30,7 @@ import {
   authenticateUser,
   requireSystemAdministrator,
   requireAdministrator,
+  requireSettingsAdministrator,
 } from "./middleware/authMiddleware.js";
 
 // =====================================
@@ -461,12 +462,14 @@ app.delete(
 app.get(
   "/settings",
   authenticateUser,
+  requireSettingsAdministrator,
   getSettings
 );
 
 app.put(
   "/settings",
   authenticateUser,
+  requireSettingsAdministrator,
   updateSettings
 );
 
@@ -839,25 +842,16 @@ app.use(
   }
 );
 
+
 // =====================================
 // SERVER
 // =====================================
 
-const PORT =
-  process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
-app.listen(
-  PORT,
-  () => {
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+  console.log("WhatsApp configured: " + isWhatsAppConfigured());
 
-    console.log(
-      `🚀 Server running on port ${PORT}`
-    );
-
-    console.log(
-      `📱 WhatsApp configured: ${isWhatsAppConfigured()}`
-    );
-
-    startWhatsAppReminderScheduler();
-  }
-);
+  startWhatsAppReminderScheduler();
+});

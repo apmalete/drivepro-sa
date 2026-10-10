@@ -370,3 +370,42 @@ export const requireStudentOrAdministrator = (
   next();
 
 };
+// ==========================================
+// SETTINGS ADMINISTRATOR ACCESS
+// ==========================================
+
+export const requireSettingsAdministrator = (
+  req,
+  res,
+  next
+) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required.",
+    });
+  }
+
+  const allowedRoles = [
+    "Admin",
+    "Administrator",
+    "System Administrator",
+  ];
+
+  if (!allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({
+      success: false,
+      message: "Administrator access required to manage school settings.",
+    });
+  }
+
+  if (!Number.isInteger(Number(req.user.school_id)) ||
+      Number(req.user.school_id) < 1) {
+    return res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a valid school.",
+    });
+  }
+
+  next();
+};

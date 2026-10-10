@@ -1,111 +1,78 @@
-import db from "../database/database.js";
+﻿import db from "../database/database.js";
 
-// ======================================
-// GET SETTINGS
-// ======================================
-
+// Get settings for the authenticated user's school.
 export const getSettings = (req, res) => {
+  const schoolId = Number(req.user?.school_id);
+
+  if (!Number.isInteger(schoolId) || schoolId < 1) {
+    return res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a valid school.",
+    });
+  }
+
   db.get(
-    `
-    SELECT
-      id,
-      schoolName,
-      phone,
-      email,
-      address,
-      registrationNumber,
-      defaultLessonDuration,
-      defaultLessonPrice,
-      lessonDuration,
-      lessonPrice
-    FROM settings
-    WHERE id = 1
-    LIMIT 1
-    `,
-    [],
+    `SELECT id, schoolName, phone, email, address,
+            registrationNumber, defaultLessonDuration,
+            defaultLessonPrice, lessonDuration, lessonPrice
+     FROM settings
+     WHERE school_id = ?
+     ORDER BY id
+     LIMIT 1`,
+    [schoolId],
     (err, row) => {
       if (err) {
-        console.error(
-          "GET SETTINGS ERROR:",
-          err.message
-        );
-
+        console.error("GET SETTINGS ERROR:", err.message);
         return res.status(500).json({
           success: false,
-          message: err.message,
+          message: "Failed to load school settings.",
         });
       }
 
-      // ======================================
-      // DEFAULT SETTINGS
-      // ======================================
-
-      const settings = {
-        id: 1,
-        schoolName: "DrivePro-SA",
-        phone: "",
-        email: "",
-        address: "",
-        registrationNumber: "",
-        defaultLessonDuration: 60,
-        defaultLessonPrice: 0,
-        lessonDuration: 60,
-        lessonPrice: 0,
-      };
-
-      // ======================================
-      // RETURN DATABASE SETTINGS
-      // ======================================
-
-      if (row) {
-        settings.id = row.id || 1;
-
-        settings.schoolName =
-          row.schoolName || "DrivePro-SA";
-
-        settings.phone =
-          row.phone || "";
-
-        settings.email =
-          row.email || "";
-
-        settings.address =
-          row.address || "";
-
-        settings.registrationNumber =
-          row.registrationNumber || "";
-
-        settings.defaultLessonDuration =
-          Number(
-            row.defaultLessonDuration
-          ) || 60;
-
-        settings.defaultLessonPrice =
-          Number(
-            row.defaultLessonPrice
-          ) || 0;
-
-        settings.lessonDuration =
-          Number(
-            row.lessonDuration
-          ) || 60;
-
-        settings.lessonPrice =
-          Number(
-            row.lessonPrice
-          ) || 0;
+      if (!row) {
+        return res.json({
+          id: null,
+          school_id: schoolId,
+          schoolName: "DrivePro-SA",
+          phone: "",
+          email: "",
+          address: "",
+          registrationNumber: "",
+          defaultLessonDuration: 60,
+          defaultLessonPrice: 0,
+          lessonDuration: 60,
+          lessonPrice: 0,
+        });
       }
 
-      res.json(settings);
+      return res.json({
+        id: row.id,
+        school_id: schoolId,
+        schoolName: row.schoolName || "DrivePro-SA",
+        phone: row.phone || "",
+        email: row.email || "",
+        address: row.address || "",
+        registrationNumber: row.registrationNumber || "",
+        defaultLessonDuration: Number(row.defaultLessonDuration) || 60,
+        defaultLessonPrice: Number(row.defaultLessonPrice) || 0,
+        lessonDuration: Number(row.lessonDuration) || 60,
+        lessonPrice: Number(row.lessonPrice) || 0,
+      });
     }
   );
 };
 
-// ======================================
-// UPDATE SETTINGS
-// ======================================
-
+// Update settings for the authenticated user's school only.
 export const updateSettings = (req, res) => {
+  const schoolId = Number(req.user?.school_id);
+
+  if (!Number.isInteger(schoolId) || schoolId < 1) {
+    return res.status(403).json({
+      success: false,
+      message: "Your account is not linked to a valid school.",
+    });
+  }
+
   const {
     schoolName,
     phone,
@@ -114,157 +81,82 @@ export const updateSettings = (req, res) => {
     registrationNumber,
     defaultLessonDuration,
     defaultLessonPrice,
-  } = req.body;
+  } = req.body || {};
 
-  // ======================================
-  // VALIDATE SCHOOL NAME
-  // ======================================
-
-  if (
-    !schoolName ||
-    !String(schoolName).trim()
-  ) {
+  if (typeof schoolName !== "string" || !schoolName.trim()) {
     return res.status(400).json({
       success: false,
-      message:
-        "Driving school name is required.",
+      message: "School name is required.",
     });
   }
 
-  // ======================================
-  // PREPARE VALUES
-  // ======================================
+  const duration = Number(defaultLessonDuration);
+  const price = Number(defaultLessonPrice);
 
-  const schoolNameValue =
-    String(schoolName).trim();
+  if (
+    !Number.isFinite(duration) ||
+    duration <= 0 ||
+    !Number.isFinite(price) ||
+    price < 0
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Enter a valid lesson duration and lesson price.",
+    });
+  }
 
-  const phoneValue =
-    phone == null
-      ? ""
-      : String(phone).trim();
+  const values = [
+    schoolName.trim(),
+    typeof phone === "string" ? phone.trim() : "",
+    typeof email === "string" ? email.trim() : "",
+    typeof address === "string" ? address.trim() : "",
+    typeof registrationNumber === "string"
+      ? registrationNumber.trim()
+      : "",
+    duration,
+    price,
+  ];
 
-  const emailValue =
-    email == null
-      ? ""
-      : String(email).trim();
-
-  const addressValue =
-    address == null
-      ? ""
-      : String(address).trim();
-
-  const registrationNumberValue =
-    registrationNumber == null
-      ? ""
-      : String(
-          registrationNumber
-        ).trim();
-
-  const lessonDurationValue =
-    Number(
-      defaultLessonDuration
-    ) || 60;
-
-  const lessonPriceValue =
-    Number(
-      defaultLessonPrice
-    ) || 0;
-
-  // ======================================
-  // UPDATE EXISTING SETTINGS RECORD
-  // ======================================
-
-  db.run(
-    `
-    UPDATE settings
-    SET
-      schoolName = ?,
-      phone = ?,
-      email = ?,
-      address = ?,
-      registrationNumber = ?,
-      defaultLessonDuration = ?,
-      defaultLessonPrice = ?
-    WHERE id = 1
-    `,
-    [
-      schoolNameValue,
-      phoneValue,
-      emailValue,
-      addressValue,
-      registrationNumberValue,
-      lessonDurationValue,
-      lessonPriceValue,
-    ],
-    function (err) {
-      if (err) {
-        console.error(
-          "UPDATE SETTINGS ERROR:",
-          err.message
-        );
-
+  // Find this school's record; never use a client-supplied school ID.
+  db.get(
+    `SELECT id FROM settings
+     WHERE school_id = ?
+     ORDER BY id
+     LIMIT 1`,
+    [schoolId],
+    (findErr, row) => {
+      if (findErr) {
+        console.error("FIND SETTINGS ERROR:", findErr.message);
         return res.status(500).json({
           success: false,
-          message:
-            "Failed to save settings.",
-          error: err.message,
+          message: "Failed to find school settings.",
         });
       }
 
-      // ======================================
-      // IF NO RECORD EXISTS, CREATE ONE
-      // ======================================
-
-      if (this.changes === 0) {
+      if (row) {
         db.run(
-          `
-          INSERT INTO settings
-          (
-            id,
-            schoolName,
-            phone,
-            email,
-            address,
-            registrationNumber,
-            defaultLessonDuration,
-            defaultLessonPrice,
-            lessonDuration,
-            lessonPrice
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          [
-            1,
-            schoolNameValue,
-            phoneValue,
-            emailValue,
-            addressValue,
-            registrationNumberValue,
-            lessonDurationValue,
-            lessonPriceValue,
-            60,
-            0,
-          ],
-          (insertErr) => {
-            if (insertErr) {
-              console.error(
-                "INSERT SETTINGS ERROR:",
-                insertErr.message
-              );
-
+          `UPDATE settings
+           SET schoolName = ?,
+               phone = ?,
+               email = ?,
+               address = ?,
+               registrationNumber = ?,
+               defaultLessonDuration = ?,
+               defaultLessonPrice = ?
+           WHERE id = ? AND school_id = ?`,
+          [...values, row.id, schoolId],
+          function (updateErr) {
+            if (updateErr) {
+              console.error("UPDATE SETTINGS ERROR:", updateErr.message);
               return res.status(500).json({
                 success: false,
-                message:
-                  "Failed to save settings.",
-                error:
-                  insertErr.message,
+                message: "Failed to update school settings.",
               });
             }
 
             return res.json({
               success: true,
-              message:
-                "Settings saved successfully.",
+              message: "School settings updated successfully.",
             });
           }
         );
@@ -272,15 +164,29 @@ export const updateSettings = (req, res) => {
         return;
       }
 
-      // ======================================
-      // SUCCESS
-      // ======================================
+      // Create a separate record for a school without settings yet.
+      db.run(
+        `INSERT INTO settings (
+           schoolName, phone, email, address, registrationNumber,
+           defaultLessonDuration, defaultLessonPrice,
+           lessonDuration, lessonPrice, school_id
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [...values, 60, 0, schoolId],
+        function (insertErr) {
+          if (insertErr) {
+            console.error("INSERT SETTINGS ERROR:", insertErr.message);
+            return res.status(500).json({
+              success: false,
+              message: "Failed to create school settings.",
+            });
+          }
 
-      res.json({
-        success: true,
-        message:
-          "Settings saved successfully.",
-      });
+          return res.json({
+            success: true,
+            message: "School settings created successfully.",
+          });
+        }
+      );
     }
   );
 };
