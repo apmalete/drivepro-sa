@@ -1,9 +1,5 @@
-import { useState } from "react";
-
-import {
-  NavLink,
-  useNavigate,
-} from "react-router-dom";
+﻿import { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 
 import {
   Box,
@@ -13,779 +9,555 @@ import {
 
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
+import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
+import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import AssignmentRoundedIcon from "@mui/icons-material/AssignmentRounded";
+import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
+import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
+import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
+import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
+import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
+import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+
+import logo from "../assets/drivepro-logo.png";
 
 // =====================================================
 // SIDEBAR
 // =====================================================
 
 export default function Sidebar() {
-
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // ===================================================
-  // MOBILE MENU
+  // GET LOGGED-IN USER
   // ===================================================
 
- const [mobileOpen, setMobileOpen] =
-    useState(false);
-
-  // ===================================================
-  // GET USER
-  // ===================================================
-
-  const storedUser =
-    localStorage.getItem("user");
-
-  let user: any = null;
+  let user: {
+    fullname?: string;
+    username?: string;
+    role?: string;
+    school_id?: number | string;
+  } | null = null;
 
   try {
-
-    user =
-      storedUser
-        ? JSON.parse(storedUser)
-        : null;
-
+    const storedUser = localStorage.getItem("user");
+    user = storedUser ? JSON.parse(storedUser) : null;
   } catch {
-
     user = null;
-
   }
 
   // ===================================================
-  // ROLE
+  // ROLE PERMISSIONS
   // ===================================================
 
-  const role =
-    String(
-      user?.role || ""
-    )
-      .trim()
-      .toLowerCase();
+  const role = String(user?.role || "")
+    .trim()
+    .toLowerCase();
 
-  const isStudent =
-    role === "student";
-
-  const isInstructor =
-    role === "instructor";
-
-  const isReceptionist =
-    role === "receptionist";
+  const isStudent = role === "student";
+  const isInstructor = role === "instructor";
+  const isReceptionist = role === "receptionist";
 
   const isAdministrator =
     role === "administrator" ||
     role === "admin" ||
     role === "system administrator";
 
-  // ===================================================
-  // CLOSE MOBILE MENU
-  // ===================================================
-
-  const closeMobileMenu = () => {
-
-    setMobileOpen(false);
-
-  };
+  const closeMobileMenu = () => setMobileOpen(false);
 
   // ===================================================
   // LOGOUT
   // ===================================================
 
   const handleLogout = () => {
-
-    localStorage.removeItem(
-      "loggedIn"
-    );
-
-    localStorage.removeItem(
-      "user"
-    );
-
-    localStorage.removeItem(
-      "token"
-    );
-
+    localStorage.removeItem("loggedIn");
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     sessionStorage.clear();
 
-    navigate(
-      "/",
-      {
-        replace: true,
-      }
-    );
-
+    navigate("/", { replace: true });
   };
 
   // ===================================================
-  // NAVIGATION STYLE
+  // NAVIGATION LINK STYLE
   // ===================================================
 
-  const getNavStyle = ({
-    isActive,
-  }: {
-    isActive: boolean;
-  }) => {
-
-    return {
-
-      display: "flex",
-
-      alignItems: "center",
-
-      gap: "12px",
-
-      textDecoration: "none",
-
-      color: "#fff",
-
-      padding: "14px 20px",
-
-      marginBottom: "6px",
-
-      borderRadius: "8px",
-
-      fontSize: "18px",
-
-      fontWeight: 500,
-
-      backgroundColor:
-        isActive
-          ? "#2867e8"
-          : "transparent",
-
-      transition:
-        "background-color 0.2s ease",
-
-    };
-
-  };
+  const getNavStyle = ({ isActive }: { isActive: boolean }) => ({
+    display: "flex",
+    alignItems: "center",
+    gap: "13px",
+    textDecoration: "none",
+    color: "#FFFFFF",
+    padding: "12px 15px",
+    marginBottom: "5px",
+    borderRadius: "10px",
+    fontSize: "15px",
+    fontWeight: isActive ? 700 : 500,
+    backgroundColor: isActive
+      ? "#2867E8"
+      : "transparent",
+    boxShadow: isActive
+      ? "0 4px 12px rgba(0,0,0,0.12)"
+      : "none",
+    transition: "background-color 0.2s ease",
+  });
 
   // ===================================================
-  // RETURN
+  // NAVIGATION LINK
   // ===================================================
 
-  return (
+  const renderLink = (
+    to: string,
+    label: string,
+    icon: React.ReactNode
+  ) => (
+    <NavLink
+      key={to}
+      to={to}
+      end={to === "/dashboard" || to === "/student-dashboard"}
+      style={getNavStyle}
+      onClick={closeMobileMenu}
+    >
+      <Box
+        component="span"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 23,
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
 
+      <span>{label}</span>
+    </NavLink>
+  );
+
+  // ===================================================
+  // SIDEBAR CONTENT
+  // ===================================================
+
+  const sidebarContent = (
     <>
-
-      {/* =================================================
-          MOBILE MENU BUTTON
-      ================================================= */}
+      {/* BRANDING */}
 
       <Box
         sx={{
-          display: {
-            xs: "block",
-            md: "none",
-          },
-
-          position: "fixed",
-
-          top: 12,
-
-          left: 12,
-
-          zIndex: 1500,
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          mb: 3,
+          px: 0.5,
         }}
       >
-
-        <IconButton
-          onClick={() =>
-            setMobileOpen(true)
-          }
-          sx={{
-            backgroundColor: "#233f8f",
-
-            color: "#fff",
-
-            width: 46,
-
-            height: 46,
-
-            boxShadow:
-              "0 3px 10px rgba(0,0,0,0.25)",
-
-            "&:hover": {
-              backgroundColor: "#1b3273",
-            },
-          }}
-        >
-
-          <MenuIcon />
-
-        </IconButton>
-
-      </Box>
-
-      {/* =================================================
-          MOBILE OVERLAY
-      ================================================= */}
-
-      {mobileOpen && (
-
         <Box
-          onClick={closeMobileMenu}
+          component="img"
+          src={logo}
+          alt="DrivePro-SA logo"
           sx={{
-            display: {
-              xs: "block",
-              md: "none",
-            },
-
-            position: "fixed",
-
-            inset: 0,
-
-            backgroundColor:
-              "rgba(0,0,0,0.45)",
-
-            zIndex: 1299,
+            width: 56,
+            height: 56,
+            objectFit: "contain",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "12px",
+            p: "4px",
+            boxSizing: "border-box",
+            flexShrink: 0,
           }}
         />
 
-      )}
-
-      {/* =================================================
-          SIDEBAR
-      ================================================= */}
-
-      <Box
-        sx={{
-
-          width: {
-            xs: mobileOpen ? 285 : 0,
-            md: 300,
-          },
-
-          minWidth: {
-            xs: mobileOpen ? 285 : 0,
-            md: 300,
-          },
-
-          minHeight: "100vh",
-
-          height: {
-            xs: "100vh",
-            md: "auto",
-          },
-
-          position: {
-            xs: "fixed",
-            md: "static",
-          },
-
-          top: 0,
-
-          left: 0,
-
-          zIndex: 1400,
-
-          overflowY: "auto",
-
-          overflowX: "hidden",
-
-          backgroundColor: "#233f8f",
-
-          color: "#fff",
-
-          padding: {
-            xs: mobileOpen ? "20px" : 0,
-            md: "24px",
-          },
-
-          boxSizing: "border-box",
-
-          display: "flex",
-
-          flexDirection: "column",
-
-          transition:
-            "width 0.25s ease, min-width 0.25s ease, padding 0.25s ease",
-
-          boxShadow: {
-            xs: mobileOpen
-              ? "4px 0 15px rgba(0,0,0,0.25)"
-              : "none",
-
-            md: "none",
-          },
-
-        }}
-      >
-
-        {/* =================================================
-            MOBILE CLOSE BUTTON
-        ================================================= */}
-
-        <Box
-          sx={{
-            display: {
-              xs: "flex",
-              md: "none",
-            },
-
-            justifyContent: "flex-end",
-
-            mb: 1,
-          }}
-        >
-
-          <IconButton
-            onClick={closeMobileMenu}
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
             sx={{
-              color: "#fff",
+              color: "#FFFFFF",
+              fontWeight: 800,
+              fontSize: "19px",
+              lineHeight: 1.2,
             }}
           >
-
-            <CloseIcon />
-
-          </IconButton>
-
-        </Box>
-
-        {/* =========================================
-            LOGO / TITLE
-        ========================================== */}
-
-        <Box
-          sx={{
-            textAlign: "center",
-
-            mb: 3,
-
-            minWidth: 245,
-          }}
-        >
-
-          <Typography
-            variant="h5"
-            fontWeight="bold"
-          >
-            🚗 DrivePro-SA
+            DrivePro-SA
           </Typography>
 
           <Typography
-            variant="body2"
             sx={{
-              opacity: 0.8,
-
+              color: "#CBD5E1",
+              fontSize: "11px",
               mt: 0.5,
+              lineHeight: 1.4,
             }}
           >
             Driving School Management
           </Typography>
-
         </Box>
+      </Box>
 
-        {/* =========================================
-            STUDENT MENU
-        ========================================== */}
+      {/* NAVIGATION */}
 
-        {isStudent && (
+      <Typography
+        sx={{
+          color: "#AFC5F4",
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "1.4px",
+          px: 1.5,
+          mb: 1,
+        }}
+      >
+        MAIN MENU
+      </Typography>
 
-          <>
+      {isStudent ? (
+        <>
+          {renderLink(
+            "/student-dashboard",
+            "Dashboard",
+            <DashboardRoundedIcon />
+          )}
 
-            {/* STUDENT DASHBOARD */}
+          {renderLink(
+            "/student-lessons",
+            "My Lessons",
+            <CalendarMonthRoundedIcon />
+          )}
 
-            <NavLink
-              to="/student-dashboard"
-              style={getNavStyle}
-              onClick={closeMobileMenu}
-            >
-              🏠
-              <span>
-                Dashboard
-              </span>
-            </NavLink>
+          {renderLink(
+            "/student-test-bookings",
+            "My Tests",
+            <AssignmentRoundedIcon />
+          )}
 
-            {/* STUDENT LESSONS */}
+          {renderLink(
+            "/student-profile",
+            "My Profile",
+            <PersonRoundedIcon />
+          )}
 
-            <NavLink
-              to="/student-lessons"
-              style={getNavStyle}
-              onClick={closeMobileMenu}
-            >
-              📅
-              <span>
-                My Lessons
-              </span>
-            </NavLink>
+          {renderLink(
+            "/student-payments",
+            "My Payments",
+            <PaymentsRoundedIcon />
+          )}
+        </>
+      ) : (
+        <>
+          {renderLink(
+            "/dashboard",
+            "Dashboard",
+            <DashboardRoundedIcon />
+          )}
 
-            {/* STUDENT TEST BOOKINGS */}
+          {(isAdministrator || isReceptionist || isInstructor) && (
+            <>
+              {renderLink(
+                "/students",
+                "Students",
+                <SchoolRoundedIcon />
+              )}
 
-            <NavLink
-              to="/student-test-bookings"
-              style={getNavStyle}
-              onClick={closeMobileMenu}
-            >
-              📝
-              <span>
-                My Tests
-              </span>
-            </NavLink>
+              {renderLink(
+                "/lessons",
+                "Lesson Bookings",
+                <CalendarMonthRoundedIcon />
+              )}
 
-            {/* STUDENT PROFILE */}
+              {renderLink(
+                "/test-bookings",
+                "Test Bookings",
+                <AssignmentRoundedIcon />
+              )}
 
-            <NavLink
-              to="/student-profile"
-              style={getNavStyle}
-              onClick={closeMobileMenu}
-            >
-              👤
-              <span>
-                My Profile
-              </span>
-            </NavLink>
+              {renderLink(
+                "/vehicles",
+                "Vehicles",
+                <DirectionsCarRoundedIcon />
+              )}
+            </>
+          )}
 
-            {/* STUDENT PAYMENTS */}
+          {(isAdministrator || isReceptionist) && (
+            <>
+              {renderLink(
+                "/instructors",
+                "Instructors",
+                <GroupsRoundedIcon />
+              )}
 
-            <NavLink
-              to="/student-payments"
-              style={getNavStyle}
-              onClick={closeMobileMenu}
-            >
-              💳
-              <span>
-                My Payments
-              </span>
-            </NavLink>
+              {renderLink(
+                "/payments",
+                "Payments",
+                <PaymentsRoundedIcon />
+              )}
 
-          </>
+              {renderLink(
+                "/reports",
+                "Reports",
+                <BarChartRoundedIcon />
+              )}
+            </>
+          )}
 
-        )}
+          {isAdministrator && (
+            <>
+              {renderLink(
+                "/users",
+                "Users",
+                <PeopleRoundedIcon />
+              )}
 
-        {/* =========================================
-            ADMIN / RECEPTIONIST / INSTRUCTOR MENU
-        ========================================== */}
+              {renderLink(
+                "/settings",
+                "Settings",
+                <SettingsRoundedIcon />
+              )}
+            </>
+          )}
 
-        {!isStudent && (
-
-          <>
-
-            {/* DASHBOARD */}
-
-            <NavLink
-              to="/dashboard"
-              style={getNavStyle}
-              onClick={closeMobileMenu}
-            >
-              🏠
-              <span>
-                Dashboard
-              </span>
-            </NavLink>
-
-            {/* STUDENTS */}
-
-            {(
-              isAdministrator ||
-              isReceptionist ||
-              isInstructor
-            ) && (
-
-              <NavLink
-                to="/students"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                🎓
-                <span>
-                  Students
-                </span>
-              </NavLink>
-
+          {role === "system administrator" &&
+            renderLink(
+              "/schools",
+              "Schools",
+              <SchoolRoundedIcon />
             )}
+        </>
+      )}
 
-            {/* LESSON BOOKINGS */}
+      {/* USER INFORMATION */}
 
-            {(
-              isAdministrator ||
-              isReceptionist ||
-              isInstructor
-            ) && (
-
-              <NavLink
-                to="/lessons"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                📅
-                <span>
-                  Lesson Bookings
-                </span>
-              </NavLink>
-
-            )}
-
-            {/* TEST BOOKINGS */}
-
-            {(
-              isAdministrator ||
-              isReceptionist ||
-              isInstructor
-            ) && (
-
-              <NavLink
-                to="/test-bookings"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                📝
-                <span>
-                  Test Bookings
-                </span>
-              </NavLink>
-
-            )}
-
-            {/* VEHICLES */}
-
-            {(
-              isAdministrator ||
-              isReceptionist ||
-              isInstructor
-            ) && (
-
-              <NavLink
-                to="/vehicles"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                🚗
-                <span>
-                  Vehicles
-                </span>
-              </NavLink>
-
-            )}
-
-            {/* INSTRUCTORS */}
-
-            {(
-              isAdministrator ||
-              isReceptionist
-            ) && (
-
-              <NavLink
-                to="/instructors"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                👨‍🏫
-                <span>
-                  Instructors
-                </span>
-              </NavLink>
-
-            )}
-
-            {/* PAYMENTS */}
-
-            {(
-              isAdministrator ||
-              isReceptionist
-            ) && (
-
-              <NavLink
-                to="/payments"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                💳
-                <span>
-                  Payments
-                </span>
-              </NavLink>
-
-            )}
-
-            {/* REPORTS */}
-
-            {(
-              isAdministrator ||
-              isReceptionist
-            ) && (
-
-              <NavLink
-                to="/reports"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                📊
-                <span>
-                  Reports
-                </span>
-              </NavLink>
-
-            )}
-
-            {/* USERS */}
-
-            {isAdministrator && (
-
-              <NavLink
-                to="/users"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                👥
-                <span>
-                  Users
-                </span>
-              </NavLink>
-
-            )}
-
-            {/* SCHOOLS */}
-
-            {role ===
-              "system administrator" && (
-
-              <NavLink
-                to="/schools"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                🏫
-                <span>
-                  Schools
-                </span>
-              </NavLink>
-
-            )}
-
-            {/* SETTINGS */}
-
-            {isAdministrator && (
-
-              <NavLink
-                to="/settings"
-                style={getNavStyle}
-                onClick={closeMobileMenu}
-              >
-                ⚙️
-                <span>
-                  Settings
-                </span>
-              </NavLink>
-
-            )}
-
-          </>
-
-        )}
-
-        {/* =========================================
-            USER INFORMATION
-        ========================================== */}
-
+      <Box
+        sx={{
+          mt: "auto",
+          pt: 3,
+        }}
+      >
         <Box
           sx={{
-            mt: "auto",
-
-            pt: 3,
-
-            minWidth: 245,
+            backgroundColor: "rgba(255,255,255,0.09)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: "12px",
+            p: 1.75,
+            mb: 1.5,
+            overflowWrap: "anywhere",
           }}
         >
-
           <Box
             sx={{
-              backgroundColor:
-                "rgba(255,255,255,0.12)",
-
-              borderRadius: "10px",
-
-              padding: "16px",
-
-              mb: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              mb: 1.5,
             }}
           >
-
-            <Typography
-              fontWeight="bold"
-            >
-              👤{" "}
-              {user?.fullname ||
-                user?.username ||
-                "User"}
-            </Typography>
-
-            <Typography
-              variant="body2"
+            <Box
               sx={{
-                mt: 1,
-
-                opacity: 0.9,
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                backgroundColor: "#FFFFFF",
+                color: "#233F8F",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
               }}
             >
-              Username:{" "}
-              {user?.username || "-"}
-            </Typography>
+              <PersonRoundedIcon />
+            </Box>
 
-            <Typography
-              variant="body2"
-              sx={{
-                mt: 0.5,
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{
+                  color: "#FFFFFF",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                }}
+              >
+                {user?.fullname || user?.username || "User"}
+              </Typography>
 
-                opacity: 0.9,
-              }}
-            >
-              Role:{" "}
-              {user?.role || "-"}
-            </Typography>
-
-            <Typography
-              variant="body2"
-              sx={{
-                mt: 0.5,
-
-                opacity: 0.9,
-              }}
-            >
-              School ID:{" "}
-              {user?.school_id || "-"}
-            </Typography>
-
+              <Typography
+                sx={{
+                  color: "#CBD5E1",
+                  fontSize: "11px",
+                  textTransform: "capitalize",
+                }}
+              >
+                {user?.role || "User"}
+              </Typography>
+            </Box>
           </Box>
 
-          {/* =======================================
-              LOGOUT
-          ======================================== */}
-
-          <Box
-            component="button"
-            onClick={handleLogout}
+          <Typography
             sx={{
-              width: "100%",
+              color: "#CBD5E1",
+              fontSize: "11px",
+            }}
+          >
+            Username: {user?.username || "-"}
+          </Typography>
 
-              border: "none",
+          <Typography
+            sx={{
+              color: "#CBD5E1",
+              fontSize: "11px",
+              mt: 0.5,
+            }}
+          >
+            School ID: {user?.school_id ?? "-"}
+          </Typography>
+        </Box>
 
-              borderRadius: "8px",
+        {/* LOGOUT */}
 
-              padding: "14px",
+        <Box
+          component="button"
+          onClick={handleLogout}
+          sx={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: "10px",
+            py: 1.4,
+            px: 2,
+            backgroundColor: "#DC2626",
+            color: "#FFFFFF",
+            fontSize: "14px",
+            fontWeight: 700,
+            cursor: "pointer",
+            "&:hover": {
+              backgroundColor: "#B91C1C",
+            },
+          }}
+        >
+          <LogoutRoundedIcon fontSize="small" />
+          Logout
+        </Box>
+      </Box>
+    </>
+  );
 
-              backgroundColor: "#e82323",
+  // ===================================================
+  // RENDER
+  // ===================================================
 
-              color: "#fff",
+  return (
+    <>
+      {/* MOBILE MENU BUTTON */}
 
-              fontSize: "17px",
-
-              fontWeight: "bold",
-
-              cursor: "pointer",
-
+      {!mobileOpen && (
+        <Box
+          sx={{
+            display: { xs: "block", md: "none" },
+            position: "fixed",
+            top: 12,
+            left: 12,
+            zIndex: 1500,
+          }}
+        >
+          <IconButton
+            aria-label="Open navigation menu"
+            onClick={() => setMobileOpen(true)}
+            sx={{
+              backgroundColor: "#233F8F",
+              color: "#FFFFFF",
+              width: 46,
+              height: 46,
+              boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
               "&:hover": {
-                backgroundColor:
-                  "#c91d1d",
+                backgroundColor: "#1B3273",
               },
             }}
           >
-            🚪 Logout
-          </Box>
+            <MenuIcon />
+          </IconButton>
+        </Box>
+      )}
 
+      {/* MOBILE OVERLAY */}
+
+      {mobileOpen && (
+        <Box
+          onClick={closeMobileMenu}
+          sx={{
+            display: { xs: "block", md: "none" },
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15,23,42,0.55)",
+            zIndex: 1299,
+          }}
+        />
+      )}
+
+      {/* SIDEBAR */}
+
+      <Box
+        component="aside"
+        sx={{
+          width: { xs: mobileOpen ? 285 : 0, md: 285 },
+          minWidth: { xs: mobileOpen ? 285 : 0, md: 285 },
+          height: { xs: "100vh", md: "100vh" },
+          minHeight: { xs: "100vh", md: "100vh" },
+          position: { xs: "fixed", md: "sticky" },
+          top: 0,
+          left: 0,
+          zIndex: 1400,
+          overflowY: "auto",
+          overflowX: "hidden",
+          backgroundColor: "#172554",
+          backgroundImage:
+            "linear-gradient(180deg, #172554 0%, #233F8F 100%)",
+          color: "#FFFFFF",
+          p: { xs: mobileOpen ? 2.5 : 0, md: 2.5 },
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          flexShrink: 0,
+          transition:
+            "width 0.25s ease, min-width 0.25s ease, padding 0.25s ease",
+          boxShadow: {
+            xs: mobileOpen
+              ? "4px 0 15px rgba(0,0,0,0.25)"
+              : "none",
+            md: "2px 0 12px rgba(15,23,42,0.08)",
+          },
+          ...(mobileOpen
+            ? {}
+            : {
+                "@media (max-width:899.95px)": {
+                  visibility: "hidden",
+                  padding: 0,
+                },
+              }),
+        }}
+      >
+        {/* MOBILE CLOSE BUTTON */}
+
+        <Box
+          sx={{
+            display: { xs: "flex", md: "none" },
+            justifyContent: "flex-end",
+            mb: 1,
+          }}
+        >
+          <IconButton
+            aria-label="Close navigation menu"
+            onClick={closeMobileMenu}
+            sx={{ color: "#FFFFFF" }}
+          >
+            <CloseIcon />
+          </IconButton>
         </Box>
 
+        {sidebarContent}
       </Box>
-
     </>
   );
 }

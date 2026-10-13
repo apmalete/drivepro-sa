@@ -75,7 +75,7 @@ interface CurrentUser {
 }
 
 // =====================================================
-// DESIGN COLOURS
+// DESIGN
 // =====================================================
 
 const COLORS = {
@@ -115,9 +115,9 @@ function StatCard({
     <Paper
       elevation={0}
       sx={{
-        p: { xs: 2, sm: 2.5 },
+        p: 2,
         minWidth: 0,
-        minHeight: 145,
+        minHeight: 112,
         height: "100%",
         boxSizing: "border-box",
         border: `1px solid ${COLORS.border}`,
@@ -134,7 +134,7 @@ function StatCard({
         direction="row"
         justifyContent="space-between"
         alignItems="flex-start"
-        spacing={1.5}
+        spacing={1}
       >
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
@@ -142,10 +142,8 @@ function StatCard({
             sx={{
               color: COLORS.muted,
               fontWeight: 500,
-              lineHeight: 1.5,
-              mb: 1.5,
-              overflowWrap: "normal",
-              wordBreak: "normal",
+              lineHeight: 1.4,
+              mb: 1,
             }}
           >
             {title}
@@ -154,9 +152,9 @@ function StatCard({
           <Typography
             sx={{
               color: COLORS.text,
-              fontSize: { xs: "1.4rem", md: "1.7rem" },
+              fontSize: { xs: "1.35rem", md: "1.6rem" },
               fontWeight: 750,
-              lineHeight: 1.35,
+              lineHeight: 1.3,
               overflowWrap: "anywhere",
             }}
           >
@@ -169,8 +167,8 @@ function StatCard({
               sx={{
                 display: "block",
                 color: COLORS.muted,
-                mt: 1,
-                lineHeight: 1.5,
+                mt: 0.75,
+                lineHeight: 1.4,
               }}
             >
               {description}
@@ -180,8 +178,8 @@ function StatCard({
 
         <Box
           sx={{
-            width: 44,
-            height: 44,
+            width: 40,
+            height: 40,
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
@@ -189,7 +187,7 @@ function StatCard({
             borderRadius: 2.5,
             color: accent,
             backgroundColor: `${accent}14`,
-            "& .MuiSvgIcon-root": { fontSize: 24 },
+            "& .MuiSvgIcon-root": { fontSize: 22 },
           }}
         >
           {icon}
@@ -312,7 +310,7 @@ function Dashboard() {
     }
   };
 
-  // STATISTICS
+  // SCHOOL OVERVIEW
 
   const mainStats = [
     {
@@ -340,6 +338,8 @@ function Dashboard() {
       accent: COLORS.orange,
     },
   ];
+
+  // LESSON STATISTICS
 
   const lessonStats = [
     {
@@ -378,10 +378,10 @@ function Dashboard() {
     color: COLORS.navy,
     fontWeight: 700,
     lineHeight: 1.4,
-    mb: 2,
+    mb: 1.75,
   };
 
-  // PAGE
+  // PAGE LAYOUT
 
   return (
     <Box
@@ -406,111 +406,123 @@ function Dashboard() {
         <Box
           component="main"
           sx={{
-            p: { xs: 2, sm: 3, lg: 4 },
+            p: { xs: 2, sm: 2.5, lg: 3 },
             width: "100%",
             maxWidth: 1800,
             mx: "auto",
             boxSizing: "border-box",
           }}
         >
-          {/* WELCOME SECTION */}
+          {/* WELCOME BANNER - NO CAR IMAGE */}
 
-          <Box
+          <Paper
+            elevation={0}
             sx={{
+              position: "relative",
+              overflow: "hidden",
+              mb: 3,
+              p: { xs: 2.5, sm: 3, lg: 3.5 },
+              minHeight: 235,
               display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              alignItems: { xs: "stretch", md: "center" },
-              justifyContent: "space-between",
-              gap: 2,
-              mb: 4,
+              alignItems: "center",
+              borderRadius: 4,
+              border: "1px solid #D9E6FA",
+              background:
+                "linear-gradient(115deg, #FFFFFF 0%, #F0F6FF 60%, #DCEAFF 100%)",
             }}
           >
-            <Box sx={{ minWidth: 0 }}>
-              <Stack
-                direction="row"
-                alignItems="flex-start"
-                spacing={1}
-                sx={{ mb: 1 }}
-              >
-                <DashboardIcon
-                  sx={{
-                    color: COLORS.blue,
-                    fontSize: 29,
-                    flexShrink: 0,
-                    mt: 0.5,
-                  }}
-                />
-
-                <Typography
-                  variant="h4"
-                  sx={{
-                    color: COLORS.navy,
-                    fontWeight: 750,
-                    fontSize: {
-                      xs: "1.55rem",
-                      sm: "1.8rem",
-                      lg: "2rem",
-                    },
-                    lineHeight: 1.3,
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  Welcome, {displayName}
-                </Typography>
-              </Stack>
+            <Box sx={{ width: "100%", maxWidth: 850 }}>
+              <Chip
+                icon={<DashboardIcon />}
+                label="DRIVING SCHOOL DASHBOARD"
+                size="small"
+                sx={{
+                  mb: 1.75,
+                  color: COLORS.blue,
+                  backgroundColor: "#E4EEFF",
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                  "& .MuiChip-icon": { color: COLORS.blue },
+                }}
+              />
 
               <Typography
-                sx={{ color: COLORS.muted, mb: 1, lineHeight: 1.6 }}
+                sx={{
+                  color: COLORS.navy,
+                  fontWeight: 800,
+                  fontSize: {
+                    xs: "1.65rem",
+                    sm: "2rem",
+                    lg: "2.15rem",
+                  },
+                  lineHeight: 1.25,
+                  overflowWrap: "break-word",
+                }}
               >
-                Here is an overview of your driving school.
+                Welcome, {displayName}!
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: COLORS.muted,
+                  mt: 1,
+                  mb: 2,
+                  maxWidth: 600,
+                  lineHeight: 1.65,
+                  fontSize: "0.95rem",
+                }}
+              >
+                Manage your driving school, track lessons, and keep your
+                students moving towards success.
               </Typography>
 
               <Stack
-                direction="row"
-                alignItems="center"
-                spacing={1}
+                direction={{ xs: "column", sm: "row" }}
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                spacing={2}
               >
-                <CalendarMonthOutlinedIcon
-                  sx={{ fontSize: 18, color: COLORS.blue }}
-                />
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <CalendarMonthOutlinedIcon
+                    sx={{ color: COLORS.blue, fontSize: 20 }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{ color: COLORS.navy, fontWeight: 600 }}
+                  >
+                    {today}
+                  </Typography>
+                </Stack>
 
-                <Typography variant="body2" sx={{ color: COLORS.muted }}>
-                  {today}
-                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={
+                    loading ? (
+                      <CircularProgress size={17} color="inherit" />
+                    ) : (
+                      <RefreshIcon />
+                    )
+                  }
+                  onClick={() => void loadAllData()}
+                  disabled={loading}
+                  sx={{
+                    borderRadius: 2,
+                    px: 2,
+                    py: 1,
+                    textTransform: "none",
+                    whiteSpace: "nowrap",
+                    fontWeight: 700,
+                    backgroundColor: COLORS.blue,
+                    boxShadow: "0 5px 14px rgba(40,100,215,0.2)",
+                    "&:hover": {
+                      backgroundColor: COLORS.navy,
+                    },
+                  }}
+                >
+                  {loading ? "Refreshing..." : "Refresh Dashboard"}
+                </Button>
               </Stack>
             </Box>
-
-            <Button
-              variant="outlined"
-              startIcon={
-                loading ? (
-                  <CircularProgress size={17} />
-                ) : (
-                  <RefreshIcon />
-                )
-              }
-              onClick={() => void loadAllData()}
-              disabled={loading}
-              sx={{
-                alignSelf: { xs: "flex-start", md: "center" },
-                flexShrink: 0,
-                borderColor: COLORS.border,
-                color: COLORS.navy,
-                backgroundColor: COLORS.white,
-                borderRadius: 2,
-                px: 2.5,
-                py: 1,
-                textTransform: "none",
-                fontWeight: 600,
-                "&:hover": {
-                  borderColor: COLORS.blue,
-                  backgroundColor: "#EEF4FF",
-                },
-              }}
-            >
-              {loading ? "Refreshing..." : "Refresh"}
-            </Button>
-          </Box>
+          </Paper>
 
           {/* ERROR MESSAGE */}
 
@@ -526,7 +538,6 @@ function Dashboard() {
               }}
             >
               <Typography color="error">{errorMessage}</Typography>
-
               <Button
                 size="small"
                 onClick={() => void loadAllData()}
@@ -539,7 +550,7 @@ function Dashboard() {
 
           {/* SCHOOL OVERVIEW */}
 
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: 3 }}>
             <Typography variant="h6" sx={headingSx}>
               School Overview
             </Typography>
@@ -550,10 +561,9 @@ function Dashboard() {
                 gridTemplateColumns: {
                   xs: "minmax(0, 1fr)",
                   sm: "repeat(2, minmax(0, 1fr))",
-                  lg: "repeat(2, minmax(0, 1fr))",
-                  xl: "repeat(4, minmax(0, 1fr))",
+                  lg: "repeat(4, minmax(0, 1fr))",
                 },
-                gap: 2,
+                gap: 1.5,
                 alignItems: "stretch",
               }}
             >
@@ -567,7 +577,7 @@ function Dashboard() {
 
           {/* LESSON STATISTICS */}
 
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: 3 }}>
             <Typography variant="h6" sx={headingSx}>
               Lesson Statistics
             </Typography>
@@ -578,13 +588,10 @@ function Dashboard() {
                 gridTemplateColumns: {
                   xs: "minmax(0, 1fr)",
                   sm: "repeat(2, minmax(0, 1fr))",
-                  lg: "repeat(3, minmax(0, 1fr))",
-                  xl: "repeat(3, minmax(0, 1fr))",
-                  "@media (min-width:1600px)": {
-                    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-                  },
+                  md: "repeat(3, minmax(0, 1fr))",
+                  xl: "repeat(5, minmax(0, 1fr))",
                 },
-                gap: 2,
+                gap: 1.5,
                 alignItems: "stretch",
               }}
             >
@@ -599,7 +606,7 @@ function Dashboard() {
           {/* FINANCIAL OVERVIEW */}
 
           {!isRestrictedRole && (
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 3 }}>
               <Typography variant="h6" sx={headingSx}>
                 Financial Overview
               </Typography>
@@ -611,7 +618,7 @@ function Dashboard() {
                     xs: "minmax(0, 1fr)",
                     md: "repeat(2, minmax(0, 1fr))",
                   },
-                  gap: 2,
+                  gap: 1.5,
                   alignItems: "stretch",
                 }}
               >
@@ -647,7 +654,7 @@ function Dashboard() {
                 xs: "minmax(0, 1fr)",
                 lg: "minmax(0, 1.8fr) minmax(260px, 1fr)",
               },
-              gap: 3,
+              gap: 2,
               alignItems: "start",
             }}
           >
@@ -665,7 +672,7 @@ function Dashboard() {
             >
               <Box
                 sx={{
-                  p: 2.5,
+                  p: 2,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -683,8 +690,8 @@ function Dashboard() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      width: 42,
-                      height: 42,
+                      width: 40,
+                      height: 40,
                       flexShrink: 0,
                       borderRadius: 2,
                       color: COLORS.blue,
@@ -699,13 +706,12 @@ function Dashboard() {
                       sx={{
                         color: COLORS.navy,
                         fontWeight: 700,
-                        fontSize: "1.05rem",
+                        fontSize: "1rem",
                         lineHeight: 1.4,
                       }}
                     >
                       Today's Lessons
                     </Typography>
-
                     <Typography variant="caption" sx={{ color: COLORS.muted }}>
                       Scheduled driving sessions
                     </Typography>
@@ -731,52 +737,57 @@ function Dashboard() {
                   size="small"
                   sx={{
                     width: "100%",
-                    minWidth: 650,
-                    tableLayout: "auto",
+                    minWidth: 620,
                     "& .MuiTableCell-root": {
                       borderColor: COLORS.border,
-                      py: 1.5,
+                      py: 1.25,
                       px: 1.5,
                     },
                   }}
                 >
                   <TableHead>
                     <TableRow sx={{ backgroundColor: "#F8FAFD" }}>
-                      {["Time", "Student", "Instructor", "Vehicle", "Status"].map(
-                        (heading) => (
-                          <TableCell key={heading}>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                color: COLORS.muted,
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                                letterSpacing: 0.3,
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {heading}
-                            </Typography>
-                          </TableCell>
-                        )
-                      )}
+                      {[
+                        "Time",
+                        "Student",
+                        "Instructor",
+                        "Vehicle",
+                        "Status",
+                      ].map((heading) => (
+                        <TableCell key={heading}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: COLORS.muted,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: 0.3,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {heading}
+                          </Typography>
+                        </TableCell>
+                      ))}
                     </TableRow>
                   </TableHead>
 
                   <TableBody>
                     {todaysLessons.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                        <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
                           <CalendarMonthOutlinedIcon
-                            sx={{ fontSize: 36, color: "#98A2B3", mb: 1 }}
+                            sx={{
+                              fontSize: 34,
+                              color: "#98A2B3",
+                              mb: 1,
+                            }}
                           />
-
                           <Typography
                             sx={{ color: COLORS.text, fontWeight: 600 }}
                           >
                             No lessons scheduled
                           </Typography>
-
                           <Typography
                             variant="body2"
                             sx={{ color: COLORS.muted, mt: 0.5 }}
@@ -799,28 +810,21 @@ function Dashboard() {
                               {lesson.lesson_time || "—"}
                             </Typography>
                           </TableCell>
-
                           <TableCell sx={{ whiteSpace: "nowrap" }}>
                             {lesson.student || "—"}
                           </TableCell>
-
                           <TableCell sx={{ whiteSpace: "nowrap" }}>
                             {lesson.instructor || "—"}
                           </TableCell>
-
                           <TableCell sx={{ whiteSpace: "nowrap" }}>
                             {lesson.vehicle || "—"}
                           </TableCell>
-
                           <TableCell sx={{ whiteSpace: "nowrap" }}>
                             <Chip
                               label={lesson.status || "Unknown"}
                               color={getStatusColor(lesson.status)}
                               size="small"
                               variant="outlined"
-                              sx={{
-                                "& .MuiChip-label": { whiteSpace: "nowrap" },
-                              }}
                             />
                           </TableCell>
                         </TableRow>
@@ -836,7 +840,7 @@ function Dashboard() {
             <Paper
               elevation={0}
               sx={{
-                p: 2.5,
+                p: 2,
                 minWidth: 0,
                 border: `1px solid ${COLORS.border}`,
                 borderRadius: 3,
@@ -847,15 +851,15 @@ function Dashboard() {
                 direction="row"
                 alignItems="center"
                 spacing={1.5}
-                sx={{ mb: 2.5 }}
+                sx={{ mb: 2 }}
               >
                 <Box
                   sx={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 42,
-                    height: 42,
+                    width: 40,
+                    height: 40,
                     flexShrink: 0,
                     borderRadius: 2,
                     color: COLORS.orange,
@@ -870,13 +874,12 @@ function Dashboard() {
                     sx={{
                       color: COLORS.navy,
                       fontWeight: 700,
-                      fontSize: "1.05rem",
+                      fontSize: "1rem",
                       lineHeight: 1.4,
                     }}
                   >
                     Quick Actions
                   </Typography>
-
                   <Typography variant="caption" sx={{ color: COLORS.muted }}>
                     Common tasks
                   </Typography>
@@ -893,7 +896,7 @@ function Dashboard() {
             sx={{
               display: "flex",
               justifyContent: "center",
-              mt: 4,
+              mt: 3,
               pb: 1,
               textAlign: "center",
             }}
