@@ -1,3 +1,4 @@
+
 import Settings from "./pages/Settings";
 import type { ReactNode } from "react";
 
@@ -20,6 +21,7 @@ import Sidebar from "./Components/Sidebar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Students from "./pages/Students";
+import StudentProgress from "./pages/StudentProgress";
 import Lessons from "./pages/LessonBookings";
 import TestBookings from "./pages/TestBookings";
 import Instructors from "./pages/Instructors";
@@ -52,8 +54,7 @@ type UserRole =
 // ==========================================
 
 const getCurrentUser = () => {
-  const storedUser =
-    localStorage.getItem("user");
+  const storedUser = localStorage.getItem("user");
 
   if (!storedUser) {
     return null;
@@ -62,11 +63,7 @@ const getCurrentUser = () => {
   try {
     return JSON.parse(storedUser);
   } catch (error) {
-    console.error(
-      "ERROR READING USER:",
-      error
-    );
-
+    console.error("ERROR READING USER:", error);
     return null;
   }
 };
@@ -75,12 +72,8 @@ const getCurrentUser = () => {
 // NORMALIZE ROLE
 // ==========================================
 
-const getUserRole = (
-  role?: string
-): string => {
-  return String(role || "")
-    .trim()
-    .toLowerCase();
+const getUserRole = (role?: string): string => {
+  return String(role || "").trim().toLowerCase();
 };
 
 // ==========================================
@@ -92,22 +85,11 @@ function ProtectedRoute({
 }: {
   children: ReactNode;
 }) {
-  const loggedIn =
-    localStorage.getItem("loggedIn");
+  const loggedIn = localStorage.getItem("loggedIn");
+  const user = getCurrentUser();
 
-  const user =
-    getCurrentUser();
-
-  if (
-    loggedIn !== "true" ||
-    !user
-  ) {
-    return (
-      <Navigate
-        to="/"
-        replace
-      />
-    );
+  if (loggedIn !== "true" || !user) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -124,42 +106,22 @@ function RoleRoute({
   allowedRoles: UserRole[];
   children: ReactNode;
 }) {
-  const loggedIn =
-    localStorage.getItem("loggedIn");
+  const loggedIn = localStorage.getItem("loggedIn");
+  const user = getCurrentUser();
 
-  const user =
-    getCurrentUser();
-
-  if (
-    loggedIn !== "true" ||
-    !user
-  ) {
-    return (
-      <Navigate
-        to="/"
-        replace
-      />
-    );
+  if (loggedIn !== "true" || !user) {
+    return <Navigate to="/" replace />;
   }
 
-  const currentRole =
-    getUserRole(user.role);
+  const currentRole = getUserRole(user.role);
 
-  const hasPermission =
-    allowedRoles.some(
-      (allowedRole) =>
-        getUserRole(
-          allowedRole
-        ) === currentRole
-    );
+  const hasPermission = allowedRoles.some(
+    (allowedRole) =>
+      getUserRole(allowedRole) === currentRole
+  );
 
   if (!hasPermission) {
-    return (
-      <Navigate
-        to="/dashboard"
-        replace
-      />
-    );
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -174,34 +136,17 @@ function StudentRoute({
 }: {
   children: ReactNode;
 }) {
-  const loggedIn =
-    localStorage.getItem("loggedIn");
+  const loggedIn = localStorage.getItem("loggedIn");
+  const user = getCurrentUser();
 
-  const user =
-    getCurrentUser();
-
-  if (
-    loggedIn !== "true" ||
-    !user
-  ) {
-    return (
-      <Navigate
-        to="/"
-        replace
-      />
-    );
+  if (loggedIn !== "true" || !user) {
+    return <Navigate to="/" replace />;
   }
 
-  const role =
-    getUserRole(user.role);
+  const role = getUserRole(user.role);
 
   if (role !== "student") {
-    return (
-      <Navigate
-        to="/dashboard"
-        replace
-      />
-    );
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -225,15 +170,7 @@ function StudentLayout({
         background: "#f5f7fb",
       }}
     >
-      {/* =====================================
-          STUDENT SIDEBAR
-      ====================================== */}
-
       <Sidebar />
-
-      {/* =====================================
-          STUDENT PAGE CONTENT
-      ====================================== */}
 
       <main
         style={{
@@ -255,19 +192,14 @@ function StudentLayout({
 export default function App() {
   return (
     <Routes>
-
-      {/* =====================================
-          LOGIN
-      ====================================== */}
+      {/* LOGIN */}
 
       <Route
         path="/"
         element={<Login />}
       />
 
-      {/* =====================================
-          NORMAL DASHBOARD
-      ====================================== */}
+      {/* NORMAL DASHBOARD */}
 
       <Route
         path="/dashboard"
@@ -278,9 +210,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          STUDENT DASHBOARD
-      ====================================== */}
+      {/* STUDENT DASHBOARD */}
 
       <Route
         path="/student-dashboard"
@@ -293,9 +223,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          STUDENT LESSONS
-      ====================================== */}
+      {/* STUDENT LESSONS */}
 
       <Route
         path="/student-lessons"
@@ -308,9 +236,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          STUDENT TEST BOOKINGS
-      ====================================== */}
+      {/* STUDENT TEST BOOKINGS */}
 
       <Route
         path="/student-test-bookings"
@@ -323,9 +249,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          STUDENT PROFILE
-      ====================================== */}
+      {/* STUDENT PROFILE */}
 
       <Route
         path="/student-profile"
@@ -338,9 +262,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          STUDENT PAYMENTS
-      ====================================== */}
+      {/* STUDENT PAYMENTS */}
 
       <Route
         path="/student-payments"
@@ -353,9 +275,25 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          STUDENTS
-      ====================================== */}
+      {/* STUDENT PROGRESS */}
+
+      <Route
+        path="/student-progress"
+        element={
+          <RoleRoute
+            allowedRoles={[
+              "System Administrator",
+              "Administrator",
+              "Admin",
+              "Instructor",
+            ]}
+          >
+            <StudentProgress />
+          </RoleRoute>
+        }
+      />
+
+      {/* STUDENTS */}
 
       <Route
         path="/students"
@@ -374,9 +312,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          LESSONS
-      ====================================== */}
+      {/* LESSONS */}
 
       <Route
         path="/lessons"
@@ -395,9 +331,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          TEST BOOKINGS
-      ====================================== */}
+      {/* TEST BOOKINGS */}
 
       <Route
         path="/test-bookings"
@@ -416,9 +350,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          INSTRUCTORS
-      ====================================== */}
+      {/* INSTRUCTORS */}
 
       <Route
         path="/instructors"
@@ -436,9 +368,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          VEHICLES
-      ====================================== */}
+      {/* VEHICLES */}
 
       <Route
         path="/vehicles"
@@ -457,9 +387,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          USERS
-      ====================================== */}
+      {/* USERS */}
 
       <Route
         path="/users"
@@ -476,9 +404,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          PAYMENTS
-      ====================================== */}
+      {/* PAYMENTS */}
 
       <Route
         path="/payments"
@@ -496,9 +422,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          REPORTS
-      ====================================== */}
+      {/* REPORTS */}
 
       <Route
         path="/reports"
@@ -516,9 +440,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          SCHOOLS
-      ====================================== */}
+      {/* SCHOOLS */}
 
       <Route
         path="/schools"
@@ -533,9 +455,7 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          SETTINGS
-      ====================================== */}
+      {/* SETTINGS */}
 
       <Route
         path="/settings"
@@ -552,20 +472,12 @@ export default function App() {
         }
       />
 
-      {/* =====================================
-          CATCH ALL
-      ====================================== */}
+      {/* CATCH ALL */}
 
       <Route
         path="*"
-        element={
-          <Navigate
-            to="/"
-            replace
-          />
-        }
+        element={<Navigate to="/" replace />}
       />
-
     </Routes>
   );
 }

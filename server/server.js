@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 
 import express from "express";
@@ -8,6 +9,7 @@ import cors from "cors";
 import fs from "fs";
 
 import "./database/database.js";
+import "./studentProgressDatabase.js";
 
 // =====================================
 // WHATSAPP
@@ -61,6 +63,15 @@ import {
   updateStudent,
   deleteStudent,
 } from "./controllers/studentsController.js";
+
+// =====================================
+// STUDENT PROGRESS
+// =====================================
+
+import {
+  getStudentProgress,
+  addStudentProgress,
+} from "./controllers/studentProgressController.js";
 
 // =====================================
 // LESSONS
@@ -173,11 +184,8 @@ const app = express();
 // PATHS
 // =====================================
 
-const __filename =
-  fileURLToPath(import.meta.url);
-
-const __dirname =
-  path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // =====================================
 // CORS
@@ -186,13 +194,13 @@ const __dirname =
 app.use(
   cors({
     origin: [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://10.91.17.61:5173",
-  "https://drivepro-sa-production.up.railway.app",
-  "https://drivepro-sa.co.za",
-  "https://www.drivepro-sa.co.za",
-],
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://10.91.17.61:5173",
+      "https://drivepro-sa-production.up.railway.app",
+      "https://drivepro-sa.co.za",
+      "https://www.drivepro-sa.co.za",
+    ],
     methods: [
       "GET",
       "POST",
@@ -201,12 +209,10 @@ app.use(
       "DELETE",
       "OPTIONS",
     ],
-
     allowedHeaders: [
       "Content-Type",
       "Authorization",
     ],
-
     optionsSuccessStatus: 204,
   })
 );
@@ -223,42 +229,23 @@ app.use(express.json());
 
 app.use(
   "/uploads",
-  express.static(
-    path.join(
-      __dirname,
-      "uploads"
-    )
-  )
+  express.static(path.join(__dirname, "uploads"))
 );
 
 // =====================================
 // FRONTEND
 // =====================================
 
-const frontendPath =
-  path.join(
-    __dirname,
-    "..",
-    "dist"
-  );
+const frontendPath = path.join(__dirname, "..", "dist");
 
-app.use(
-  express.static(
-    frontendPath
-  )
-);
+app.use(express.static(frontendPath));
 
 // =====================================
 // HOME
 // =====================================
 
 app.get("/", (req, res) => {
-  res.sendFile(
-    path.join(
-      frontendPath,
-      "index.html"
-    )
-  );
+  res.sendFile(path.join(frontendPath, "index.html"));
 });
 
 // =====================================
@@ -280,17 +267,12 @@ app.get(
   "/whatsapp/status",
   authenticateUser,
   (req, res) => {
-
     res.json({
       success: true,
-
-      configured:
-        isWhatsAppConfigured(),
-
-      message:
-        isWhatsAppConfigured()
-          ? "WhatsApp is configured."
-          : "WhatsApp access token is not configured yet.",
+      configured: isWhatsAppConfigured(),
+      message: isWhatsAppConfigured()
+        ? "WhatsApp is configured."
+        : "WhatsApp access token is not configured yet.",
     });
   }
 );
@@ -303,24 +285,17 @@ app.post(
   "/whatsapp/test",
   authenticateUser,
   async (req, res) => {
-
     try {
-
-      const {
-        phoneNumber,
-      } = req.body;
+      const { phoneNumber } = req.body;
 
       if (!phoneNumber) {
-
         return res.status(400).json({
           success: false,
-          message:
-            "Phone number is required.",
+          message: "Phone number is required.",
         });
       }
 
       if (!isWhatsAppConfigured()) {
-
         return res.status(400).json({
           success: false,
           message:
@@ -328,24 +303,15 @@ app.post(
         });
       }
 
-      const result =
-        await sendDriveProTestMessage(
-          phoneNumber
-        );
+      const result = await sendDriveProTestMessage(phoneNumber);
 
       return res.json({
         success: true,
-        message:
-          "WhatsApp test message sent.",
+        message: "WhatsApp test message sent.",
         result,
       });
-
     } catch (error) {
-
-      console.error(
-        "WHATSAPP TEST ERROR:",
-        error
-      );
+      console.error("WHATSAPP TEST ERROR:", error);
 
       return res.status(500).json({
         success: false,
@@ -361,38 +327,23 @@ app.post(
 // SPA FRONTEND ROUTING
 // =====================================
 
-app.use(
-  (req, res, next) => {
-
-    if (
-      req.method === "GET" &&
-      req.headers[
-        "sec-fetch-dest"
-      ] === "document" &&
-      req.accepts("html")
-    ) {
-
-      return res.sendFile(
-        path.join(
-          frontendPath,
-          "index.html"
-        )
-      );
-    }
-
-    next();
+app.use((req, res, next) => {
+  if (
+    req.method === "GET" &&
+    req.headers["sec-fetch-dest"] === "document" &&
+    req.accepts("html")
+  ) {
+    return res.sendFile(path.join(frontendPath, "index.html"));
   }
-);
+
+  next();
+});
 
 // =====================================
 // DASHBOARD
 // =====================================
 
-app.get(
-  "/dashboard",
-  authenticateUser,
-  getDashboard
-);
+app.get("/dashboard", authenticateUser, getDashboard);
 
 app.get(
   "/dashboard/today-lessons",
@@ -407,53 +358,20 @@ app.get(
 );
 
 // =====================================
-// USERS
+// USERS / LOGIN
 // =====================================
 
-// LOGIN DOES NOT REQUIRE AUTHENTICATION
+app.post("/login", loginUser);
 
-app.post(
-  "/login",
-  loginUser
-);
+app.get("/me", authenticateUser, getMe);
 
-// =====================================
-// CURRENT AUTHENTICATED USER
-// =====================================
+app.get("/users", authenticateUser, getUsers);
 
-app.get(
-  "/me",
-  authenticateUser,
-  getMe
-);
+app.post("/users", authenticateUser, addUser);
 
-// =====================================
-// USERS REQUIRE AUTHENTICATION
-// =====================================
+app.put("/users/:id", authenticateUser, updateUser);
 
-app.get(
-  "/users",
-  authenticateUser,
-  getUsers
-);
-
-app.post(
-  "/users",
-  authenticateUser,
-  addUser
-);
-
-app.put(
-  "/users/:id",
-  authenticateUser,
-  updateUser
-);
-
-app.delete(
-  "/users/:id",
-  authenticateUser,
-  deleteUser
-);
+app.delete("/users/:id", authenticateUser, deleteUser);
 
 // =====================================
 // SETTINGS
@@ -524,39 +442,37 @@ app.delete(
 // STUDENTS
 // =====================================
 
+app.get("/students", authenticateUser, getStudents);
+
+app.post("/students", authenticateUser, addStudent);
+
+app.put("/students/:id", authenticateUser, updateStudent);
+
+app.delete("/students/:id", authenticateUser, deleteStudent);
+
+// =====================================
+// STUDENT PROGRESS
+// =====================================
+
+// Retrieve a student's assessment history
 app.get(
-  "/students",
+  "/student-progress/student/:studentId",
   authenticateUser,
-  getStudents
+  getStudentProgress
 );
 
+// Record a driving skill assessment
 app.post(
-  "/students",
+  "/student-progress",
   authenticateUser,
-  addStudent
-);
-
-app.put(
-  "/students/:id",
-  authenticateUser,
-  updateStudent
-);
-
-app.delete(
-  "/students/:id",
-  authenticateUser,
-  deleteStudent
+  addStudentProgress
 );
 
 // =====================================
 // LESSONS
 // =====================================
 
-app.get(
-  "/lessons",
-  authenticateUser,
-  getLessons
-);
+app.get("/lessons", authenticateUser, getLessons);
 
 app.get(
   "/lessons/student/:studentName",
@@ -564,23 +480,11 @@ app.get(
   getStudentLessons
 );
 
-app.post(
-  "/lessons",
-  authenticateUser,
-  addLesson
-);
+app.post("/lessons", authenticateUser, addLesson);
 
-app.put(
-  "/lessons/:id",
-  authenticateUser,
-  updateLesson
-);
+app.put("/lessons/:id", authenticateUser, updateLesson);
 
-app.delete(
-  "/lessons/:id",
-  authenticateUser,
-  deleteLesson
-);
+app.delete("/lessons/:id", authenticateUser, deleteLesson);
 
 // =====================================
 // TEST BOOKINGS
@@ -626,67 +530,31 @@ app.delete(
 // INSTRUCTORS
 // =====================================
 
-app.get(
-  "/instructors",
-  authenticateUser,
-  getInstructors
-);
+app.get("/instructors", authenticateUser, getInstructors);
 
-app.post(
-  "/instructors",
-  authenticateUser,
-  addInstructor
-);
+app.post("/instructors", authenticateUser, addInstructor);
 
-app.put(
-  "/instructors/:id",
-  authenticateUser,
-  updateInstructor
-);
+app.put("/instructors/:id", authenticateUser, updateInstructor);
 
-app.delete(
-  "/instructors/:id",
-  authenticateUser,
-  deleteInstructor
-);
+app.delete("/instructors/:id", authenticateUser, deleteInstructor);
 
 // =====================================
 // VEHICLES
 // =====================================
 
-app.get(
-  "/vehicles",
-  authenticateUser,
-  getVehicles
-);
+app.get("/vehicles", authenticateUser, getVehicles);
 
-app.post(
-  "/vehicles",
-  authenticateUser,
-  addVehicle
-);
+app.post("/vehicles", authenticateUser, addVehicle);
 
-app.put(
-  "/vehicles/:id",
-  authenticateUser,
-  updateVehicle
-);
+app.put("/vehicles/:id", authenticateUser, updateVehicle);
 
-app.delete(
-  "/vehicles/:id",
-  authenticateUser,
-  deleteVehicle
-);
+app.delete("/vehicles/:id", authenticateUser, deleteVehicle);
 
 // =====================================
 // PAYMENTS
 // =====================================
 
-app.get(
-  "/payments",
-  authenticateUser,
-  getPayments
-);
+app.get("/payments", authenticateUser, getPayments);
 
 app.get(
   "/payments/student/:studentId",
@@ -694,23 +562,11 @@ app.get(
   getStudentPayments
 );
 
-app.post(
-  "/payments",
-  authenticateUser,
-  addPayment
-);
+app.post("/payments", authenticateUser, addPayment);
 
-app.put(
-  "/payments/:id",
-  authenticateUser,
-  updatePayment
-);
+app.put("/payments/:id", authenticateUser, updatePayment);
 
-app.delete(
-  "/payments/:id",
-  authenticateUser,
-  deletePayment
-);
+app.delete("/payments/:id", authenticateUser, deletePayment);
 
 // =====================================
 // REPORTS
@@ -723,77 +579,42 @@ app.get(
 );
 
 // =====================================
-// PHOTO UPLOAD
+// PHOTO UPLOAD DIRECTORY
 // =====================================
 
-const studentUploadDirectory =
-  path.join(
-    __dirname,
-    "uploads",
-    "students"
-  );
+const studentUploadDirectory = path.join(
+  __dirname,
+  "uploads",
+  "students"
+);
 
-if (
-  !fs.existsSync(
-    studentUploadDirectory
-  )
-) {
-
-  fs.mkdirSync(
-    studentUploadDirectory,
-    {
-      recursive: true,
-    }
-  );
+if (!fs.existsSync(studentUploadDirectory)) {
+  fs.mkdirSync(studentUploadDirectory, {
+    recursive: true,
+  });
 }
 
 // =====================================
 // MULTER STORAGE
 // =====================================
 
-const storage =
-  multer.diskStorage({
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, studentUploadDirectory);
+  },
 
-    destination: (
-      req,
-      file,
-      cb
-    ) => {
+  filename: (req, file, cb) => {
+    const uniqueName =
+      Date.now() +
+      "-" +
+      Math.round(Math.random() * 1000000) +
+      path.extname(file.originalname);
 
-      cb(
-        null,
-        studentUploadDirectory
-      );
-    },
+    cb(null, uniqueName);
+  },
+});
 
-    filename: (
-      req,
-      file,
-      cb
-    ) => {
-
-      const uniqueName =
-        Date.now() +
-        "-" +
-        Math.round(
-          Math.random() *
-          1000000
-        ) +
-        path.extname(
-          file.originalname
-        );
-
-      cb(
-        null,
-        uniqueName
-      );
-    },
-  });
-
-const upload =
-  multer({
-    storage,
-  });
+const upload = multer({ storage });
 
 // =====================================
 // STUDENT PHOTO UPLOAD
@@ -804,24 +625,17 @@ app.post(
   authenticateUser,
   upload.single("photo"),
   (req, res) => {
-
     if (!req.file) {
-
       return res.status(400).json({
         success: false,
-        message:
-          "No file uploaded",
+        message: "No file uploaded",
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
-
-      filename:
-        req.file.filename,
-
-      path:
-        `/uploads/students/${req.file.filename}`,
+      filename: req.file.filename,
+      path: `/uploads/students/${req.file.filename}`,
     });
   }
 );
@@ -830,18 +644,12 @@ app.post(
 // 404 HANDLER
 // =====================================
 
-app.use(
-  (req, res) => {
-
-    res.status(404).json({
-      success: false,
-
-      message:
-        `Route not found: ${req.method} ${req.originalUrl}`,
-    });
-  }
-);
-
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
+});
 
 // =====================================
 // SERVER

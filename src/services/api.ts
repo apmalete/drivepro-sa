@@ -1,11 +1,12 @@
+
 import axios from "axios";
 
 // ==========================================
-// DRIVEPRO-SA LOCAL API
+// DRIVEPRO-SA API
 // ==========================================
 
 const api = axios.create({
-  baseURL: "https://drivepro-sa.co.za",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
 });
 
 // ==========================================
@@ -22,9 +23,7 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // ==========================================
@@ -32,9 +31,7 @@ api.interceptors.request.use(
 // ==========================================
 
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");

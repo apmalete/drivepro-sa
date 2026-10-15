@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -75,6 +76,18 @@ interface Payment {
 }
 
 // =====================================================
+// STUDENT DRIVING ASSESSMENT
+// =====================================================
+
+interface StudentAssessment {
+  id?: number;
+  skill: string;
+  status: string;
+  comments?: string;
+  created_at?: string;
+}
+
+// =====================================================
 // HELPERS
 // =====================================================
 
@@ -86,9 +99,7 @@ const formatMoney = (value: number | undefined) => {
 };
 
 const formatDate = (value?: string) => {
-  if (!value) {
-    return "-";
-  }
+  if (!value) return "-";
 
   const date = new Date(value);
 
@@ -101,6 +112,21 @@ const formatDate = (value?: string) => {
     month: "short",
     year: "numeric",
   });
+};
+
+const assessmentColor = (
+  status: string
+): "success" | "info" | "warning" | "default" => {
+  switch (status) {
+    case "Competent":
+      return "success";
+    case "Improving":
+      return "info";
+    case "Needs Practice":
+      return "warning";
+    default:
+      return "default";
+  }
 };
 
 // =====================================================
@@ -120,6 +146,15 @@ export default function StudentDashboard() {
   const [payments, setPayments] =
     useState<Payment[]>([]);
 
+  const [assessments, setAssessments] =
+    useState<StudentAssessment[]>([]);
+
+  const [progressLoading, setProgressLoading] =
+    useState(false);
+
+  const [progressError, setProgressError] =
+    useState("");
+
   const [loading, setLoading] =
     useState(true);
 
@@ -127,19 +162,16 @@ export default function StudentDashboard() {
     useState("");
 
   // ===================================================
-  // RETURN TO LOGIN / LOGOUT
+  // LOGOUT
   // ===================================================
 
   const handleBackToLogin = () => {
-    // Remove authentication information
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("loggedIn");
 
-    // Clear any session information
     sessionStorage.clear();
 
-    // Return to DrivePro-SA login page
     window.location.href = "/";
   };
 
@@ -152,12 +184,9 @@ export default function StudentDashboard() {
       setLoading(true);
       setError("");
 
-      // -----------------------------------------------
       // GET LOGGED-IN STUDENT PROFILE
-      // -----------------------------------------------
 
-      const meResponse =
-        await api.get("/me");
+      const meResponse = await api.get("/me");
 
       const profile =
         meResponse.data?.profile ||
@@ -166,13 +195,10 @@ export default function StudentDashboard() {
 
       setStudent(profile || null);
 
-      // -----------------------------------------------
       // GET STUDENT LESSONS
-      // -----------------------------------------------
 
       try {
-        const lessonData =
-          await getLessons();
+        const lessonData = await getLessons();
 
         setLessons(
           Array.isArray(lessonData)
@@ -188,23 +214,53 @@ export default function StudentDashboard() {
         setLessons([]);
       }
 
-      // -----------------------------------------------
-      // STUDENT ID
-      // -----------------------------------------------
+      // GET LOGGED-IN STUDENT ID
 
-      const studentId =
-        Number(profile?.id);
+      const studentId = Number(profile?.id);
 
-      // -----------------------------------------------
-      // GET TEST BOOKINGS
-      // -----------------------------------------------
+      // GET THIS STUDENT'S DRIVING PROGRESS
 
       if (studentId) {
+        setProgressLoading(true);
+        setProgressError("");
+
         try {
-          const testResponse =
-            await api.get(
-              `/test-bookings/student/${studentId}`
-            );
+          const progressResponse = await api.get(
+            `/student-progress/student/${studentId}`
+          );
+
+          const data = progressResponse.data;
+
+          const records: StudentAssessment[] =
+            Array.isArray(data)
+              ? data
+              : Array.isArray(data?.assessments)
+                ? data.assessments
+                : Array.isArray(data?.progress)
+                  ? data.progress
+                  : [];
+
+          setAssessments(records);
+        } catch (progressError) {
+          console.error(
+            "STUDENT PROGRESS ERROR:",
+            progressError
+          );
+
+          setAssessments([]);
+          setProgressError(
+            "Unable to load your driving progress. Please try again later."
+          );
+        } finally {
+          setProgressLoading(false);
+        }
+
+        // GET TEST BOOKINGS
+
+        try {
+          const testResponse = await api.get(
+            `/test-bookings/student/${studentId}`
+          );
 
           setTestBookings(
             Array.isArray(testResponse.data)
@@ -220,15 +276,12 @@ export default function StudentDashboard() {
           setTestBookings([]);
         }
 
-        // ---------------------------------------------
         // GET PAYMENTS
-        // ---------------------------------------------
 
         try {
-          const paymentResponse =
-            await api.get(
-              `/payments/student/${studentId}`
-            );
+          const paymentResponse = await api.get(
+            `/payments/student/${studentId}`
+          );
 
           setPayments(
             Array.isArray(paymentResponse.data)
@@ -243,6 +296,13 @@ export default function StudentDashboard() {
 
           setPayments([]);
         }
+      } else {
+        setAssessments([]);
+        setProgressError(
+          "Your student profile could not be identified."
+        );
+        setTestBookings([]);
+        setPayments([]);
       }
     } catch (err) {
       console.error(
@@ -270,105 +330,89 @@ export default function StudentDashboard() {
   // LESSON STATISTICS
   // ===================================================
 
-  const completedLessons =
-    useMemo(
-      () =>
-        lessons.filter(
-          (lesson) =>
-            String(
-              lesson.status || ""
-            ).toLowerCase() ===
-            "completed"
-        ),
-      [lessons]
-    );
+  const completedLessons = useMemo(
+    () =>
+      lessons.filter(
+        (lesson) =>
+          String(lesson.status || "").toLowerCase() ===
+          "completed"
+      ),
+    [lessons]
+  );
 
-  const cancelledLessons =
-    useMemo(
-      () =>
-        lessons.filter(
-          (lesson) =>
-            String(
-              lesson.status || ""
-            ).toLowerCase() ===
-            "cancelled"
-        ),
-      [lessons]
-    );
+  const cancelledLessons = useMemo(
+    () =>
+      lessons.filter(
+        (lesson) =>
+          String(lesson.status || "").toLowerCase() ===
+          "cancelled"
+      ),
+    [lessons]
+  );
 
   // ===================================================
   // UPCOMING LESSONS
   // ===================================================
 
-  const upcomingLessons =
-    useMemo(() => {
-      const now = new Date();
+  const upcomingLessons = useMemo(() => {
+    const now = new Date();
 
-      return lessons
-        .filter((lesson) => {
-          if (
-            String(
-              lesson.status || ""
-            ).toLowerCase() ===
-            "cancelled"
-          ) {
-            return false;
-          }
+    return lessons
+      .filter((lesson) => {
+        if (
+          String(lesson.status || "").toLowerCase() ===
+          "cancelled"
+        ) {
+          return false;
+        }
 
-          const dateTime = new Date(
-            `${lesson.lesson_date}T${lesson.lesson_time || "00:00"}`
-          );
+        const dateTime = new Date(
+          `${lesson.lesson_date}T${lesson.lesson_time || "00:00"}`
+        );
 
-          return dateTime >= now;
-        })
-        .sort((a, b) => {
-          const dateA = new Date(
-            `${a.lesson_date}T${a.lesson_time || "00:00"}`
-          ).getTime();
+        return dateTime >= now;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(
+          `${a.lesson_date}T${a.lesson_time || "00:00"}`
+        ).getTime();
 
-          const dateB = new Date(
-            `${b.lesson_date}T${b.lesson_time || "00:00"}`
-          ).getTime();
+        const dateB = new Date(
+          `${b.lesson_date}T${b.lesson_time || "00:00"}`
+        ).getTime();
 
-          return dateA - dateB;
-        });
-    }, [lessons]);
+        return dateA - dateB;
+      });
+  }, [lessons]);
 
-  const nextLesson =
-    upcomingLessons[0];
+  const nextLesson = upcomingLessons[0];
 
   // ===================================================
   // PAYMENT TOTAL
   // ===================================================
 
-  const paymentTotal =
-    payments.reduce(
-      (total, payment) =>
-        total +
-        Number(payment.amount || 0),
-      0
-    );
+  const paymentTotal = payments.reduce(
+    (total, payment) =>
+      total + Number(payment.amount || 0),
+    0
+  );
 
-  const courseFee =
-    Number(
-      student?.courseFee || 0
-    );
+  const courseFee = Number(
+    student?.courseFee || 0
+  );
 
-  const amountPaid =
-    Number(
-      student?.amountPaid ||
-        paymentTotal ||
-        0
-    );
+  const amountPaid = Number(
+    student?.amountPaid || paymentTotal || 0
+  );
 
-  const balance =
-    Number(
-      student?.balance ??
-        Math.max(
-          courseFee - amountPaid,
-          0
-        )
-    );
+  const balance = Number(
+    student?.balance ??
+      Math.max(courseFee - amountPaid, 0)
+  );
+
+  const competentCount = assessments.filter(
+    (assessment) => assessment.status === "Competent"
+  ).length;
 
   // ===================================================
   // LOADING
@@ -415,10 +459,7 @@ export default function StudentDashboard() {
         <Box sx={{ p: 4 }}>
           <Card>
             <CardContent>
-              <Typography
-                color="error"
-                variant="h6"
-              >
+              <Typography color="error" variant="h6">
                 {error}
               </Typography>
 
@@ -429,8 +470,6 @@ export default function StudentDashboard() {
               >
                 Try Again
               </Button>
-
-              {/* BACK TO LOGIN */}
 
               <Box sx={{ mt: 2 }}>
                 <Button
@@ -474,9 +513,7 @@ export default function StudentDashboard() {
           },
         }}
       >
-        {/* ============================================
-            WELCOME
-        ============================================= */}
+        {/* WELCOME */}
 
         <Box sx={{ mb: 3 }}>
           <Typography
@@ -501,31 +538,22 @@ export default function StudentDashboard() {
           </Typography>
         </Box>
 
-        {/* ============================================
-            SUMMARY CARDS
-        ============================================= */}
+        {/* SUMMARY CARDS */}
 
         <Grid
           container
           spacing={2}
           sx={{ mb: 3 }}
         >
-          {/* UPCOMING */}
-
-          <Grid
-            size={{ xs: 12, sm: 6, md: 3 }}
-          >
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card
               sx={{
                 height: "100%",
-                borderTop:
-                  "5px solid #2563eb",
+                borderTop: "5px solid #2563eb",
               }}
             >
               <CardContent>
-                <Typography
-                  color="text.secondary"
-                >
+                <Typography color="text.secondary">
                   📅 Upcoming Lessons
                 </Typography>
 
@@ -543,22 +571,15 @@ export default function StudentDashboard() {
             </Card>
           </Grid>
 
-          {/* COMPLETED */}
-
-          <Grid
-            size={{ xs: 12, sm: 6, md: 3 }}
-          >
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card
               sx={{
                 height: "100%",
-                borderTop:
-                  "5px solid #16a34a",
+                borderTop: "5px solid #16a34a",
               }}
             >
               <CardContent>
-                <Typography
-                  color="text.secondary"
-                >
+                <Typography color="text.secondary">
                   ✅ Completed Lessons
                 </Typography>
 
@@ -576,22 +597,15 @@ export default function StudentDashboard() {
             </Card>
           </Grid>
 
-          {/* CANCELLED */}
-
-          <Grid
-            size={{ xs: 12, sm: 6, md: 3 }}
-          >
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card
               sx={{
                 height: "100%",
-                borderTop:
-                  "5px solid #dc2626",
+                borderTop: "5px solid #dc2626",
               }}
             >
               <CardContent>
-                <Typography
-                  color="text.secondary"
-                >
+                <Typography color="text.secondary">
                   ❌ Cancelled Lessons
                 </Typography>
 
@@ -609,22 +623,15 @@ export default function StudentDashboard() {
             </Card>
           </Grid>
 
-          {/* BALANCE */}
-
-          <Grid
-            size={{ xs: 12, sm: 6, md: 3 }}
-          >
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card
               sx={{
                 height: "100%",
-                borderTop:
-                  "5px solid #7c3aed",
+                borderTop: "5px solid #7c3aed",
               }}
             >
               <CardContent>
-                <Typography
-                  color="text.secondary"
-                >
+                <Typography color="text.secondary">
                   💰 Outstanding Balance
                 </Typography>
 
@@ -643,27 +650,17 @@ export default function StudentDashboard() {
           </Grid>
         </Grid>
 
-        {/* ============================================
-            PROFILE + NEXT LESSON
-        ============================================= */}
+        {/* PROFILE AND NEXT LESSON */}
 
-        <Grid
-          container
-          spacing={3}
-        >
+        <Grid container spacing={3}>
           {/* PROFILE */}
 
-          <Grid
-            size={{ xs: 12, md: 5 }}
-          >
+          <Grid size={{ xs: 12, md: 5 }}>
             <Card sx={{ height: "100%" }}>
               <CardContent>
                 <Typography
                   variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 2,
-                  }}
+                  sx={{ fontWeight: 700, mb: 2 }}
                 >
                   👤 My Profile
                 </Typography>
@@ -705,10 +702,7 @@ export default function StudentDashboard() {
                 <Typography sx={{ mt: 1 }}>
                   <strong>Status:</strong>{" "}
                   <Chip
-                    label={
-                      student?.status ||
-                      "Active"
-                    }
+                    label={student?.status || "Active"}
                     size="small"
                     color="success"
                   />
@@ -719,17 +713,12 @@ export default function StudentDashboard() {
 
           {/* NEXT LESSON */}
 
-          <Grid
-            size={{ xs: 12, md: 7 }}
-          >
+          <Grid size={{ xs: 12, md: 7 }}>
             <Card sx={{ height: "100%" }}>
               <CardContent>
                 <Typography
                   variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 2,
-                  }}
+                  sx={{ fontWeight: 700, mb: 2 }}
                 >
                   📅 My Next Lesson
                 </Typography>
@@ -745,50 +734,34 @@ export default function StudentDashboard() {
                         color: "#1e3a8a",
                       }}
                     >
-                      {formatDate(
-                        nextLesson.lesson_date
-                      )}
+                      {formatDate(nextLesson.lesson_date)}
                     </Typography>
 
                     <Typography
-                      sx={{
-                        mt: 1,
-                        fontSize: "18px",
-                      }}
+                      sx={{ mt: 1, fontSize: "18px" }}
                     >
-                      🕐{" "}
-                      {nextLesson.lesson_time ||
-                        "-"}
+                      🕐 {nextLesson.lesson_time || "-"}
                     </Typography>
 
                     <Typography sx={{ mt: 1 }}>
                       👨‍🏫 Instructor:{" "}
-                      {nextLesson.instructor ||
-                        "-"}
+                      {nextLesson.instructor || "-"}
                     </Typography>
 
                     <Typography sx={{ mt: 1 }}>
-                      🚗 Vehicle:{" "}
-                      {nextLesson.vehicle ||
-                        "-"}
+                       Vehicle: {nextLesson.vehicle || "-"}
                     </Typography>
 
                     <Box sx={{ mt: 2 }}>
                       <Chip
-                        label={
-                          nextLesson.status ||
-                          "Booked"
-                        }
+                        label={nextLesson.status || "Booked"}
                         color="primary"
                       />
                     </Box>
                   </>
                 ) : (
-                  <Typography
-                    color="text.secondary"
-                  >
-                    You currently have no
-                    upcoming lessons.
+                  <Typography color="text.secondary">
+                    You currently have no upcoming lessons.
                   </Typography>
                 )}
               </CardContent>
@@ -797,17 +770,12 @@ export default function StudentDashboard() {
 
           {/* PAYMENT SUMMARY */}
 
-          <Grid
-            size={{ xs: 12, md: 6 }}
-          >
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography
                   variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 2,
-                  }}
+                  sx={{ fontWeight: 700, mb: 2 }}
                 >
                   💳 My Payments
                 </Typography>
@@ -816,30 +784,22 @@ export default function StudentDashboard() {
 
                 <Typography>
                   Course Fee:{" "}
-                  <strong>
-                    {formatMoney(courseFee)}
-                  </strong>
+                  <strong>{formatMoney(courseFee)}</strong>
                 </Typography>
 
                 <Typography sx={{ mt: 1 }}>
                   Amount Paid:{" "}
-                  <strong>
-                    {formatMoney(amountPaid)}
-                  </strong>
+                  <strong>{formatMoney(amountPaid)}</strong>
                 </Typography>
 
                 <Typography
                   sx={{
                     mt: 1,
-                    color:
-                      balance > 0
-                        ? "#dc2626"
-                        : "#16a34a",
+                    color: balance > 0 ? "#dc2626" : "#16a34a",
                     fontWeight: 700,
                   }}
                 >
-                  Balance:{" "}
-                  {formatMoney(balance)}
+                  Balance: {formatMoney(balance)}
                 </Typography>
               </CardContent>
             </Card>
@@ -847,17 +807,12 @@ export default function StudentDashboard() {
 
           {/* TEST BOOKINGS */}
 
-          <Grid
-            size={{ xs: 12, md: 6 }}
-          >
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography
                   variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 2,
-                  }}
+                  sx={{ fontWeight: 700, mb: 2 }}
                 >
                   📝 My Test Bookings
                 </Typography>
@@ -865,63 +820,153 @@ export default function StudentDashboard() {
                 <Divider sx={{ mb: 2 }} />
 
                 {testBookings.length === 0 ? (
-                  <Typography
-                    color="text.secondary"
-                  >
+                  <Typography color="text.secondary">
                     No test bookings found.
                   </Typography>
                 ) : (
-                  testBookings
-                    .slice(0, 3)
-                    .map((test) => (
+                  testBookings.slice(0, 3).map((test) => (
+                    <Box
+                      key={test.id}
+                      sx={{
+                        mb: 2,
+                        p: 2,
+                        background: "#f8fafc",
+                        borderRadius: 2,
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {test.test_type || "Driving Test"}
+                      </Typography>
+
+                      <Typography>
+                        📅 {formatDate(test.booking_date)}
+                      </Typography>
+
+                      <Typography>
+                        🕐 {test.booking_time || "-"}
+                      </Typography>
+
+                      <Typography>
+                        📍 {test.test_centre || "-"}
+                      </Typography>
+
+                      <Chip
+                        sx={{ mt: 1 }}
+                        size="small"
+                        label={test.status || "Pending"}
+                      />
+                    </Box>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* MY DRIVING PROGRESS */}
+
+          <Grid size={{ xs: 12 }}>
+            <Card>
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 700, mb: 1 }}
+                >
+                   My Driving Progress
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
+                  View your instructor's assessments and feedback.
+                </Typography>
+
+                <Divider sx={{ mb: 2 }} />
+
+                {progressLoading ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      p: 3,
+                    }}
+                  >
+                    <CircularProgress />
+                  </Box>
+                ) : progressError ? (
+                  <Typography color="error">
+                    {progressError}
+                  </Typography>
+                ) : assessments.length === 0 ? (
+                  <Typography color="text.secondary">
+                    Your instructor has not recorded any assessments yet.
+                  </Typography>
+                ) : (
+                  <>
+                    <Typography
+                      sx={{ mb: 2, fontWeight: 600 }}
+                    >
+                      Competent skills: {competentCount} of 6
+                    </Typography>
+
+                    {assessments.map((assessment, index) => (
                       <Box
-                        key={test.id}
+                        key={
+                          assessment.id ??
+                          `${assessment.skill}-${index}`
+                        }
                         sx={{
-                          mb: 2,
-                          p: 2,
-                          background:
-                            "#f8fafc",
-                          borderRadius: 2,
+                          py: 2,
+                          borderBottom: "1px solid #e5e7eb",
                         }}
                       >
-                        <Typography
+                        <Box
                           sx={{
-                            fontWeight: 700,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 2,
+                            flexWrap: "wrap",
                           }}
                         >
-                          {test.test_type ||
-                            "Driving Test"}
-                        </Typography>
+                          <Typography sx={{ fontWeight: 600 }}>
+                            {assessment.skill}
+                          </Typography>
 
-                        <Typography>
-                          📅{" "}
-                          {formatDate(
-                            test.booking_date
-                          )}
-                        </Typography>
+                          <Chip
+                            label={
+                              assessment.status || "Not Assessed"
+                            }
+                            color={assessmentColor(
+                              assessment.status
+                            )}
+                          />
+                        </Box>
 
-                        <Typography>
-                          🕐{" "}
-                          {test.booking_time ||
-                            "-"}
-                        </Typography>
+                        {assessment.comments && (
+                          <Typography
+                            variant="body2"
+                            sx={{ mt: 1, color: "#6b7280" }}
+                          >
+                            <strong>Instructor feedback:</strong>{" "}
+                            {assessment.comments}
+                          </Typography>
+                        )}
 
-                        <Typography>
-                          📍{" "}
-                          {test.test_centre ||
-                            "-"}
-                        </Typography>
-
-                        <Chip
-                          sx={{ mt: 1 }}
-                          size="small"
-                          label={
-                            test.status ||
-                            "Pending"
-                          }
-                        />
+                        {assessment.created_at && (
+                          <Typography
+                            variant="caption"
+                            display="block"
+                            sx={{ mt: 1, color: "#9ca3af" }}
+                          >
+                            Recorded:{" "}
+                            {formatDate(assessment.created_at)}
+                          </Typography>
+                        )}
                       </Box>
-                    ))
+                    ))}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -929,17 +974,12 @@ export default function StudentDashboard() {
 
           {/* RECENT LESSONS */}
 
-          <Grid
-            size={{ xs: 12 }}
-          >
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography
                   variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 2,
-                  }}
+                  sx={{ fontWeight: 700, mb: 2 }}
                 >
                   📚 My Recent Lessons
                 </Typography>
@@ -947,73 +987,51 @@ export default function StudentDashboard() {
                 <Divider sx={{ mb: 2 }} />
 
                 {lessons.length === 0 ? (
-                  <Typography
-                    color="text.secondary"
-                  >
+                  <Typography color="text.secondary">
                     No lessons found.
                   </Typography>
                 ) : (
-                  lessons
-                    .slice(0, 5)
-                    .map((lesson) => (
-                      <Box
-                        key={lesson.id}
-                        sx={{
-                          display: "flex",
-                          justifyContent:
-                            "space-between",
-                          alignItems: "center",
-                          gap: 2,
-                          py: 1.5,
-                          borderBottom:
-                            "1px solid #e5e7eb",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <Box>
-                          <Typography
-                            sx={{
-                              fontWeight: 600,
-                            }}
-                          >
-                            {formatDate(
-                              lesson.lesson_date
-                            )}
-                          </Typography>
+                  lessons.slice(0, 5).map((lesson) => (
+                    <Box
+                      key={lesson.id}
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 2,
+                        py: 1.5,
+                        borderBottom: "1px solid #e5e7eb",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Box>
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {formatDate(lesson.lesson_date)}
+                        </Typography>
 
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                          >
-                            {lesson.lesson_time}{" "}
-                            •{" "}
-                            {lesson.instructor}{" "}
-                            •{" "}
-                            {lesson.vehicle}
-                          </Typography>
-                        </Box>
-
-                        <Chip
-                          size="small"
-                          label={
-                            lesson.status ||
-                            "Booked"
-                          }
-                        />
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                        >
+                          {lesson.lesson_time} •{" "}
+                          {lesson.instructor} • {lesson.vehicle}
+                        </Typography>
                       </Box>
-                    ))
+
+                      <Chip
+                        size="small"
+                        label={lesson.status || "Booked"}
+                      />
+                    </Box>
+                  ))
                 )}
               </CardContent>
             </Card>
           </Grid>
 
-          {/* ============================================
-              BACK TO LOGIN
-          ============================================= */}
+          {/* BACK TO LOGIN */}
 
-          <Grid
-            size={{ xs: 12 }}
-          >
+          <Grid size={{ xs: 12 }}>
             <Box
               sx={{
                 display: "flex",

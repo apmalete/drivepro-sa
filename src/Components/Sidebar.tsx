@@ -17,6 +17,7 @@ import DirectionsCarRoundedIcon from "@mui/icons-material/DirectionsCarRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
 import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
@@ -259,7 +260,12 @@ export default function Sidebar() {
                 "Students",
                 <SchoolRoundedIcon />
               )}
-
+{(isAdministrator || isInstructor) &&
+  renderLink(
+    "/student-progress",
+    "Student Progress",
+    <TrendingUpRoundedIcon />
+  )}
               {renderLink(
                 "/lessons",
                 "Lesson Bookings",
