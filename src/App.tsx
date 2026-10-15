@@ -282,11 +282,12 @@ export default function App() {
         element={
           <RoleRoute
             allowedRoles={[
-              "System Administrator",
-              "Administrator",
-              "Admin",
-              "Instructor",
-            ]}
+  "System Administrator",
+  "Administrator",
+  "Admin",
+  "Instructor",
+  "Receptionist",
+]}
           >
             <StudentProgress />
           </RoleRoute>
