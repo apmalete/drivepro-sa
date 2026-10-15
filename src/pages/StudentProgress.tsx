@@ -15,7 +15,9 @@ import {
   Paper,
 } from "@mui/material";
 
-const API = "http://localhost:5000";
+// Use the configured production API URL.
+// If the frontend and backend share the same domain, use relative URLs.
+const API = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
 const skills = [
   "Moving off and stopping",
@@ -35,7 +37,7 @@ const statuses = [
 
 type Student = {
   id: number;
-  studentNo: string | number;
+  studentNo?: string | number;
   fullname: string;
 };
 
@@ -43,6 +45,22 @@ type SkillProgress = {
   status: string;
   comments: string;
 };
+
+type Assessment = {
+  skill: string;
+  status?: string;
+  comments?: string;
+};
+
+function getList<T>(data: any, keys: string[] = []): T[] {
+  if (Array.isArray(data)) return data;
+
+  for (const key of keys) {
+    if (Array.isArray(data?.[key])) return data[key];
+  }
+
+  return [];
+}
 
 export default function StudentProgress() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -52,52 +70,103 @@ export default function StudentProgress() {
   const [loadingProgress, setLoadingProgress] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<"success" | "error" | "info">(
-    "info"
-  );
+  const [messageType, setMessageType] = useState<
+    "success" | "error" | "info" | "warning"
+  >("info");
 
   const token = localStorage.getItem("token");
 
   const headers = {
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${token || ""}`,
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadStudents = async () => {
+      setLoadingStudents(true);
+      setMessage("");
+
+      if (!token) {
+        setStudents([]);
+        setMessage("Your session has expired. Please log in again.");
+        setMessageType("error");
+        setLoadingStudents(false);
+        return;
+      }
+
       try {
         const response = await axios.get(`${API}/students`, { headers });
 
-        const data = response.data;
-        const list = Array.isArray(data)
-          ? data
-          : data.students ?? data.data ?? [];
+        const list = getList<Student>(response.data, [
+          "students",
+          "data",
+        ]).filter(
+          (student) =>
+            student &&
+            Number.isFinite(Number(student.id)) &&
+            String(student.fullname || "").trim()
+        );
 
-        setStudents(list);
+        if (!cancelled) {
+          setStudents(list);
+
+          if (list.length === 0) {
+            setMessage(
+              "No students were returned for this school. Please check the school's registered students and account access."
+            );
+            setMessageType("warning");
+          }
+        }
       } catch (error) {
         console.error("Could not load students:", error);
-        setMessage("Could not load students. Please check your login and try again.");
-        setMessageType("error");
+
+        if (!cancelled) {
+          setStudents([]);
+
+          if (axios.isAxiosError(error) && error.response?.status === 401) {
+            setMessage("Your session has expired. Please log in again.");
+          } else if (
+            axios.isAxiosError(error) &&
+            error.response?.status === 403
+          ) {
+            setMessage(
+              "Your account cannot access the student list. Check your school assignment and permissions."
+            );
+          } else {
+            setMessage(
+              "Could not load students from the server. Please try again."
+            );
+          }
+
+          setMessageType("error");
+        }
       } finally {
-        setLoadingStudents(false);
+        if (!cancelled) setLoadingStudents(false);
       }
     };
 
     loadStudents();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
-    if (!studentId) {
-      setProgress({});
-      return;
-    }
-
     let cancelled = false;
 
     const loadProgress = async () => {
+      if (!studentId) {
+        setProgress({});
+        return;
+      }
+
       setLoadingProgress(true);
       setMessage("");
 
       const emptyProgress: Record<string, SkillProgress> = {};
+
       skills.forEach((skill) => {
         emptyProgress[skill] = {
           status: "Not Assessed",
@@ -111,15 +180,18 @@ export default function StudentProgress() {
           { headers }
         );
 
-        const data = response.data;
-        const assessments = Array.isArray(data)
-          ? data
-          : data.assessments ?? data.progress ?? [];
+        const assessments = getList<Assessment>(response.data, [
+          "assessments",
+          "progress",
+          "data",
+        ]);
 
-        assessments.forEach((assessment: any) => {
+        assessments.forEach((assessment) => {
           if (skills.includes(assessment.skill)) {
             emptyProgress[assessment.skill] = {
-              status: assessment.status || "Not Assessed",
+              status: statuses.includes(assessment.status || "")
+                ? assessment.status!
+                : "Not Assessed",
               comments: assessment.comments || "",
             };
           }
@@ -139,7 +211,9 @@ export default function StudentProgress() {
 
         if (!cancelled) {
           setProgress(emptyProgress);
-          setMessage("Could not load assessments. Please check your access and try again.");
+          setMessage(
+            "Could not load assessments. Please check your access and try again."
+          );
           setMessageType("error");
         }
       } finally {
@@ -152,7 +226,7 @@ export default function StudentProgress() {
     return () => {
       cancelled = true;
     };
-  }, [studentId]);
+  }, [studentId, token]);
 
   const updateSkill = (
     skill: string,
@@ -174,6 +248,12 @@ export default function StudentProgress() {
   const handleSave = async () => {
     if (!studentId) {
       setMessage("Please select a student first.");
+      setMessageType("error");
+      return;
+    }
+
+    if (!token) {
+      setMessage("Your session has expired. Please log in again.");
       setMessageType("error");
       return;
     }
@@ -202,12 +282,16 @@ export default function StudentProgress() {
 
       setMessage("All assessments saved successfully.");
       setMessageType("success");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Could not save assessments:", error);
-      setMessage(
-        error.response?.data?.message ||
-          "Could not save all assessments. Please try again."
-      );
+
+      const errorMessage =
+        axios.isAxiosError(error) &&
+        typeof error.response?.data?.message === "string"
+          ? error.response.data.message
+          : "Could not save all assessments. Please try again.";
+
+      setMessage(errorMessage);
       setMessageType("error");
     } finally {
       setSaving(false);
@@ -230,39 +314,44 @@ export default function StudentProgress() {
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <FormControl fullWidth>
-          <InputLabel id="student-select-label">Select Student</InputLabel>
+          <InputLabel id="student-select-label">
+            Select Student
+          </InputLabel>
+
           <Select
             labelId="student-select-label"
             value={studentId}
             label="Select Student"
             onChange={(event) => setStudentId(event.target.value)}
-            disabled={loadingStudents}
+            disabled={loadingStudents || students.length === 0}
           >
-            {loadingStudents ? (
-              <MenuItem value="" disabled>
-                Loading students...
+            {students.map((student) => (
+              <MenuItem key={student.id} value={String(student.id)}>
+                {student.fullname} — Student No. {student.studentNo || "N/A"}
               </MenuItem>
-            ) : (
-              students.map((student) => (
-                <MenuItem key={student.id} value={String(student.id)}>
-                  {student.fullname} — Student No. {student.studentNo}
-                </MenuItem>
-              ))
-            )}
+            ))}
           </Select>
         </FormControl>
 
         {loadingStudents && (
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
             <CircularProgress size={24} />
           </Box>
         )}
 
-        {!loadingStudents && students.length === 0 && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            No students were returned. Check that the students endpoint returns
-            registered students for your school.
+        {message && !studentId && (
+          <Alert severity={messageType} sx={{ mt: 2 }}>
+            {message}
           </Alert>
+        )}
+
+        {!loadingStudents && students.length === 0 && (
+          <Button
+            sx={{ mt: 1 }}
+            onClick={() => window.location.reload()}
+          >
+            Retry loading students
+          </Button>
         )}
       </Paper>
 
@@ -288,6 +377,7 @@ export default function StudentProgress() {
                     <InputLabel id={`status-${skill}`}>
                       Assessment Status
                     </InputLabel>
+
                     <Select
                       labelId={`status-${skill}`}
                       value={progress[skill]?.status || "Not Assessed"}
@@ -329,13 +419,13 @@ export default function StudentProgress() {
           >
             {saving ? "Saving..." : "Save Assessments"}
           </Button>
-        </>
-      )}
 
-      {message && (
-        <Alert severity={messageType} sx={{ mt: 2 }}>
-          {message}
-        </Alert>
+          {message && (
+            <Alert severity={messageType} sx={{ mt: 2 }}>
+              {message}
+            </Alert>
+          )}
+        </>
       )}
     </Box>
   );
