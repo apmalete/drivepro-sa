@@ -23,6 +23,7 @@ import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
 
 import logo from "../assets/drivepro-logo.png";
 
@@ -44,9 +45,7 @@ export default function Sidebar() {
     user = null;
   }
 
-  const role = String(user?.role || "")
-    .trim()
-    .toLowerCase();
+  const role = String(user?.role || "").trim().toLowerCase();
 
   const isStudent = role === "student";
   const isInstructor = role === "instructor";
@@ -79,9 +78,7 @@ export default function Sidebar() {
     fontSize: "15px",
     fontWeight: isActive ? 700 : 500,
     backgroundColor: isActive ? "#2867E8" : "transparent",
-    boxShadow: isActive
-      ? "0 4px 12px rgba(0,0,0,0.12)"
-      : "none",
+    boxShadow: isActive ? "0 4px 12px rgba(0,0,0,0.12)" : "none",
     transition: "background-color 0.2s ease",
   });
 
@@ -141,25 +138,10 @@ export default function Sidebar() {
         />
 
         <Box sx={{ minWidth: 0 }}>
-          <Typography
-            sx={{
-              color: "#FFFFFF",
-              fontWeight: 800,
-              fontSize: "19px",
-              lineHeight: 1.2,
-            }}
-          >
+          <Typography sx={{ color: "#FFFFFF", fontWeight: 800, fontSize: "19px", lineHeight: 1.2 }}>
             DrivePro-SA
           </Typography>
-
-          <Typography
-            sx={{
-              color: "#CBD5E1",
-              fontSize: "11px",
-              mt: 0.5,
-              lineHeight: 1.4,
-            }}
-          >
+          <Typography sx={{ color: "#CBD5E1", fontSize: "11px", mt: 0.5, lineHeight: 1.4 }}>
             Driving School Management
           </Typography>
         </Box>
@@ -180,114 +162,44 @@ export default function Sidebar() {
 
       {isStudent ? (
         <>
-          {renderLink(
-            "/student-dashboard",
-            "Dashboard",
-            <DashboardRoundedIcon />
-          )}
-          {renderLink(
-            "/student-lessons",
-            "My Lessons",
-            <CalendarMonthRoundedIcon />
-          )}
-          {renderLink(
-            "/student-test-bookings",
-            "My Tests",
-            <AssignmentRoundedIcon />
-          )}
-          {renderLink(
-            "/student-profile",
-            "My Profile",
-            <PersonRoundedIcon />
-          )}
-          {renderLink(
-            "/student-payments",
-            "My Payments",
-            <PaymentsRoundedIcon />
-          )}
+          {renderLink("/student-dashboard", "Dashboard", <DashboardRoundedIcon />)}
+          {renderLink("/student-lessons", "My Lessons", <CalendarMonthRoundedIcon />)}
+          {renderLink("/student-test-bookings", "My Tests", <AssignmentRoundedIcon />)}
+          {renderLink("/learner-licence-test", "Learner's Licence Practice", <QuizRoundedIcon />)}
+          {renderLink("/student-profile", "My Profile", <PersonRoundedIcon />)}
+          {renderLink("/student-payments", "My Payments", <PaymentsRoundedIcon />)}
         </>
       ) : (
         <>
-          {renderLink(
-            "/dashboard",
-            "Dashboard",
-            <DashboardRoundedIcon />
-          )}
+          {renderLink("/dashboard", "Dashboard", <DashboardRoundedIcon />)}
 
           {(isAdministrator || isReceptionist || isInstructor) && (
             <>
-              {renderLink(
-                "/students",
-                "Students",
-                <SchoolRoundedIcon />
-              )}
-
-              {(isAdministrator || isInstructor || isReceptionist) &&
-                renderLink(
-                  "/student-progress",
-                  "Student Progress",
-                  <TrendingUpRoundedIcon />
-                )}
-
-              {renderLink(
-                "/lessons",
-                "Lesson Bookings",
-                <CalendarMonthRoundedIcon />
-              )}
-              {renderLink(
-                "/test-bookings",
-                "Test Bookings",
-                <AssignmentRoundedIcon />
-              )}
-              {renderLink(
-                "/vehicles",
-                "Vehicles",
-                <DirectionsCarRoundedIcon />
-              )}
+              {renderLink("/students", "Students", <SchoolRoundedIcon />)}
+              {renderLink("/student-progress", "Student Progress", <TrendingUpRoundedIcon />)}
+              {renderLink("/lessons", "Lesson Bookings", <CalendarMonthRoundedIcon />)}
+              {renderLink("/test-bookings", "Test Bookings", <AssignmentRoundedIcon />)}
+              {renderLink("/vehicles", "Vehicles", <DirectionsCarRoundedIcon />)}
             </>
           )}
 
           {(isAdministrator || isReceptionist) && (
             <>
-              {renderLink(
-                "/instructors",
-                "Instructors",
-                <GroupsRoundedIcon />
-              )}
-              {renderLink(
-                "/payments",
-                "Payments",
-                <PaymentsRoundedIcon />
-              )}
-              {renderLink(
-                "/reports",
-                "Reports",
-                <BarChartRoundedIcon />
-              )}
+              {renderLink("/instructors", "Instructors", <GroupsRoundedIcon />)}
+              {renderLink("/payments", "Payments", <PaymentsRoundedIcon />)}
+              {renderLink("/reports", "Reports", <BarChartRoundedIcon />)}
             </>
           )}
 
           {isAdministrator && (
             <>
-              {renderLink(
-                "/users",
-                "Users",
-                <PeopleRoundedIcon />
-              )}
-              {renderLink(
-                "/settings",
-                "Settings",
-                <SettingsRoundedIcon />
-              )}
+              {renderLink("/users", "Users", <PeopleRoundedIcon />)}
+              {renderLink("/settings", "Settings", <SettingsRoundedIcon />)}
             </>
           )}
 
           {role === "system administrator" &&
-            renderLink(
-              "/schools",
-              "Schools",
-              <SchoolRoundedIcon />
-            )}
+            renderLink("/schools", "Schools", <SchoolRoundedIcon />)}
         </>
       )}
 
@@ -302,14 +214,7 @@ export default function Sidebar() {
             overflowWrap: "anywhere",
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              mb: 1.5,
-            }}
-          >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
             <Box
               sx={{
                 width: 34,
@@ -327,23 +232,10 @@ export default function Sidebar() {
             </Box>
 
             <Box sx={{ minWidth: 0 }}>
-              <Typography
-                sx={{
-                  color: "#FFFFFF",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                }}
-              >
+              <Typography sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: "13px" }}>
                 {user?.fullname || user?.username || "User"}
               </Typography>
-
-              <Typography
-                sx={{
-                  color: "#CBD5E1",
-                  fontSize: "11px",
-                  textTransform: "capitalize",
-                }}
-              >
+              <Typography sx={{ color: "#CBD5E1", fontSize: "11px", textTransform: "capitalize" }}>
                 {user?.role || "User"}
               </Typography>
             </Box>
@@ -352,10 +244,7 @@ export default function Sidebar() {
           <Typography sx={{ color: "#CBD5E1", fontSize: "11px" }}>
             Username: {user?.username || "-"}
           </Typography>
-
-          <Typography
-            sx={{ color: "#CBD5E1", fontSize: "11px", mt: 0.5 }}
-          >
+          <Typography sx={{ color: "#CBD5E1", fontSize: "11px", mt: 0.5 }}>
             School ID: {user?.school_id ?? "-"}
           </Typography>
         </Box>
@@ -444,20 +333,16 @@ export default function Sidebar() {
           overflowY: "auto",
           overflowX: "hidden",
           backgroundColor: "#172554",
-          backgroundImage:
-            "linear-gradient(180deg, #172554 0%, #233F8F 100%)",
+          backgroundImage: "linear-gradient(180deg, #172554 0%, #233F8F 100%)",
           color: "#FFFFFF",
           p: { xs: mobileOpen ? 2.5 : 0, md: 2.5 },
           boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
           flexShrink: 0,
-          transition:
-            "width 0.25s ease, min-width 0.25s ease, padding 0.25s ease",
+          transition: "width 0.25s ease, min-width 0.25s ease, padding 0.25s ease",
           boxShadow: {
-            xs: mobileOpen
-              ? "4px 0 15px rgba(0,0,0,0.25)"
-              : "none",
+            xs: mobileOpen ? "4px 0 15px rgba(0,0,0,0.25)" : "none",
             md: "2px 0 12px rgba(15,23,42,0.08)",
           },
           ...(mobileOpen
@@ -470,13 +355,7 @@ export default function Sidebar() {
               }),
         }}
       >
-        <Box
-          sx={{
-            display: { xs: "flex", md: "none" },
-            justifyContent: "flex-end",
-            mb: 1,
-          }}
-        >
+        <Box sx={{ display: { xs: "flex", md: "none" }, justifyContent: "flex-end", mb: 1 }}>
           <IconButton
             aria-label="Close navigation menu"
             onClick={closeMobileMenu}

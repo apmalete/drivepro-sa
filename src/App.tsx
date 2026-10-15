@@ -1,12 +1,13 @@
 
 import Settings from "./pages/Settings";
 import type { ReactNode } from "react";
+import LearnerLicenceTest from "./pages/LearnerLicenceTest";
 
 import {
   Routes,
   Route,
   Navigate,
-} from "react-router-dom";
+} from "react-router-dom"
 
 // ==========================================
 // COMPONENTS
@@ -472,7 +473,24 @@ export default function App() {
           </RoleRoute>
         }
       />
-
+{/* LEARNER LICENCE PRACTICE EXAM */}
+<Route
+  path="/learner-licence-test"
+  element={
+    <RoleRoute
+      allowedRoles={[
+        "System Administrator",
+        "Administrator",
+        "Admin",
+        "Instructor",
+        "Receptionist",
+        "Student",
+      ]}
+    >
+      <LearnerLicenceTest />
+    </RoleRoute>
+  }
+/>
       {/* CATCH ALL */}
 
       <Route
