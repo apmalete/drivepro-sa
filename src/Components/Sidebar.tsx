@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+﻿
+import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import {
@@ -25,17 +26,9 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 
 import logo from "../assets/drivepro-logo.png";
 
-// =====================================================
-// SIDEBAR
-// =====================================================
-
 export default function Sidebar() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  // ===================================================
-  // GET LOGGED-IN USER
-  // ===================================================
 
   let user: {
     fullname?: string;
@@ -50,10 +43,6 @@ export default function Sidebar() {
   } catch {
     user = null;
   }
-
-  // ===================================================
-  // ROLE PERMISSIONS
-  // ===================================================
 
   const role = String(user?.role || "")
     .trim()
@@ -70,22 +59,13 @@ export default function Sidebar() {
 
   const closeMobileMenu = () => setMobileOpen(false);
 
-  // ===================================================
-  // LOGOUT
-  // ===================================================
-
   const handleLogout = () => {
     localStorage.removeItem("loggedIn");
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     sessionStorage.clear();
-
     navigate("/", { replace: true });
   };
-
-  // ===================================================
-  // NAVIGATION LINK STYLE
-  // ===================================================
 
   const getNavStyle = ({ isActive }: { isActive: boolean }) => ({
     display: "flex",
@@ -98,18 +78,12 @@ export default function Sidebar() {
     borderRadius: "10px",
     fontSize: "15px",
     fontWeight: isActive ? 700 : 500,
-    backgroundColor: isActive
-      ? "#2867E8"
-      : "transparent",
+    backgroundColor: isActive ? "#2867E8" : "transparent",
     boxShadow: isActive
       ? "0 4px 12px rgba(0,0,0,0.12)"
       : "none",
     transition: "background-color 0.2s ease",
   });
-
-  // ===================================================
-  // NAVIGATION LINK
-  // ===================================================
 
   const renderLink = (
     to: string,
@@ -135,19 +109,12 @@ export default function Sidebar() {
       >
         {icon}
       </Box>
-
       <span>{label}</span>
     </NavLink>
   );
 
-  // ===================================================
-  // SIDEBAR CONTENT
-  // ===================================================
-
   const sidebarContent = (
     <>
-      {/* BRANDING */}
-
       <Box
         sx={{
           display: "flex",
@@ -198,8 +165,6 @@ export default function Sidebar() {
         </Box>
       </Box>
 
-      {/* NAVIGATION */}
-
       <Typography
         sx={{
           color: "#AFC5F4",
@@ -220,25 +185,21 @@ export default function Sidebar() {
             "Dashboard",
             <DashboardRoundedIcon />
           )}
-
           {renderLink(
             "/student-lessons",
             "My Lessons",
             <CalendarMonthRoundedIcon />
           )}
-
           {renderLink(
             "/student-test-bookings",
             "My Tests",
             <AssignmentRoundedIcon />
           )}
-
           {renderLink(
             "/student-profile",
             "My Profile",
             <PersonRoundedIcon />
           )}
-
           {renderLink(
             "/student-payments",
             "My Payments",
@@ -260,24 +221,24 @@ export default function Sidebar() {
                 "Students",
                 <SchoolRoundedIcon />
               )}
-{(isAdministrator || isInstructor) &&
-  renderLink(
-    "/student-progress",
-    "Student Progress",
-    <TrendingUpRoundedIcon />
-  )}
+
+              {(isAdministrator || isInstructor || isReceptionist) &&
+                renderLink(
+                  "/student-progress",
+                  "Student Progress",
+                  <TrendingUpRoundedIcon />
+                )}
+
               {renderLink(
                 "/lessons",
                 "Lesson Bookings",
                 <CalendarMonthRoundedIcon />
               )}
-
               {renderLink(
                 "/test-bookings",
                 "Test Bookings",
                 <AssignmentRoundedIcon />
               )}
-
               {renderLink(
                 "/vehicles",
                 "Vehicles",
@@ -293,13 +254,11 @@ export default function Sidebar() {
                 "Instructors",
                 <GroupsRoundedIcon />
               )}
-
               {renderLink(
                 "/payments",
                 "Payments",
                 <PaymentsRoundedIcon />
               )}
-
               {renderLink(
                 "/reports",
                 "Reports",
@@ -315,7 +274,6 @@ export default function Sidebar() {
                 "Users",
                 <PeopleRoundedIcon />
               )}
-
               {renderLink(
                 "/settings",
                 "Settings",
@@ -333,14 +291,7 @@ export default function Sidebar() {
         </>
       )}
 
-      {/* USER INFORMATION */}
-
-      <Box
-        sx={{
-          mt: "auto",
-          pt: 3,
-        }}
-      >
+      <Box sx={{ mt: "auto", pt: 3 }}>
         <Box
           sx={{
             backgroundColor: "rgba(255,255,255,0.09)",
@@ -398,27 +349,16 @@ export default function Sidebar() {
             </Box>
           </Box>
 
-          <Typography
-            sx={{
-              color: "#CBD5E1",
-              fontSize: "11px",
-            }}
-          >
+          <Typography sx={{ color: "#CBD5E1", fontSize: "11px" }}>
             Username: {user?.username || "-"}
           </Typography>
 
           <Typography
-            sx={{
-              color: "#CBD5E1",
-              fontSize: "11px",
-              mt: 0.5,
-            }}
+            sx={{ color: "#CBD5E1", fontSize: "11px", mt: 0.5 }}
           >
             School ID: {user?.school_id ?? "-"}
           </Typography>
         </Box>
-
-        {/* LOGOUT */}
 
         <Box
           component="button"
@@ -438,9 +378,7 @@ export default function Sidebar() {
             fontSize: "14px",
             fontWeight: 700,
             cursor: "pointer",
-            "&:hover": {
-              backgroundColor: "#B91C1C",
-            },
+            "&:hover": { backgroundColor: "#B91C1C" },
           }}
         >
           <LogoutRoundedIcon fontSize="small" />
@@ -450,14 +388,8 @@ export default function Sidebar() {
     </>
   );
 
-  // ===================================================
-  // RENDER
-  // ===================================================
-
   return (
     <>
-      {/* MOBILE MENU BUTTON */}
-
       {!mobileOpen && (
         <Box
           sx={{
@@ -477,17 +409,13 @@ export default function Sidebar() {
               width: 46,
               height: 46,
               boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
-              "&:hover": {
-                backgroundColor: "#1B3273",
-              },
+              "&:hover": { backgroundColor: "#1B3273" },
             }}
           >
             <MenuIcon />
           </IconButton>
         </Box>
       )}
-
-      {/* MOBILE OVERLAY */}
 
       {mobileOpen && (
         <Box
@@ -502,15 +430,13 @@ export default function Sidebar() {
         />
       )}
 
-      {/* SIDEBAR */}
-
       <Box
         component="aside"
         sx={{
           width: { xs: mobileOpen ? 285 : 0, md: 285 },
           minWidth: { xs: mobileOpen ? 285 : 0, md: 285 },
-          height: { xs: "100vh", md: "100vh" },
-          minHeight: { xs: "100vh", md: "100vh" },
+          height: "100vh",
+          minHeight: "100vh",
           position: { xs: "fixed", md: "sticky" },
           top: 0,
           left: 0,
@@ -544,8 +470,6 @@ export default function Sidebar() {
               }),
         }}
       >
-        {/* MOBILE CLOSE BUTTON */}
-
         <Box
           sx={{
             display: { xs: "flex", md: "none" },
