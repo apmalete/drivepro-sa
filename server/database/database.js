@@ -1,29 +1,14 @@
+﻿
 import sqlite3 from "sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
+import { randomBytes } from "crypto";
 
 console.log("***** DATABASE.JS LOADED *****");
-
 sqlite3.verbose();
-
-// =====================================================
-// SERVER DIRECTORY
-// =====================================================
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// =====================================================
-// DATABASE PATH
-// =====================================================
-//
-// LOCAL:
-//   server/drivepro.db
-//
-// RAILWAY:
-//   /app/data/drivepro.db
-//
-// =====================================================
 
 const databasePath =
   process.env.NODE_ENV === "production"
@@ -32,31 +17,38 @@ const databasePath =
 
 console.log("DATABASE PATH:", databasePath);
 
+const db = new sqlite3.Database(databasePath, (err) => {
+  if (err) console.error("DATABASE CONNECTION FAILED:", err.message);
+  else console.log("Database Connected");
+});
+
 // =====================================================
-// DATABASE CONNECTION
+// ENSURE A COLUMN EXISTS
 // =====================================================
 
-const db = new sqlite3.Database(databasePath, (err) => {
-  if (err) {
-    console.error("DATABASE CONNECTION FAILED:", err.message);
-  } else {
-    console.log("Database Connected");
-  }
-});
+const ensureColumn = (table, name, definition, callback) => {
+  db.all(`PRAGMA table_info(${table})`, [], (err, columns) => {
+    if (err) return callback(err);
+
+    if ((columns || []).some((column) => column.name === name)) {
+      return callback(null);
+    }
+
+    db.run(
+      `ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`,
+      [],
+      callback
+    );
+  });
+};
 
 // =====================================================
 // CREATE TABLES
 // =====================================================
 
 const createTables = (callback) => {
-
-  // ===================================================
-  // STUDENTS
-  // ===================================================
-
-  db.run(
-    `
-    CREATE TABLE IF NOT EXISTS students (
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS students (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       studentNo TEXT,
       fullname TEXT NOT NULL,
@@ -79,893 +71,414 @@ const createTables = (callback) => {
       status TEXT DEFAULT 'Active',
       school_id INTEGER DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-    `,
-    [],
-    (err) => {
+    )`,
 
-      if (err) {
-        console.error("STUDENTS TABLE ERROR:", err.message);
-      } else {
-        console.log("Students table ready");
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      fullname TEXT NOT NULL,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT NOT NULL,
+      status TEXT DEFAULT 'Active',
+      school_id INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS schools (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      schoolName TEXT NOT NULL,
+      phone TEXT DEFAULT '',
+      email TEXT DEFAULT '',
+      address TEXT DEFAULT '',
+      registrationNumber TEXT DEFAULT '',
+      status TEXT DEFAULT 'Active',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS instructors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      licence TEXT NOT NULL,
+      experience TEXT NOT NULL,
+      status TEXT DEFAULT 'Active',
+      school_id INTEGER DEFAULT 1,
+      user_id INTEGER
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS vehicles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      registration TEXT NOT NULL,
+      make TEXT NOT NULL,
+      model TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      transmission TEXT NOT NULL,
+      fuel TEXT NOT NULL,
+      status TEXT DEFAULT 'Available',
+      school_id INTEGER DEFAULT 1
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS lessons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student TEXT NOT NULL,
+      instructor TEXT NOT NULL,
+      vehicle TEXT NOT NULL,
+      lesson_date TEXT NOT NULL,
+      lesson_time TEXT NOT NULL,
+      status TEXT DEFAULT 'Booked',
+      school_id INTEGER DEFAULT 1
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      receiptNo TEXT UNIQUE NOT NULL,
+      studentId INTEGER NOT NULL,
+      studentName TEXT NOT NULL,
+      paymentDate TEXT NOT NULL,
+      paymentMethod TEXT NOT NULL,
+      amount REAL NOT NULL,
+      reference TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      school_id INTEGER DEFAULT 1
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      schoolName TEXT NOT NULL DEFAULT 'DrivePro-SA',
+      phone TEXT DEFAULT '',
+      email TEXT DEFAULT '',
+      address TEXT DEFAULT '',
+      registrationNumber TEXT DEFAULT '',
+      defaultLessonDuration INTEGER DEFAULT 60,
+      defaultLessonPrice REAL DEFAULT 0,
+      lessonDuration INTEGER DEFAULT 60,
+      lessonPrice REAL DEFAULT 0
+    )`,
+
+  `CREATE TABLE IF NOT EXISTS school_lesson_package_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id INTEGER NOT NULL,
+    package_code TEXT NOT NULL,
+    package_name TEXT NOT NULL,
+    price REAL NOT NULL DEFAULT 0 CHECK (price >= 0),
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (school_id, package_code)
+  )`,
+  `CREATE TABLE IF NOT EXISTS school_fixed_lesson_packages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id INTEGER NOT NULL,
+    service_code TEXT NOT NULL,
+    package_name TEXT NOT NULL,
+    lesson_count INTEGER NOT NULL CHECK (lesson_count > 1),
+    total_price REAL NOT NULL DEFAULT 0
+      CHECK (total_price >= 0),
+    is_active INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (school_id, service_code, package_name)
+  )`,
+
+`CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+)`,
+
+    `CREATE TABLE IF NOT EXISTS test_bookings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      student_name TEXT NOT NULL,
+      test_type TEXT NOT NULL,
+      booking_date TEXT NOT NULL,
+      booking_time TEXT NOT NULL,
+      test_centre TEXT,
+      booking_reference TEXT,
+      status TEXT DEFAULT 'Pending',
+      reminder_sent INTEGER DEFAULT 0,
+      day_reminder_sent INTEGER DEFAULT 0,
+      school_id INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS lesson_booking_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
+      customer_name TEXT NOT NULL,
+      customer_phone TEXT NOT NULL,
+      customer_email TEXT,
+      requested_date TEXT NOT NULL,
+      requested_time TEXT NOT NULL,
+      preferred_instructor_id INTEGER,
+      customer_notes TEXT,
+      status TEXT NOT NULL DEFAULT 'Pending',
+      staff_notes TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`
+  ];
+
+  let index = 0;
+
+  const next = (err) => {
+    if (err) return callback(err);
+    if (index >= tables.length) return callback(null);
+
+    db.run(tables[index++], [], (tableErr) => {
+      if (tableErr) {
+        console.error("TABLE CREATION ERROR:", tableErr.message);
       }
 
-      // =================================================
-      // USERS
-      // =================================================
+      next(tableErr);
+    });
+  };
 
-      db.run(
-        `
-        CREATE TABLE IF NOT EXISTS users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          fullname TEXT NOT NULL,
-          username TEXT UNIQUE NOT NULL,
-          password TEXT NOT NULL,
-          role TEXT NOT NULL,
-          status TEXT DEFAULT 'Active',
-          school_id INTEGER DEFAULT 1,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-        `,
-        [],
-        (err) => {
-
-          if (err) {
-            console.error("USERS TABLE ERROR:", err.message);
-          } else {
-            console.log("Users table ready");
-          }
-
-          // =============================================
-          // SCHOOLS
-          // =============================================
-
-          db.run(
-            `
-            CREATE TABLE IF NOT EXISTS schools (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              schoolName TEXT NOT NULL,
-              phone TEXT DEFAULT '',
-              email TEXT DEFAULT '',
-              address TEXT DEFAULT '',
-              registrationNumber TEXT DEFAULT '',
-              status TEXT DEFAULT 'Active',
-              created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-            `,
-            [],
-            (err) => {
-
-              if (err) {
-                console.error("SCHOOLS TABLE ERROR:", err.message);
-                return callback(err);
-              }
-
-              console.log("Schools table ready");
-
-              // =========================================
-              // INSTRUCTORS
-              // =========================================
-
-              db.run(
-                `
-                CREATE TABLE IF NOT EXISTS instructors (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  name TEXT NOT NULL,
-                  phone TEXT NOT NULL,
-                  licence TEXT NOT NULL,
-                  experience TEXT NOT NULL,
-                  status TEXT DEFAULT 'Active',
-                  school_id INTEGER DEFAULT 1,
-                  user_id INTEGER
-                )
-                `,
-                [],
-                (err) => {
-
-                  if (err) {
-                    console.error(
-                      "INSTRUCTORS TABLE ERROR:",
-                      err.message
-                    );
-                  } else {
-                    console.log("Instructors table ready");
-                  }
-
-                  // =======================================
-                  // VEHICLES
-                  // =======================================
-
-                  db.run(
-                    `
-                    CREATE TABLE IF NOT EXISTS vehicles (
-                      id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      registration TEXT NOT NULL,
-                      make TEXT NOT NULL,
-                      model TEXT NOT NULL,
-                      year INTEGER NOT NULL,
-                      transmission TEXT NOT NULL,
-                      fuel TEXT NOT NULL,
-                      status TEXT DEFAULT 'Available',
-                      school_id INTEGER DEFAULT 1
-                    )
-                    `,
-                    [],
-                    (err) => {
-
-                      if (err) {
-                        console.error(
-                          "VEHICLES TABLE ERROR:",
-                          err.message
-                        );
-                      } else {
-                        console.log("Vehicles table ready");
-                      }
-
-                      // =================================
-                      // LESSONS
-                      // =================================
-
-                      db.run(
-                        `
-                        CREATE TABLE IF NOT EXISTS lessons (
-                          id INTEGER PRIMARY KEY AUTOINCREMENT,
-                          student TEXT NOT NULL,
-                          instructor TEXT NOT NULL,
-                          vehicle TEXT NOT NULL,
-                          lesson_date TEXT NOT NULL,
-                          lesson_time TEXT NOT NULL,
-                          status TEXT DEFAULT 'Booked',
-                          school_id INTEGER DEFAULT 1
-                        )
-                        `,
-                        [],
-                        (err) => {
-
-                          if (err) {
-                            console.error(
-                              "LESSONS TABLE ERROR:",
-                              err.message
-                            );
-                          } else {
-                            console.log("Lessons table ready");
-                          }
-
-                          // ===============================
-                          // PAYMENTS
-                          // ===============================
-
-                          db.run(
-                            `
-                            CREATE TABLE IF NOT EXISTS payments (
-                              id INTEGER PRIMARY KEY AUTOINCREMENT,
-                              receiptNo TEXT UNIQUE NOT NULL,
-                              studentId INTEGER NOT NULL,
-                              studentName TEXT NOT NULL,
-                              paymentDate TEXT NOT NULL,
-                              paymentMethod TEXT NOT NULL,
-                              amount REAL NOT NULL,
-                              reference TEXT,
-                              notes TEXT,
-                              created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                              school_id INTEGER DEFAULT 1
-                            )
-                            `,
-                            [],
-                            (err) => {
-
-                              if (err) {
-                                console.error(
-                                  "PAYMENTS TABLE ERROR:",
-                                  err.message
-                                );
-                              } else {
-                                console.log("Payments table ready");
-                              }
-
-                              // =============================
-                              // SETTINGS
-                              // =============================
-
-                              db.run(
-                                `
-                                CREATE TABLE IF NOT EXISTS settings (
-                                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                  schoolName TEXT NOT NULL DEFAULT 'DrivePro-SA',
-                                  phone TEXT DEFAULT '',
-                                  email TEXT DEFAULT '',
-                                  address TEXT DEFAULT '',
-                                  registrationNumber TEXT DEFAULT '',
-                                  defaultLessonDuration INTEGER DEFAULT 60,
-                                  defaultLessonPrice REAL DEFAULT 0,
-                                  lessonDuration INTEGER DEFAULT 60,
-                                  lessonPrice REAL DEFAULT 0
-                                )
-                                `,
-                                [],
-                                (err) => {
-
-                                  if (err) {
-                                    console.error(
-                                      "SETTINGS TABLE ERROR:",
-                                      err.message
-                                    );
-                                  } else {
-                                    console.log(
-                                      "Settings table ready"
-                                    );
-                                  }
-
-                                  // =============================================
-                                  // TEST BOOKINGS
-                                  // =============================================
-
-                                  db.run(
-                                    `
-                                    CREATE TABLE IF NOT EXISTS test_bookings (
-                                      id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                      student_id INTEGER NOT NULL,
-                                      student_name TEXT NOT NULL,
-                                      test_type TEXT NOT NULL,
-                                      booking_date TEXT NOT NULL,
-                                      booking_time TEXT NOT NULL,
-                                      test_centre TEXT,
-                                      booking_reference TEXT,
-                                      status TEXT DEFAULT 'Pending',
-                                      reminder_sent INTEGER DEFAULT 0,
-                                      day_reminder_sent INTEGER DEFAULT 0,
-                                      school_id INTEGER DEFAULT 1,
-                                      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                                    )
-                                    `,
-                                    [],
-                                    (testBookingErr) => {
-
-                                      if (testBookingErr) {
-                                        console.error(
-                                          "TEST BOOKINGS TABLE ERROR:",
-                                          testBookingErr.message
-                                        );
-
-                                        return callback(testBookingErr);
-                                      }
-
-                                      console.log(
-                                        "Test bookings table ready"
-                                      );
-
-                                      callback(null);
-                                    }
-                                  );
-                                }
-                              );
-                            }
-                          );
-                        }
-                      );
-                    }
-                  );
-                }
-              );
-            }
-          );
-        }
-      );
-    }
-  );
+  next(null);
 };
-// =====================================================
-// TEST BOOKINGS - INSTRUCTOR FIELDS
-// =====================================================
 
-db.run(
-  `ALTER TABLE test_bookings ADD COLUMN instructor_id INTEGER`,
-  (err) => {
-    if (err && !err.message.includes("duplicate column name")) {
-      console.error("Error adding instructor_id:", err.message);
-    } else if (!err) {
-      console.log("✅ test_bookings instructor_id added");
-    }
-  }
-);
-
-db.run(
-  `ALTER TABLE test_bookings ADD COLUMN instructor_name TEXT`,
-  (err) => {
-    if (err && !err.message.includes("duplicate column name")) {
-      console.error("Error adding instructor_name:", err.message);
-    } else if (!err) {
-      console.log("✅ test_bookings instructor_name added");
-    }
-  }
-);
 // =====================================================
 // MIGRATE SETTINGS TABLE
 // =====================================================
 
 const migrateSettingsTable = (callback) => {
+  const columns = [
+    ["schoolName", "TEXT DEFAULT 'DrivePro-SA'"],
+    ["phone", "TEXT DEFAULT ''"],
+    ["email", "TEXT DEFAULT ''"],
+    ["address", "TEXT DEFAULT ''"],
+    ["registrationNumber", "TEXT DEFAULT ''"],
+    ["defaultLessonDuration", "INTEGER DEFAULT 60"],
+    ["defaultLessonPrice", "REAL DEFAULT 0"],
+    ["lessonDuration", "INTEGER DEFAULT 60"],
+    ["lessonPrice", "REAL DEFAULT 0"],
+    ["school_id", "INTEGER DEFAULT 1"],
+    ["created_at", "TEXT"],
+    ["updated_at", "TEXT"],
+    ["appLogo", "TEXT DEFAULT ''"]
+  ];
 
-  db.all(
-    `PRAGMA table_info(settings)`,
-    [],
-    (err, columns) => {
+  let index = 0;
 
-      if (err) {
-        console.error(
-          "SETTINGS MIGRATION CHECK ERROR:",
-          err.message
-        );
+  const next = (err) => {
+    if (err) return callback(err);
 
-        return callback(err);
+    if (index >= columns.length) {
+      return db.run(
+        `INSERT OR IGNORE INTO settings
+          (id, schoolName, phone, email, address, registrationNumber,
+           defaultLessonDuration, defaultLessonPrice, lessonDuration,
+           lessonPrice, school_id)
+         VALUES (1, 'DrivePro-SA', '', '', '', '', 60, 0, 60, 0, 1)`,
+        [],
+        (insertErr) => {
+          if (insertErr) return callback(insertErr);
+
+          console.log("Settings migration completed");
+          callback(null);
+        }
+      );
+    }
+
+    const [name, definition] = columns[index++];
+
+    ensureColumn("settings", name, definition, (columnErr) => {
+      if (!columnErr) {
+        console.log(`Settings column ready: ${name}`);
       }
 
-      const existingColumns = new Set(
-        (columns || []).map(
-          (column) => column.name
-        )
-      );
+      next(columnErr);
+    });
+  };
 
-      const columnsToAdd = [
-        {
-          name: "schoolName",
-          definition: "TEXT DEFAULT 'DrivePro-SA'"
-        },
-        {
-          name: "phone",
-          definition: "TEXT DEFAULT ''"
-        },
-        {
-          name: "email",
-          definition: "TEXT DEFAULT ''"
-        },
-        {
-          name: "address",
-          definition: "TEXT DEFAULT ''"
-        },
-        {
-          name: "registrationNumber",
-          definition: "TEXT DEFAULT ''"
-        },
-        {
-          name: "defaultLessonDuration",
-          definition: "INTEGER DEFAULT 60"
-        },
-        {
-          name: "defaultLessonPrice",
-          definition: "REAL DEFAULT 0"
-        },
-        {
-          name: "lessonDuration",
-          definition: "INTEGER DEFAULT 60"
-        },
-        {
-          name: "lessonPrice",
-          definition: "REAL DEFAULT 0"
-        },
-        {
-          name: "school_id",
-          definition: "INTEGER DEFAULT 1"
-        },
-        {
-          name: "created_at",
-          definition: "TEXT"
-        },
-        {
-          name: "updated_at",
-          definition: "TEXT"
-        }
-      ];
-
-      let index = 0;
-
-      const addNextColumn = () => {
-
-        if (index >= columnsToAdd.length) {
-
-          db.run(
-            `
-            INSERT OR IGNORE INTO settings
-            (
-              id,
-              schoolName,
-              phone,
-              email,
-              address,
-              registrationNumber,
-              defaultLessonDuration,
-              defaultLessonPrice,
-              lessonDuration,
-              lessonPrice,
-              school_id
-            )
-            VALUES
-            (
-              1,
-              'DrivePro-SA',
-              '',
-              '',
-              '',
-              '',
-              60,
-              0,
-              60,
-              0,
-              1
-            )
-            `,
-            [],
-            (insertErr) => {
-
-              if (insertErr) {
-
-                console.error(
-                  "DEFAULT SETTINGS ERROR:",
-                  insertErr.message
-                );
-
-                return callback(insertErr);
-              }
-
-              console.log(
-                "Settings migration completed"
-              );
-
-              callback(null);
-            }
-          );
-
-          return;
-        }
-
-        const column = columnsToAdd[index];
-
-        index++;
-
-        if (
-          existingColumns.has(
-            column.name
-          )
-        ) {
-          return addNextColumn();
-        }
-
-        console.log(
-          `Adding settings column: ${column.name}`
-        );
-
-        db.run(
-          `
-          ALTER TABLE settings
-          ADD COLUMN ${column.name} ${column.definition}
-          `,
-          [],
-          (alterErr) => {
-
-            if (alterErr) {
-
-              console.error(
-                `SETTINGS COLUMN MIGRATION ERROR (${column.name}):`,
-                alterErr.message
-              );
-
-              return callback(alterErr);
-            }
-
-            console.log(
-              `Settings column added: ${column.name}`
-            );
-
-            addNextColumn();
-          }
-        );
-      };
-
-      addNextColumn();
-    }
-  );
+  next(null);
 };
 
 // =====================================================
-// MIGRATE SCHOOLS TABLE
+// MIGRATE SCHOOLS TABLE, INCLUDING LOGO
 // =====================================================
 
 const migrateSchoolsTable = (callback) => {
+  db.all("PRAGMA table_info(schools)", [], (err, columns) => {
+    if (err) return callback(err);
 
-  db.all(
-    `PRAGMA table_info(schools)`,
-    [],
-    (err, columns) => {
+    const existing = new Set(
+      (columns || []).map((column) => column.name)
+    );
 
-      if (err) {
-        console.error(
-          "SCHOOLS MIGRATION CHECK ERROR:",
-          err.message
-        );
+    const steps = [];
 
-        return callback(err);
-      }
-
-      const existingColumns = new Set(
-        (columns || []).map(
-          (column) => column.name
+    if (!existing.has("schoolName")) {
+      steps.push((done) =>
+        db.run(
+          "ALTER TABLE schools ADD COLUMN schoolName TEXT DEFAULT 'DrivePro-SA'",
+          [],
+          done
         )
       );
+    }
 
-      const addColumn = (
-        sql,
-        label,
-        next
-      ) => {
-
+    if (existing.has("name")) {
+      steps.push((done) =>
         db.run(
-          sql,
+          `UPDATE schools
+           SET schoolName = name
+           WHERE (schoolName IS NULL OR schoolName = '')
+             AND name IS NOT NULL`,
           [],
-          (err) => {
+          done
+        )
+      );
+    }
 
-            if (err) {
-
-              console.error(
-                `SCHOOLS MIGRATION ERROR (${label}):`,
-                err.message
-              );
-
-              return next(err);
-            }
-
-            console.log(
-              `Schools migration: added ${label}`
-            );
-
-            next(null);
-          }
-        );
-      };
-
-      const addSchoolName = (next) => {
-
-        if (
-          existingColumns.has(
-            "schoolName"
-          )
-        ) {
-          return next(null);
-        }
-
-        addColumn(
-          `
-          ALTER TABLE schools
-          ADD COLUMN schoolName TEXT DEFAULT 'DrivePro-SA'
-          `,
-          "schoolName",
-          next
-        );
-      };
-
-      const copyOldSchoolName = (next) => {
-
-        if (
-          !existingColumns.has(
-            "name"
-          )
-        ) {
-          return next(null);
-        }
-
+    if (!existing.has("registrationNumber")) {
+      steps.push((done) =>
         db.run(
-          `
-          UPDATE schools
-          SET schoolName = name
-          WHERE
-            (schoolName IS NULL OR schoolName = '')
-            AND name IS NOT NULL
-          `,
+          "ALTER TABLE schools ADD COLUMN registrationNumber TEXT DEFAULT ''",
           [],
-          (err) => {
+          done
+        )
+      );
+    }
 
-            if (err) {
+    if (!existing.has("status")) {
+      steps.push((done) =>
+        db.run(
+          "ALTER TABLE schools ADD COLUMN status TEXT DEFAULT 'Active'",
+          [],
+          done
+        )
+      );
+    }
 
-              console.error(
-                "SCHOOLS NAME MIGRATION ERROR:",
-                err.message
+    if (!existing.has("logo")) {
+      steps.push((done) =>
+        db.run(
+          "ALTER TABLE schools ADD COLUMN logo TEXT DEFAULT ''",
+          [],
+          done
+        )
+      );
+    }
+
+    let index = 0;
+
+    const next = (stepErr) => {
+      if (stepErr) {
+        console.error("SCHOOLS MIGRATION ERROR:", stepErr.message);
+        return callback(stepErr);
+      }
+
+      if (index >= steps.length) {
+        console.log("Schools migration complete");
+        return callback(null);
+      }
+
+      steps[index++](next);
+    };
+
+    next(null);
+  });
+};
+// =====================================================
+// MIGRATE UNIQUE SCHOOL BOOKING CODES
+// =====================================================
+
+const migrateSchoolBookingCodes = (callback) => {
+  ensureColumn(
+    "schools",
+    "booking_code",
+    "TEXT",
+    (columnErr) => {
+      if (columnErr) return callback(columnErr);
+
+      db.all(
+        "SELECT id, booking_code FROM schools ORDER BY id",
+        [],
+        (selectErr, schools) => {
+          if (selectErr) return callback(selectErr);
+
+          let index = 0;
+
+          const next = () => {
+            if (index >= schools.length) {
+              return db.run(
+                `CREATE UNIQUE INDEX IF NOT EXISTS
+                 idx_schools_booking_code
+                 ON schools(booking_code)
+                 WHERE booking_code IS NOT NULL
+                   AND TRIM(booking_code) <> ''`,
+                [],
+                callback
               );
-
-              return next(err);
             }
 
-            console.log(
-              "Schools migration: old name copied to schoolName"
-            );
+            const school = schools[index++];
 
-            next(null);
-          }
-        );
-      };
-
-      const addRegistrationNumber = (next) => {
-
-        if (
-          existingColumns.has(
-            "registrationNumber"
-          )
-        ) {
-          return next(null);
-        }
-
-        addColumn(
-          `
-          ALTER TABLE schools
-          ADD COLUMN registrationNumber TEXT DEFAULT ''
-          `,
-          "registrationNumber",
-          next
-        );
-      };
-
-      const addStatus = (next) => {
-
-        if (
-          existingColumns.has(
-            "status"
-          )
-        ) {
-          return next(null);
-        }
-
-        addColumn(
-          `
-          ALTER TABLE schools
-          ADD COLUMN status TEXT DEFAULT 'Active'
-          `,
-          "status",
-          next
-        );
-      };
-
-      addSchoolName((err) => {
-
-        if (err) {
-          return callback(err);
-        }
-
-        copyOldSchoolName((err) => {
-
-          if (err) {
-            return callback(err);
-          }
-
-          addRegistrationNumber((err) => {
-
-            if (err) {
-              return callback(err);
+            if (
+              school.booking_code &&
+              String(school.booking_code).trim() !== ""
+            ) {
+              return next();
             }
 
-            addStatus((err) => {
+            const bookingCode = randomBytes(12).toString("hex");
 
-              if (err) {
-                return callback(err);
+            db.run(
+              `UPDATE schools
+               SET booking_code = ?
+               WHERE id = ?
+                 AND (booking_code IS NULL OR TRIM(booking_code) = '')`,
+              [bookingCode, school.id],
+              (updateErr) => {
+                if (updateErr) return callback(updateErr);
+                next();
               }
+            );
+          };
 
-              console.log(
-                "Schools migration complete"
-              );
-
-              callback(null);
-            });
-          });
-        });
-      });
+          next();
+        }
+      );
     }
   );
 };
-
 // =====================================================
 // MIGRATE LEARNER AND LICENCE STATUS
 // =====================================================
 
 const migrateLearnerLicenceStatus = (callback) => {
+  ensureColumn(
+    "students",
+    "learnerStatus",
+    "TEXT DEFAULT 'Not Applicable'",
+    (err) => {
+      if (err) return callback(err);
 
-  db.all(
-    "PRAGMA table_info(students)",
-    [],
-    (err, columns) => {
-
-      if (err) {
-        console.error(
-          "STUDENT STATUS COLUMN CHECK FAILED:",
-          err.message
-        );
-
-        return callback(err);
-      }
-
-      const columnNames = columns.map(
-        (column) => column.name
+      ensureColumn(
+        "students",
+        "licenceStatus",
+        "TEXT DEFAULT 'Not Applicable'",
+        callback
       );
-
-      const addLearnerStatus =
-        !columnNames.includes("learnerStatus");
-
-      const addLicenceStatus =
-        !columnNames.includes("licenceStatus");
-
-      const addColumn = (sql, next) => {
-
-        db.run(
-          sql,
-          [],
-          (columnErr) => {
-
-            if (columnErr) {
-
-              console.error(
-                "STUDENT STATUS COLUMN MIGRATION FAILED:",
-                columnErr.message
-              );
-
-              return next(columnErr);
-            }
-
-            next(null);
-          }
-        );
-      };
-
-      const finish = () => {
-
-        console.log(
-          "Learner/licence status migration completed"
-        );
-
-        callback(null);
-      };
-
-      if (addLearnerStatus) {
-
-        addColumn(
-          "ALTER TABLE students ADD COLUMN learnerStatus TEXT DEFAULT 'Not Applicable'",
-          (learnerErr) => {
-
-            if (learnerErr) {
-              return callback(learnerErr);
-            }
-
-            if (addLicenceStatus) {
-
-              addColumn(
-                "ALTER TABLE students ADD COLUMN licenceStatus TEXT DEFAULT 'Not Applicable'",
-                (licenceErr) => {
-
-                  if (licenceErr) {
-                    return callback(licenceErr);
-                  }
-
-                  finish();
-                }
-              );
-
-            } else {
-
-              finish();
-
-            }
-
-          }
-        );
-
-      } else if (addLicenceStatus) {
-
-        addColumn(
-          "ALTER TABLE students ADD COLUMN licenceStatus TEXT DEFAULT 'Not Applicable'",
-          (licenceErr) => {
-
-            if (licenceErr) {
-              return callback(licenceErr);
-            }
-
-            finish();
-          }
-        );
-
-      } else {
-
-        finish();
-
-      }
-
     }
   );
 };
 
 // =====================================================
-// MIGRATE LESSON WHATSAPP REMINDER COLUMNS
+// MIGRATE LESSON WHATSAPP REMINDERS
 // =====================================================
 
 const migrateLessonWhatsAppReminders = (callback) => {
+  ensureColumn(
+    "lessons",
+    "notification_sent",
+    "INTEGER DEFAULT 0",
+    (err) => {
+      if (err) return callback(err);
 
-  db.all(
-    `PRAGMA table_info(lessons)`,
-    [],
-    (err, columns) => {
-
-      if (err) {
-        console.error(
-          "LESSON WHATSAPP COLUMN CHECK ERROR:",
-          err.message
-        );
-
-        return callback(err);
-      }
-
-      const existingColumns = new Set(
-        (columns || []).map(
-          (column) => column.name
-        )
+      ensureColumn(
+        "lessons",
+        "day_reminder_sent",
+        "INTEGER DEFAULT 0",
+        callback
       );
-
-      const columnsToAdd = [
-        {
-          name: "notification_sent",
-          definition: "INTEGER DEFAULT 0"
-        },
-        {
-          name: "day_reminder_sent",
-          definition: "INTEGER DEFAULT 0"
-        }
-      ];
-
-      let index = 0;
-
-      const addNextColumn = () => {
-
-        if (index >= columnsToAdd.length) {
-
-          console.log(
-            "Lesson WhatsApp reminder migration completed"
-          );
-
-          return callback(null);
-        }
-
-        const column = columnsToAdd[index];
-
-        index++;
-
-        if (existingColumns.has(column.name)) {
-          return addNextColumn();
-        }
-
-        console.log(
-          `Adding lesson WhatsApp column: ${column.name}`
-        );
-
-        db.run(
-          `
-          ALTER TABLE lessons
-          ADD COLUMN ${column.name} ${column.definition}
-          `,
-          [],
-          (alterErr) => {
-
-            if (alterErr) {
-
-              console.error(
-                `LESSON WHATSAPP COLUMN MIGRATION ERROR (${column.name}):`,
-                alterErr.message
-              );
-
-              return callback(alterErr);
-            }
-
-            console.log(
-              `Lesson WhatsApp column added: ${column.name}`
-            );
-
-            addNextColumn();
-          }
-        );
-      };
-
-      addNextColumn();
     }
   );
 };
@@ -975,55 +488,26 @@ const migrateLessonWhatsAppReminders = (callback) => {
 // =====================================================
 
 const migrateLearnerCode = (callback) => {
+  ensureColumn("students", "learnerCode", "TEXT", callback);
+};
 
-  db.all(
-    "PRAGMA table_info(students)",
-    [],
-    (err, columns) => {
+// =====================================================
+// MIGRATE TEST BOOKING INSTRUCTOR FIELDS
+// =====================================================
 
-      if (err) {
-        console.error(
-          "LEARNER CODE MIGRATION CHECK ERROR:",
-          err.message
-        );
+const migrateTestBookingInstructorFields = (callback) => {
+  ensureColumn(
+    "test_bookings",
+    "instructor_id",
+    "INTEGER",
+    (err) => {
+      if (err) return callback(err);
 
-        return callback(err);
-      }
-
-      const exists = columns.some(
-        (column) => column.name === "learnerCode"
-      );
-
-      if (exists) {
-
-        console.log(
-          "Learner code migration already complete"
-        );
-
-        return callback(null);
-      }
-
-      db.run(
-        "ALTER TABLE students ADD COLUMN learnerCode TEXT",
-        [],
-        (alterErr) => {
-
-          if (alterErr) {
-
-            console.error(
-              "LEARNER CODE MIGRATION ERROR:",
-              alterErr.message
-            );
-
-            return callback(alterErr);
-          }
-
-          console.log(
-            "Learner code migration completed"
-          );
-
-          callback(null);
-        }
+      ensureColumn(
+        "test_bookings",
+        "instructor_name",
+        "TEXT",
+        callback
       );
     }
   );
@@ -1034,78 +518,29 @@ const migrateLearnerCode = (callback) => {
 // =====================================================
 
 const migrateStudentNumbers = (callback) => {
-
-  console.log(
-    "***** STARTING STUDENT NUMBER MIGRATION *****"
-  );
-
   db.get(
-    `
-    SELECT name
-    FROM sqlite_master
-    WHERE type = 'index'
-      AND name = 'idx_students_school_studentNo'
-    `,
+    `SELECT name FROM sqlite_master
+     WHERE type = 'index'
+       AND name = 'idx_students_school_studentNo'`,
     [],
-    (err, existingIndex) => {
-
-      if (err) {
-
-        console.error(
-          "STUDENT NUMBER MIGRATION CHECK ERROR:",
-          err.message
-        );
-
-        return callback(err);
-      }
-
-      if (existingIndex) {
-
-        console.log(
-          "Student number migration already complete"
-        );
-
-        return callback(null);
-      }
+    (err, indexRow) => {
+      if (err) return callback(err);
+      if (indexRow) return callback(null);
 
       db.all(
-        `
-        SELECT
-          school_id,
-          studentNo,
-          COUNT(*) AS count
-        FROM students
-        WHERE studentNo IS NOT NULL
-          AND TRIM(studentNo) <> ''
-        GROUP BY
-          school_id,
-          studentNo
-        HAVING COUNT(*) > 1
-        `,
+        `SELECT school_id, studentNo, COUNT(*) AS count
+         FROM students
+         WHERE studentNo IS NOT NULL
+           AND TRIM(studentNo) <> ''
+         GROUP BY school_id, studentNo
+         HAVING COUNT(*) > 1`,
         [],
         (duplicateErr, duplicates) => {
+          if (duplicateErr) return callback(duplicateErr);
 
-          if (duplicateErr) {
-
+          if (duplicates && duplicates.length) {
             console.error(
-              "STUDENT NUMBER DUPLICATE CHECK ERROR:",
-              duplicateErr.message
-            );
-
-            return callback(duplicateErr);
-          }
-
-          if (
-            duplicates &&
-            duplicates.length > 0
-          ) {
-
-            console.error(
-              "STUDENT NUMBER MIGRATION STOPPED."
-            );
-
-            console.error(
-              "Duplicate student numbers found within the same school:",
+              "Duplicate student numbers found:",
               duplicates
             );
 
@@ -1116,228 +551,13 @@ const migrateStudentNumbers = (callback) => {
             );
           }
 
-          db.serialize(() => {
-
-            console.log(
-              "Creating temporary students table..."
-            );
-
-            db.run(
-              `
-              CREATE TABLE students_new (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                studentNo TEXT,
-                fullname TEXT NOT NULL,
-                idNumber TEXT,
-                gender TEXT,
-                phone TEXT NOT NULL,
-                email TEXT,
-                address TEXT,
-                learnerNumber TEXT,
-                learnerCode TEXT,
-                learnerStatus TEXT DEFAULT 'Not Applicable',
-                licenceCode TEXT,
-                licenceStatus TEXT DEFAULT 'Not Applicable',
-                instructor TEXT,
-                vehicle TEXT,
-                courseFee REAL DEFAULT 0,
-                amountPaid REAL DEFAULT 0,
-                balance REAL DEFAULT 0,
-                photo TEXT,
-                status TEXT DEFAULT 'Active',
-                school_id INTEGER DEFAULT 1,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-              )
-              `,
-              [],
-              (createErr) => {
-
-                if (createErr) {
-
-                  console.error(
-                    "STUDENTS NEW TABLE ERROR:",
-                    createErr.message
-                  );
-
-                  return callback(createErr);
-                }
-
-                console.log(
-                  "Temporary students table created"
-                );
-
-                db.run(
-                  `
-                  INSERT INTO students_new
-                  (
-                    id,
-                    studentNo,
-                    fullname,
-                    idNumber,
-                    gender,
-                    phone,
-                    email,
-                    address,
-                    learnerNumber,
-                    learnerCode,
-                    learnerStatus,
-                    licenceCode,
-                    licenceStatus,
-                    instructor,
-                    vehicle,
-                    courseFee,
-                    amountPaid,
-                    balance,
-                    photo,
-                    status,
-                    school_id,
-                    created_at
-                  )
-                  SELECT
-                    id,
-                    studentNo,
-                    fullname,
-                    idNumber,
-                    gender,
-                    phone,
-                    email,
-                    address,
-                    learnerNumber,
-                    learnerCode,
-                    learnerStatus,
-                    licenceCode,
-                    licenceStatus,
-                    instructor,
-                    vehicle,
-                    courseFee,
-                    amountPaid,
-                    balance,
-                    photo,
-                    status,
-                    school_id,
-                    created_at
-                  FROM students
-                  `,
-                  [],
-                  (copyErr) => {
-
-                    if (copyErr) {
-
-                      console.error(
-                        "STUDENTS DATA COPY ERROR:",
-                        copyErr.message
-                      );
-
-                      db.run(
-                        `
-                        DROP TABLE IF EXISTS students_new
-                        `,
-                        [],
-                        () => {
-                          callback(copyErr);
-                        }
-                      );
-
-                      return;
-                    }
-
-                    console.log(
-                      "Existing students copied successfully"
-                    );
-
-                    db.run(
-                      `
-                      DROP TABLE students
-                      `,
-                      [],
-                      (dropErr) => {
-
-                        if (dropErr) {
-
-                          console.error(
-                            "OLD STUDENTS TABLE DROP ERROR:",
-                            dropErr.message
-                          );
-
-                          db.run(
-                            `
-                            DROP TABLE IF EXISTS students_new
-                            `,
-                            [],
-                            () => {
-                              callback(dropErr);
-                            }
-                          );
-
-                          return;
-                        }
-
-                        console.log(
-                          "Old students table removed"
-                        );
-
-                        db.run(
-                          `
-                          ALTER TABLE students_new
-                          RENAME TO students
-                          `,
-                          [],
-                          (renameErr) => {
-
-                            if (renameErr) {
-
-                              console.error(
-                                "STUDENTS TABLE RENAME ERROR:",
-                                renameErr.message
-                              );
-
-                              return callback(renameErr);
-                            }
-
-                            console.log(
-                              "Students table rebuilt successfully"
-                            );
-
-                            db.run(
-                              `
-                              CREATE UNIQUE INDEX IF NOT EXISTS
-                              idx_students_school_studentNo
-                              ON students
-                              (
-                                school_id,
-                                studentNo
-                              )
-                              `,
-                              [],
-                              (indexErr) => {
-
-                                if (indexErr) {
-
-                                  console.error(
-                                    "STUDENT NUMBER UNIQUE INDEX ERROR:",
-                                    indexErr.message
-                                  );
-
-                                  return callback(indexErr);
-                                }
-
-                                console.log(
-                                  "Student number migration complete"
-                                );
-
-                                callback(null);
-                              }
-                            );
-                          }
-                        );
-                      }
-                    );
-                  }
-                );
-              }
-            );
-
-          });
+          db.run(
+            `CREATE UNIQUE INDEX IF NOT EXISTS
+             idx_students_school_studentNo
+             ON students(school_id, studentNo)`,
+            [],
+            callback
+          );
         }
       );
     }
@@ -1347,353 +567,171 @@ const migrateStudentNumbers = (callback) => {
 // =====================================================
 // MIGRATE STUDENT USER ID
 // =====================================================
-//
-// This connects:
-//
-// USERS
-//   id
-//   fullname
-//   role = Student
-//   school_id
-//
-// to:
-//
-// STUDENTS
-//   user_id
-//
-// Existing records are automatically linked when the
-// student fullname and school match.
-//
-// =====================================================
 
 const migrateStudentUserId = (callback) => {
+  ensureColumn("students", "user_id", "INTEGER", (err) => {
+    if (err) return callback(err);
 
-  db.all(
-    `PRAGMA table_info(students)`,
-    [],
-    (err, columns) => {
+    db.run(
+      `UPDATE students
+       SET user_id = (
+         SELECT users.id
+         FROM users
+         WHERE users.school_id = students.school_id
+           AND LOWER(TRIM(users.fullname)) =
+               LOWER(TRIM(students.fullname))
+           AND LOWER(TRIM(users.role)) = 'student'
+         ORDER BY users.id
+         LIMIT 1
+       )
+       WHERE user_id IS NULL
+         AND EXISTS (
+           SELECT 1
+           FROM users
+           WHERE users.school_id = students.school_id
+             AND LOWER(TRIM(users.fullname)) =
+                 LOWER(TRIM(students.fullname))
+             AND LOWER(TRIM(users.role)) = 'student'
+         )`,
+      [],
+      (updateErr) => {
+        if (updateErr) return callback(updateErr);
 
-      if (err) {
-
-        console.error(
-          "STUDENT USER ID MIGRATION CHECK ERROR:",
-          err.message
+        db.run(
+          "CREATE INDEX IF NOT EXISTS idx_students_user_id ON students(user_id)",
+          [],
+          callback
         );
-
-        return callback(err);
       }
-
-      const exists = (columns || []).some(
-        (column) =>
-          String(column.name).toLowerCase() === "user_id"
-      );
-
-      const addUserIdColumn = (next) => {
-
-        if (exists) {
-
-          console.log(
-            "Student user_id column already exists"
-          );
-
-          return next(null);
-        }
-
-        db.run(
-          `
-          ALTER TABLE students
-          ADD COLUMN user_id INTEGER
-          `,
-          [],
-          (alterErr) => {
-
-            if (alterErr) {
-
-              console.error(
-                "STUDENT USER ID COLUMN MIGRATION ERROR:",
-                alterErr.message
-              );
-
-              return next(alterErr);
-            }
-
-            console.log(
-              "Student user_id column added"
-            );
-
-            next(null);
-          }
-        );
-      };
-
-      addUserIdColumn((columnErr) => {
-
-        if (columnErr) {
-          return callback(columnErr);
-        }
-
-        // =================================================
-        // LINK EXISTING STUDENTS TO STUDENT USERS
-        // =================================================
-
-        db.run(
-          `
-          UPDATE students
-          SET user_id = (
-            SELECT users.id
-            FROM users
-            WHERE users.school_id = students.school_id
-              AND LOWER(TRIM(users.fullname)) =
-                  LOWER(TRIM(students.fullname))
-              AND LOWER(TRIM(users.role)) = 'student'
-            ORDER BY users.id
-            LIMIT 1
-          )
-          WHERE user_id IS NULL
-            AND EXISTS (
-              SELECT 1
-              FROM users
-              WHERE users.school_id = students.school_id
-                AND LOWER(TRIM(users.fullname)) =
-                    LOWER(TRIM(students.fullname))
-                AND LOWER(TRIM(users.role)) = 'student'
-            )
-          `,
-          [],
-          (updateErr) => {
-
-            if (updateErr) {
-
-              console.error(
-                "STUDENT USER ID BACKFILL ERROR:",
-                updateErr.message
-              );
-
-              return callback(updateErr);
-            }
-
-            console.log(
-              "Existing student/user records linked where names matched"
-            );
-
-            // =================================================
-            // CREATE USER ID INDEX
-            // =================================================
-
-            db.run(
-              `
-              CREATE INDEX IF NOT EXISTS idx_students_user_id
-              ON students(user_id)
-              `,
-              [],
-              (indexErr) => {
-
-                if (indexErr) {
-
-                  console.error(
-                    "STUDENT USER ID INDEX ERROR:",
-                    indexErr.message
-                  );
-
-                  return callback(indexErr);
-                }
-
-                console.log(
-                  "Student user_id index ready"
-                );
-
-                callback(null);
-              }
-            );
-          }
-        );
-      });
-    }
-  );
+    );
+  });
 };
 
 // =====================================================
 // MIGRATE INSTRUCTOR USER ID
 // =====================================================
-//
-// This connects:
-//
-// USERS
-//   id
-//   fullname
-//   role = Instructor
-//   school_id
-//
-// to:
-//
-// INSTRUCTORS
-//   user_id
-//
-// Existing instructor records are linked only when there
-// is exactly ONE matching Instructor user in the same school.
-// This avoids incorrectly linking two instructors who have
-// the same name.
-//
-// =====================================================
 
 const migrateInstructorUserId = (callback) => {
+  ensureColumn("instructors", "user_id", "INTEGER", (err) => {
+    if (err) return callback(err);
 
-  db.all(
-    `PRAGMA table_info(instructors)`,
-    [],
-    (err, columns) => {
+    db.run(
+      `UPDATE instructors
+       SET user_id = (
+         SELECT users.id
+         FROM users
+         WHERE users.school_id = instructors.school_id
+           AND LOWER(TRIM(users.fullname)) =
+               LOWER(TRIM(instructors.name))
+           AND LOWER(TRIM(users.role)) = 'instructor'
+           AND (
+             SELECT COUNT(*)
+             FROM users AS matching_users
+             WHERE matching_users.school_id = instructors.school_id
+               AND LOWER(TRIM(matching_users.fullname)) =
+                   LOWER(TRIM(instructors.name))
+               AND LOWER(TRIM(matching_users.role)) = 'instructor'
+           ) = 1
+         LIMIT 1
+       )
+       WHERE user_id IS NULL
+         AND (
+           SELECT COUNT(*)
+           FROM users
+           WHERE users.school_id = instructors.school_id
+             AND LOWER(TRIM(users.fullname)) =
+                 LOWER(TRIM(instructors.name))
+             AND LOWER(TRIM(users.role)) = 'instructor'
+         ) = 1`,
+      [],
+      (updateErr) => {
+        if (updateErr) return callback(updateErr);
 
-      if (err) {
-
-        console.error(
-          "INSTRUCTOR USER ID MIGRATION CHECK ERROR:",
-          err.message
+        db.run(
+          "CREATE INDEX IF NOT EXISTS idx_instructors_user_id ON instructors(user_id)",
+          [],
+          callback
         );
-
-        return callback(err);
       }
+    );
+  });
+};
 
-      const exists = (columns || []).some(
-        (column) =>
-          String(column.name).toLowerCase() === "user_id"
-      );
+// =====================================================
+// MIGRATE PUBLIC LESSON BOOKING REQUESTS
+// =====================================================
 
-      const addUserIdColumn = (next) => {
 
-        if (exists) {
+const migrateLessonBookingRequests = (callback) => {
+  const columns = [
+    ["lesson_id", "INTEGER"],
+    ["lesson_count", "INTEGER NOT NULL DEFAULT 1"],
+    ["total_price", "REAL NOT NULL DEFAULT 0"],
+    ["lesson_schedule", "TEXT"],
+    ["service_code", "TEXT"],
+    ["service_name", "TEXT"],
+    ["service_price", "REAL NOT NULL DEFAULT 0"],
+  ];
 
-          console.log(
-            "Instructor user_id column already exists"
-          );
+  let index = 0;
 
-          return next(null);
-        }
+  const next = (err) => {
+    if (err) return callback(err);
 
-        db.run(
-          `
-          ALTER TABLE instructors
-          ADD COLUMN user_id INTEGER
-          `,
-          [],
-          (alterErr) => {
+    if (index >= columns.length) {
+      console.log("Lesson booking requests migration completed");
+      return callback(null);
+    }
 
-            if (alterErr) {
+    const [name, definition] = columns[index++];
 
-              console.error(
-                "INSTRUCTOR USER ID COLUMN MIGRATION ERROR:",
-                alterErr.message
-              );
-
-              return next(alterErr);
-            }
-
-            console.log(
-              "Instructor user_id column added"
-            );
-
-            next(null);
-          }
-        );
-      };
-
-      addUserIdColumn((columnErr) => {
-
+    ensureColumn(
+      "lesson_booking_requests",
+      name,
+      definition,
+      (columnErr) => {
         if (columnErr) {
-          return callback(columnErr);
+          console.error(
+            `Booking request column migration failed (${name}):`,
+            columnErr.message
+          );
         }
 
-        // =================================================
-        // LINK EXISTING INSTRUCTORS TO INSTRUCTOR USERS
-        // =================================================
-        //
-        // Only link when there is exactly ONE matching
-        // instructor user with the same name in the same
-        // school.
-        //
-        // If two instructors have the same name, the record
-        // remains unlinked so we do not connect the wrong
-        // person.
-        // =================================================
+        next(columnErr);
+      }
+    );
+  };
 
-        db.run(
-          `
-          UPDATE instructors
-          SET user_id = (
-            SELECT users.id
-            FROM users
-            WHERE users.school_id = instructors.school_id
-              AND LOWER(TRIM(users.fullname)) =
-                  LOWER(TRIM(instructors.name))
-              AND LOWER(TRIM(users.role)) = 'instructor'
-              AND (
-                SELECT COUNT(*)
-                FROM users AS matching_users
-                WHERE matching_users.school_id = instructors.school_id
-                  AND LOWER(TRIM(matching_users.fullname)) =
-                      LOWER(TRIM(instructors.name))
-                  AND LOWER(TRIM(matching_users.role)) = 'instructor'
-              ) = 1
-            LIMIT 1
-          )
-          WHERE user_id IS NULL
-            AND (
-              SELECT COUNT(*)
-              FROM users
-              WHERE users.school_id = instructors.school_id
-                AND LOWER(TRIM(users.fullname)) =
-                    LOWER(TRIM(instructors.name))
-                AND LOWER(TRIM(users.role)) = 'instructor'
-            ) = 1
-          `,
-          [],
-          (updateErr) => {
+  next(null);
+};
 
-            if (updateErr) {
+// =====================================================
+// MIGRATE SERVICE-SPECIFIC LESSON DURATION
+// =====================================================
 
-              console.error(
-                "INSTRUCTOR USER ID BACKFILL ERROR:",
-                updateErr.message
-              );
+const migrateServiceLessonDuration = (callback) => {
+  ensureColumn(
+    "school_lesson_package_prices",
+    "lesson_duration",
+    "INTEGER NOT NULL DEFAULT 60",
+    callback
+  );
+};
 
-              return callback(updateErr);
-            }
+const migrateFixedLessonPackageDetails = (callback) => {
+  ensureColumn(
+    "school_fixed_lesson_packages",
+    "vehicle_code",
+    "TEXT NOT NULL DEFAULT ''",
+    (vehicleErr) => {
+      if (vehicleErr) return callback(vehicleErr);
 
-            console.log(
-              "Existing instructor/user records linked where name and school matched uniquely"
-            );
-
-            // =================================================
-            // CREATE USER ID INDEX
-            // =================================================
-
-            db.run(
-              `
-              CREATE INDEX IF NOT EXISTS idx_instructors_user_id
-              ON instructors(user_id)
-              `,
-              [],
-              (indexErr) => {
-
-                if (indexErr) {
-
-                  console.error(
-                    "INSTRUCTOR USER ID INDEX ERROR:",
-                    indexErr.message
-                  );
-
-                  return callback(indexErr);
-                }
-
-                console.log(
-                  "Instructor user_id index ready"
-                );
-
-                callback(null);
-              }
-            );
-          }
-        );
-      });
+      ensureColumn(
+        "school_fixed_lesson_packages",
+        "included_services",
+        "TEXT NOT NULL DEFAULT '[]'",
+        callback
+      );
     }
   );
 };
@@ -1703,137 +741,27 @@ const migrateInstructorUserId = (callback) => {
 // =====================================================
 
 const createIndexes = (callback) => {
-
   const indexes = [
-
-    {
-      name: "idx_students_user_id",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_students_user_id
-        ON students(user_id)
-      `
-    },
-
-    {
-      name: "idx_instructors_user_id",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_instructors_user_id
-        ON instructors(user_id)
-      `
-    },
-
-    {
-      name: "idx_students_school",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_students_school
-        ON students(school_id)
-      `
-    },
-
-    {
-      name: "idx_students_status",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_students_status
-        ON students(status)
-      `
-    },
-
-    {
-      name: "idx_users_school",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_users_school
-        ON users(school_id)
-      `
-    },
-
-    {
-      name: "idx_users_username",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_users_username
-        ON users(username)
-      `
-    },
-
-    {
-      name: "idx_lessons_student",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_lessons_student
-        ON lessons(student)
-      `
-    },
-
-    {
-      name: "idx_lessons_instructor",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_lessons_instructor
-        ON lessons(instructor)
-      `
-    },
-
-    {
-      name: "idx_lessons_date",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_lessons_date
-        ON lessons(lesson_date)
-      `
-    },
-
-    {
-      name: "idx_payments_student",
-      sql: `
-        CREATE INDEX IF NOT EXISTS idx_payments_student
-        ON payments(studentId)
-      `
-    }
-
+    "CREATE INDEX IF NOT EXISTS idx_students_school ON students(school_id)",
+    "CREATE INDEX IF NOT EXISTS idx_students_status ON students(status)",
+    "CREATE INDEX IF NOT EXISTS idx_users_school ON users(school_id)",
+    "CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)",
+    "CREATE INDEX IF NOT EXISTS idx_lessons_student ON lessons(student)",
+    "CREATE INDEX IF NOT EXISTS idx_lessons_instructor ON lessons(instructor)",
+    "CREATE INDEX IF NOT EXISTS idx_lessons_date ON lessons(lesson_date)",
+    "CREATE INDEX IF NOT EXISTS idx_payments_student ON payments(studentId)"
   ];
 
-  let indexNumber = 0;
+  let index = 0;
 
-  const nextIndex = () => {
+  const next = (err) => {
+    if (err) return callback(err);
+    if (index >= indexes.length) return callback(null);
 
-    if (
-      indexNumber >=
-      indexes.length
-    ) {
-
-      console.log(
-        "Database indexes ready"
-      );
-
-      return callback(null);
-    }
-
-    const index =
-      indexes[indexNumber];
-
-    indexNumber++;
-
-    db.run(
-      index.sql,
-      [],
-      (err) => {
-
-        if (err) {
-
-          console.error(
-            `${index.name} ERROR:`,
-            err.message
-          );
-
-          return callback(err);
-        }
-
-        nextIndex();
-      }
-    );
+    db.run(indexes[index++], [], next);
   };
 
-  console.log(
-    "Creating database indexes..."
-  );
-
-  nextIndex();
+  next(null);
 };
 
 // =====================================================
@@ -1841,464 +769,129 @@ const createIndexes = (callback) => {
 // =====================================================
 
 const setupDefaultSchool = (callback) => {
-
   db.run(
-    `
-    INSERT OR IGNORE INTO schools
-    (
-      id,
-      schoolName,
-      phone,
-      email,
-      address,
-      registrationNumber,
-      status
-    )
-    VALUES
-    (
-      1,
-      'DrivePro-SA',
-      '',
-      '',
-      '',
-      '',
-      'Active'
-    )
-    `,
+    `INSERT OR IGNORE INTO schools
+      (id, schoolName, phone, email, address, registrationNumber, status)
+     VALUES (1, 'DrivePro-SA', '', '', '', '', 'Active')`,
     [],
-    (err) => {
-
-      if (err) {
-
-        console.error(
-          "DEFAULT SCHOOL ERROR:",
-          err.message
-        );
-
-        return callback(err);
-      }
-
-      console.log(
-        "Default school ready"
-      );
-
-      callback(null);
-    }
+    callback
   );
 };
 
 // =====================================================
-// DEFAULT ADMIN
+// DEFAULT ADMINISTRATOR
 // =====================================================
 
 const setupDefaultAdmin = (callback) => {
-
   db.get(
-    `
-    SELECT id
-    FROM users
-    WHERE username = ?
-    LIMIT 1
-    `,
+    "SELECT id FROM users WHERE username = ? LIMIT 1",
     ["admin"],
     (err, row) => {
-
-      if (err) {
-
-        console.error(
-          "DEFAULT ADMIN CHECK ERROR:",
-          err.message
-        );
-
-        return callback(err);
-      }
+      if (err) return callback(err);
 
       if (row) {
-
-        db.run(
-          `
-          UPDATE users
-          SET
-            fullname = ?,
-            password = ?,
-            role = ?,
-            status = ?,
-            school_id = ?
-          WHERE username = ?
-          `,
-          [
-            "Administrator",
-            "admin",
-            "System Administrator",
-            "Active",
-            1,
-            "admin"
-          ],
-          (updateErr) => {
-
-            if (updateErr) {
-
-              console.error(
-                "DEFAULT ADMIN UPDATE ERROR:",
-                updateErr.message
-              );
-
-              return callback(updateErr);
-            }
-
-            console.log(
-              "Default admin account updated"
-            );
-
-            callback(null);
-          }
+        console.log(
+          "Existing administrator account preserved. No password reset performed."
         );
-
-        return;
+        return callback(null);
       }
 
-      db.run(
-        `
-        INSERT INTO users
-        (
-          fullname,
-          username,
-          password,
-          role,
-          status,
-          school_id
-        )
-        VALUES
-        (
-          ?,
-          ?,
-          ?,
-          ?,
-          ?,
-          ?
-        )
-        `,
-        [
-          "Administrator",
-          "admin",
-          "1234",
-          "System Administrator",
-          "Active",
-          1
-        ],
-        (insertErr) => {
-
-          if (insertErr) {
-
-            console.error(
-              "DEFAULT ADMIN INSERT ERROR:",
-              insertErr.message
-            );
-
-            return callback(insertErr);
-          }
-
-          console.log(
-            "Default admin account created"
-          );
-
-          callback(null);
-        }
+      console.log(
+        "No administrator account found. Secure administrator setup is required."
       );
+
+      return callback(null);
     }
   );
 };
-
 // =====================================================
 // DATABASE READY CHECK
 // =====================================================
 
 const databaseReadyCheck = () => {
-
-  db.serialize(() => {
-
+  for (const [label, table] of [
+    ["Users", "users"],
+    ["Students", "students"],
+    ["Schools", "schools"]
+  ]) {
     db.get(
-      `SELECT COUNT(*) AS count FROM users`,
+      `SELECT COUNT(*) AS count FROM ${table}`,
       [],
       (err, row) => {
-
         if (err) {
-
           console.error(
-            "DATABASE READY CHECK ERROR:",
+            `${label.toUpperCase()} READY CHECK ERROR:`,
             err.message
           );
-
-          return;
+        } else {
+          console.log(`${label} in database: ${row.count}`);
         }
-
-        console.log(
-          `Users in database: ${row.count}`
-        );
       }
     );
+  }
+};
 
-    db.get(
-      `SELECT COUNT(*) AS count FROM students`,
-      [],
-      (err, row) => {
+// =====================================================
+// RUN MIGRATIONS IN ORDER
+// =====================================================
 
-        if (err) {
+const migrations = [
+  ["schools", migrateSchoolsTable],
+  ["school booking codes", migrateSchoolBookingCodes],
+  ["settings", migrateSettingsTable],
+  ["test booking instructor fields", migrateTestBookingInstructorFields],
+  ["learner/licence status", migrateLearnerLicenceStatus],
+  ["learner code", migrateLearnerCode],
+  ["lesson WhatsApp reminders", migrateLessonWhatsAppReminders],
+  ["student numbers", migrateStudentNumbers],
+  ["student user ID", migrateStudentUserId],
+  ["instructor user ID", migrateInstructorUserId],
+  ["lesson booking requests", migrateLessonBookingRequests],
+  ["service lesson duration", migrateServiceLessonDuration],
+  ["fixed lesson package details", migrateFixedLessonPackageDetails],
+  ["indexes", createIndexes],
+  ["default school", setupDefaultSchool],
+  ["default administrator", setupDefaultAdmin]
+];
 
-          console.error(
-            "STUDENTS READY CHECK ERROR:",
-            err.message
-          );
+const runMigrations = (index = 0) => {
+  if (index >= migrations.length) {
+    console.log("All database migrations completed");
+    databaseReadyCheck();
+    return;
+  }
 
-          return;
-        }
+  const [label, migration] = migrations[index];
 
-        console.log(
-          `Students in database: ${row.count}`
-        );
-      }
-    );
+  console.log(`Starting migration: ${label}`);
 
-    db.get(
-      `SELECT COUNT(*) AS count FROM schools`,
-      [],
-      (err, row) => {
+  migration((err) => {
+    if (err) {
+      console.error(
+        `DATABASE ${label.toUpperCase()} MIGRATION FAILED:`,
+        err.message
+      );
+      return;
+    }
 
-        if (err) {
-
-          console.error(
-            "SCHOOLS READY CHECK ERROR:",
-            err.message
-          );
-
-          return;
-        }
-
-        console.log(
-          `Schools in database: ${row.count}`
-        );
-      }
-    );
-
+    runMigrations(index + 1);
   });
 };
 
 // =====================================================
 // INITIALIZE DATABASE
 // =====================================================
-//
-// 1. Create tables
-// 2. Migrate schools
-// 3. Migrate settings
-// 4. Migrate learner/licence status
-// 5. Migrate learner code
-// 6. Migrate lesson WhatsApp reminders
-// 7. Migrate student numbers
-// 8. Migrate student user ID
-// 9. Migrate instructor user ID
-// 10. Create indexes
-// 11. Create default school
-// 12. Create/update admin
-// 13. Run ready checks
-//
-// =====================================================
 
 createTables((err) => {
-
   if (err) {
-
     console.error(
       "DATABASE TABLE INITIALIZATION FAILED:",
       err.message
     );
-
     return;
   }
 
-  migrateSchoolsTable((err) => {
-
-    if (err) {
-
-      console.error(
-        "DATABASE SCHOOLS MIGRATION FAILED:",
-        err.message
-      );
-
-      return;
-    }
-
-    migrateSettingsTable((err) => {
-
-      if (err) {
-
-        console.error(
-          "DATABASE SETTINGS MIGRATION FAILED:",
-          err.message
-        );
-
-        return;
-      }
-
-      migrateLearnerLicenceStatus((err) => {
-
-        if (err) {
-
-          console.error(
-            "DATABASE LEARNER/LICENCE STATUS MIGRATION FAILED:",
-            err.message
-          );
-
-          return;
-        }
-
-        migrateLearnerCode((err) => {
-
-          if (err) {
-
-            console.error(
-              "DATABASE LEARNER CODE MIGRATION FAILED:",
-              err.message
-            );
-
-            return;
-          }
-
-          migrateLessonWhatsAppReminders((err) => {
-
-            if (err) {
-
-              console.error(
-                "DATABASE LESSON WHATSAPP MIGRATION FAILED:",
-                err.message
-              );
-
-              return;
-            }
-
-            migrateStudentNumbers((err) => {
-
-              if (err) {
-
-                console.error(
-                  "DATABASE STUDENT NUMBER MIGRATION FAILED:",
-                  err.message
-                );
-
-                return;
-              }
-
-              // =================================================
-              // STUDENT USER ID MIGRATION
-              // =================================================
-
-              migrateStudentUserId((err) => {
-
-                if (err) {
-
-                  console.error(
-                    "DATABASE STUDENT USER ID MIGRATION FAILED:",
-                    err.message
-                  );
-
-                  return;
-                }
-
-                // =================================================
-                // INSTRUCTOR USER ID MIGRATION
-                // =================================================
-
-                migrateInstructorUserId((err) => {
-
-                  if (err) {
-
-                    console.error(
-                      "DATABASE INSTRUCTOR USER ID MIGRATION FAILED:",
-                      err.message
-                    );
-
-                    return;
-                  }
-
-                  // =================================================
-                  // CREATE INDEXES
-                  // =================================================
-
-                  createIndexes((err) => {
-
-                    if (err) {
-
-                      console.error(
-                        "DATABASE INDEX CREATION FAILED:",
-                        err.message
-                      );
-
-                      return;
-                    }
-
-                    // =================================================
-                    // DEFAULT SCHOOL
-                    // =================================================
-
-                    setupDefaultSchool((err) => {
-
-                      if (err) {
-
-                        console.error(
-                          "DEFAULT SCHOOL SETUP FAILED:",
-                          err.message
-                        );
-
-                        return;
-                      }
-
-                      // =================================================
-                      // DEFAULT ADMIN
-                      // =================================================
-
-                      setupDefaultAdmin((err) => {
-
-                        if (err) {
-
-                          console.error(
-                            "DEFAULT ADMIN SETUP FAILED:",
-                            err.message
-                          );
-
-                          return;
-                        }
-
-                        // =================================================
-                        // DATABASE READY
-                        // =================================================
-
-                        databaseReadyCheck();
-
-                      });
-
-                    });
-
-                  });
-
-                });
-
-              });
-
-            });
-
-          });
-
-        });
-
-      });
-
-    });
-
-  });
-
+  runMigrations();
 });
-
-// =====================================================
-// EXPORT DATABASE
-// =====================================================
 
 export default db;

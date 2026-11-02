@@ -1,24 +1,92 @@
+
+import { useEffect, useState } from "react";
 import { useMediaQuery, useTheme } from "@mui/material";
-import logo from "../assets/drivepro-logo.png";
+import defaultLogo from "../assets/drivepro-logo.png";
+import api from "../services/api";
 
 type HeaderProps = {
   title: string;
 };
 
 function Header({ title }: HeaderProps) {
-  // ==========================================
-  // RESPONSIVE SCREEN SIZE
-  // ==========================================
-
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const isMobile = useMediaQuery(
-    theme.breakpoints.down("md")
-  );
+  const [appLogo, setAppLogo] = useState(defaultLogo);
 
-  // ==========================================
-  // GET LOGGED-IN USER
-  // ==========================================
+  useEffect(() => {
+    let active = true;
+
+    const loadAppLogo = async () => {
+      try {
+        let savedLogo = "";
+
+        let user: {
+          role?: string;
+          school_id?: number | string;
+        } | null = null;
+
+        try {
+          const storedUser = localStorage.getItem("user");
+          user = storedUser ? JSON.parse(storedUser) : null;
+        } catch {
+          user = null;
+        }
+
+        const role = String(user?.role || "")
+          .trim()
+          .toLowerCase();
+
+        if (role === "system administrator") {
+          const response = await api.get("/app-logo");
+          savedLogo = response.data?.appLogo || "";
+        } else {
+          const response = await api.get("/my-school-logo");
+          savedLogo = response.data?.logo || "";
+        }
+
+        if (!active) return;
+
+        if (!savedLogo) {
+          setAppLogo(defaultLogo);
+          return;
+        }
+
+        const baseURL = (
+          api.defaults.baseURL || "http://localhost:5000"
+        )
+          .replace(/\/api\/?$/, "")
+          .replace(/\/$/, "");
+
+        const logoURL = /^https?:\/\//i.test(savedLogo)
+          ? savedLogo
+          : `${baseURL}${savedLogo.startsWith("/") ? "" : "/"}${savedLogo}`;
+
+        setAppLogo(
+          `${logoURL}${logoURL.includes("?") ? "&" : "?"}v=${Date.now()}`
+        );
+      } catch (error) {
+        console.error("Could not load the appropriate logo in Header:", error);
+
+        if (active) {
+          setAppLogo(defaultLogo);
+        }
+      }
+    };
+
+    loadAppLogo();
+
+    const handleLogoChanged = () => {
+      loadAppLogo();
+    };
+
+    window.addEventListener("appLogoChanged", handleLogoChanged);
+
+    return () => {
+      active = false;
+      window.removeEventListener("appLogoChanged", handleLogoChanged);
+    };
+  }, []);
 
   let user: {
     fullname?: string;
@@ -27,49 +95,44 @@ function Header({ title }: HeaderProps) {
   } = {};
 
   try {
-    user = JSON.parse(
-      localStorage.getItem("user") || "{}"
-    );
+    user = JSON.parse(localStorage.getItem("user") || "{}");
   } catch (error) {
-    console.error(
-      "Error reading logged-in user:",
-      error
-    );
+    console.error("Error reading logged-in user:", error);
   }
 
-  // ==========================================
-  // TODAY
-  // ==========================================
+  const today = new Date().toLocaleDateString("en-ZA", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
-  const today =
-    new Date().toLocaleDateString(
-      "en-ZA",
-      {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }
-    );
+  const userInitial = user?.fullname
+    ? user.fullname.charAt(0).toUpperCase()
+    : user?.username
+    ? user.username.charAt(0).toUpperCase()
+    : "A";
 
-  // ==========================================
-  // USER INITIAL
-  // ==========================================
-
-  const userInitial =
-    user?.fullname
-      ? user.fullname
-          .charAt(0)
-          .toUpperCase()
-      : user?.username
-      ? user.username
-          .charAt(0)
-          .toUpperCase()
-      : "A";
-
-  // ==========================================
-  // DESKTOP HEADER
-  // ==========================================
+  const logoImage = (
+    <img
+      src={appLogo}
+      alt="DrivePro-SA Logo"
+      onError={(event) => {
+        event.currentTarget.onerror = null;
+        event.currentTarget.src = defaultLogo;
+      }}
+      style={{
+        width: isMobile ? "52px" : "70px",
+        height: isMobile ? "52px" : "70px",
+        objectFit: "contain",
+        background: "white",
+        borderRadius: isMobile ? "8px" : "10px",
+        padding: "4px",
+        boxSizing: "border-box",
+        flexShrink: 0,
+      }}
+    />
+  );
 
   if (!isMobile) {
     return (
@@ -82,15 +145,10 @@ function Header({ title }: HeaderProps) {
           justifyContent: "space-between",
           alignItems: "center",
           padding: "0 30px",
-          boxShadow:
-            "0 4px 10px rgba(0,0,0,0.25)",
+          boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
           boxSizing: "border-box",
         }}
       >
-        {/* ======================================
-            LEFT SIDE
-        ======================================= */}
-
         <div
           style={{
             display: "flex",
@@ -99,60 +157,19 @@ function Header({ title }: HeaderProps) {
             minWidth: 0,
           }}
         >
-          <img
-            src={logo}
-            alt="DrivePro-SA Logo"
-            style={{
-              width: "70px",
-              height: "70px",
-              objectFit: "contain",
-              background: "white",
-              borderRadius: "10px",
-              padding: "4px",
-              boxSizing: "border-box",
-              flexShrink: 0,
-            }}
-          />
+          {logoImage}
 
-          <div
-            style={{
-              minWidth: 0,
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: "24px",
-                fontWeight: 700,
-              }}
-            >
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 700 }}>
               {title}
             </h2>
-
-            <small
-              style={{
-                color: "#dbeafe",
-                fontSize: "13px",
-              }}
-            >
+            <small style={{ color: "#dbeafe", fontSize: "13px" }}>
               {today}
             </small>
           </div>
         </div>
 
-        {/* ======================================
-            RIGHT SIDE
-        ======================================= */}
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-          }}
-        >
-          {/* USER AVATAR */}
-
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div
             style={{
               width: "45px",
@@ -171,53 +188,23 @@ function Header({ title }: HeaderProps) {
             {userInitial}
           </div>
 
-          {/* USER DETAILS */}
-
           <div>
-            <strong
-              style={{
-                fontSize: "15px",
-              }}
-            >
-              {user?.fullname ||
-                user?.username ||
-                "Administrator"}
+            <strong style={{ fontSize: "15px" }}>
+              {user?.fullname || user?.username || "Administrator"}
             </strong>
-
             <br />
-
-            <small
-              style={{
-                color: "#dbeafe",
-                fontSize: "12px",
-              }}
-            >
-              Username:{" "}
-              {user?.username ||
-                "admin"}
+            <small style={{ color: "#dbeafe", fontSize: "12px" }}>
+              Username: {user?.username || "admin"}
             </small>
-
             <br />
-
-            <small
-              style={{
-                color: "#bfdbfe",
-                fontSize: "12px",
-              }}
-            >
-              Role:{" "}
-              {user?.role ||
-                "Administrator"}
+            <small style={{ color: "#bfdbfe", fontSize: "12px" }}>
+              Role: {user?.role || "Administrator"}
             </small>
           </div>
         </div>
       </div>
     );
   }
-
-  // ==========================================
-  // MOBILE HEADER
-  // ==========================================
 
   return (
     <div
@@ -229,18 +216,12 @@ function Header({ title }: HeaderProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding:
-          "8px 12px 8px 68px",
-        boxShadow:
-          "0 4px 10px rgba(0,0,0,0.25)",
+        padding: "8px 12px 8px 68px",
+        boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
         boxSizing: "border-box",
         gap: "8px",
       }}
     >
-      {/* ======================================
-          MOBILE LEFT SIDE
-      ======================================= */}
-
       <div
         style={{
           display: "flex",
@@ -250,31 +231,9 @@ function Header({ title }: HeaderProps) {
           flex: 1,
         }}
       >
-        {/* LOGO */}
+        {logoImage}
 
-        <img
-          src={logo}
-          alt="DrivePro-SA Logo"
-          style={{
-            width: "52px",
-            height: "52px",
-            objectFit: "contain",
-            background: "white",
-            borderRadius: "8px",
-            padding: "3px",
-            boxSizing: "border-box",
-            flexShrink: 0,
-          }}
-        />
-
-        {/* TITLE + DATE */}
-
-        <div
-          style={{
-            minWidth: 0,
-            overflow: "hidden",
-          }}
-        >
+        <div style={{ minWidth: 0, overflow: "hidden" }}>
           <h2
             style={{
               margin: 0,
@@ -295,7 +254,6 @@ function Header({ title }: HeaderProps) {
               fontSize: "10px",
               lineHeight: "1.2",
               marginTop: "4px",
-              whiteSpace: "normal",
             }}
           >
             {today}
@@ -303,19 +261,7 @@ function Header({ title }: HeaderProps) {
         </div>
       </div>
 
-      {/* ======================================
-          MOBILE USER
-      ======================================= */}
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          flexShrink: 0,
-        }}
-      >
-        {/* USER AVATAR */}
-
+      <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
         <div
           style={{
             width: "40px",

@@ -1,4 +1,4 @@
-import db from "../database/database.js";
+﻿import db from "../database/database.js";
 
 // =====================================================
 // GET SCHOOL ID FROM AUTHENTICATED USER
@@ -865,6 +865,7 @@ export const addLesson = (req, res) => {
               WHERE lesson_date = ?
                 AND lesson_time = ?
                 AND school_id = ?
+                AND LOWER(TRIM(COALESCE(status, ''))) != 'cancelled' 
                 AND (
                   LOWER(TRIM(instructor)) =
                     LOWER(TRIM(?))
@@ -1364,6 +1365,7 @@ export const updateLesson = (req, res) => {
                 AND lesson_time = ?
                 AND id != ?
                 AND school_id = ?
+                AND LOWER(TRIM(COALESCE(status, ''))) != 'cancelled' 
                 AND (
                   LOWER(TRIM(instructor)) =
                     LOWER(TRIM(?))
@@ -1574,3 +1576,4 @@ export const deleteLesson = (req, res) => {
     }
   );
 };
+

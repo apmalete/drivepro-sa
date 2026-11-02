@@ -1,5 +1,5 @@
 ﻿
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import {
@@ -25,11 +25,89 @@ import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
 
-import logo from "../assets/drivepro-logo.png";
+import defaultLogo from "../assets/drivepro-logo.png";
+import api from "../services/api";
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [appLogo, setAppLogo] = useState(defaultLogo);
+
+  
+  useEffect(() => {
+    let active = true;
+
+    const loadAppLogo = async () => {
+      try {
+        let savedLogo = "";
+        
+        let storedUser: {
+          role?: string;
+          school_id?: number | string;
+        } | null = null;
+
+        try {
+          const rawUser = localStorage.getItem("user");
+          storedUser = rawUser ? JSON.parse(rawUser) : null;
+        } catch {
+          storedUser = null;
+        }
+
+        const role = String(storedUser?.role || "")
+          .trim()
+          .toLowerCase();
+
+        if (role === "system administrator") {
+          const response = await api.get("/app-logo");
+          savedLogo = response.data?.appLogo || "";
+        } else {
+          const response = await api.get("/my-school-logo");
+          savedLogo = response.data?.logo || "";
+        }
+
+        if (!active) return;
+
+        if (!savedLogo) {
+          setAppLogo(defaultLogo);
+          return;
+        }
+
+        const baseURL = (
+          api.defaults.baseURL || "http://localhost:5000"
+        )
+          .replace(/\/api\/?$/, "")
+          .replace(/\/$/, "");
+
+        const logoUrl = /^https?:\/\//i.test(savedLogo)
+          ? savedLogo
+          : `${baseURL}${savedLogo.startsWith("/") ? "" : "/"}${savedLogo}`;
+
+        setAppLogo(
+          `${logoUrl}${logoUrl.includes("?") ? "&" : "?"}v=${Date.now()}`
+        );
+      } catch (error) {
+        console.error("Could not load the appropriate logo:", error);
+
+        if (active) {
+          setAppLogo(defaultLogo);
+        }
+      }
+    };
+
+    loadAppLogo();
+
+    const handleLogoChanged = () => {
+      loadAppLogo();
+    };
+
+    window.addEventListener("appLogoChanged", handleLogoChanged);
+
+    return () => {
+      active = false;
+      window.removeEventListener("appLogoChanged", handleLogoChanged);
+    };
+  }, []);
+
 
   let user: {
     fullname?: string;
@@ -123,8 +201,12 @@ export default function Sidebar() {
       >
         <Box
           component="img"
-          src={logo}
+          src={appLogo}
           alt="DrivePro-SA logo"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = defaultLogo;
+          }}
           sx={{
             width: 56,
             height: 56,
@@ -178,6 +260,7 @@ export default function Sidebar() {
               {renderLink("/students", "Students", <SchoolRoundedIcon />)}
               {renderLink("/student-progress", "Student Progress", <TrendingUpRoundedIcon />)}
               {renderLink("/lessons", "Lesson Bookings", <CalendarMonthRoundedIcon />)}
+              {renderLink("/lesson-booking-requests", "Public Lesson Requests", <CalendarMonthRoundedIcon />)}
               {renderLink("/test-bookings", "Test Bookings", <AssignmentRoundedIcon />)}
               {renderLink("/vehicles", "Vehicles", <DirectionsCarRoundedIcon />)}
             </>

@@ -738,47 +738,41 @@ async function runWhatsAppReminderCheck() {
 
   await processLessonDayReminders();
 }
-
-
 // ============================================================
 // START SCHEDULER
 // ============================================================
 
 export function startWhatsAppReminderScheduler() {
 
-  console.log(
-    "📱 WhatsApp reminder scheduler started."
-  );
+  const schedulerEnabled =
+    String(process.env.WHATSAPP_SCHEDULER_ENABLED || "true")
+      .toLowerCase() === "true";
+
+  if (!schedulerEnabled) {
+    console.log("WhatsApp reminder scheduler is temporarily disabled.");
+    return;
+  }
+
+  console.log("WhatsApp reminder scheduler started.");
 
   runWhatsAppReminderCheck()
-    .catch(
-      (error) => {
+    .catch((error) => {
+      console.error(
+        "WHATSAPP INITIAL CHECK ERROR:",
+        error.message
+      );
+    });
 
+  setInterval(() => {
+
+    runWhatsAppReminderCheck()
+      .catch((error) => {
         console.error(
-          "WHATSAPP INITIAL CHECK ERROR:",
+          "WHATSAPP SCHEDULER ERROR:",
           error.message
         );
+      });
 
-      }
-    );
-
-
-  setInterval(
-    () => {
-
-      runWhatsAppReminderCheck()
-        .catch(
-          (error) => {
-
-            console.error(
-              "WHATSAPP SCHEDULER ERROR:",
-              error.message
-            );
-
-          }
-        );
-
-    },
-    60 * 1000
-  );
+  }, 60 * 1000);
 }
+

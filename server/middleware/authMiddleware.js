@@ -1,301 +1,186 @@
+
 import jwt from "jsonwebtoken";
 
-// ==========================================
+// =====================================================
 // JWT SECRET
-// ==========================================
+// =====================================================
 
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  "drivepro-sa-secret-key-change-later";
+const JWT_SECRET = process.env.JWT_SECRET;
 
-
-// ==========================================
+// =====================================================
 // AUTHENTICATION MIDDLEWARE
-// ==========================================
+// =====================================================
 
-export const authenticateUser = (
-  req,
-  res,
-  next
-) => {
-
+export const authenticateUser = (req, res, next) => {
   try {
+    if (!JWT_SECRET) {
+      console.error("JWT_SECRET is not configured.");
 
-    // ========================================
-    // GET AUTHORIZATION HEADER
-    // ========================================
+      return res.status(500).json({
+        success: false,
+        message: "Authentication service is not configured.",
+      });
+    }
 
-    const authHeader =
-      req.headers.authorization;
-
-
-    // ========================================
-    // CHECK HEADER
-    // ========================================
+    const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-
       return res.status(401).json({
         success: false,
-        message:
-          "Authentication required.",
+        message: "Authentication required.",
       });
-
     }
 
+    if (!authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid authentication format.",
+      });
+    }
 
-    // ========================================
-    // CHECK BEARER
-    // ========================================
+    const token = authHeader.substring(7).trim();
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication token is missing.",
+      });
+    }
+
+    // Verify only the expected signing algorithm.
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    });
 
     if (
-      !authHeader.startsWith(
-        "Bearer "
-      )
+      !decoded ||
+      !Number.isInteger(Number(decoded.id)) ||
+      Number(decoded.id) <= 0 ||
+      !decoded.role
     ) {
-
       return res.status(401).json({
         success: false,
-        message:
-          "Invalid authentication format.",
+        message: "Invalid authentication token.",
       });
-
     }
 
+    req.user = decoded;
 
-    // ========================================
-    // GET TOKEN
-    // ========================================
-
-    const token =
-      authHeader.substring(7);
-
-
-    // ========================================
-    // VERIFY TOKEN
-    // ========================================
-
-    const decoded =
-      jwt.verify(
-        token,
-        JWT_SECRET
-      );
-
-
-    // ========================================
-    // STORE USER
-    // ========================================
-
-    req.user =
-      decoded;
-
-
-    // ========================================
-    // CONTINUE
-    // ========================================
-
-    next();
-
+    return next();
   } catch (error) {
-
-    console.error(
-      "AUTHENTICATION ERROR:",
-      error.message
-    );
+    console.error("AUTHENTICATION ERROR:", error.message);
 
     return res.status(401).json({
       success: false,
-      message:
-        "Invalid or expired authentication token.",
+      message: "Invalid or expired authentication token.",
     });
-
   }
-
 };
 
-
-// ==========================================
+// =====================================================
 // SYSTEM ADMINISTRATOR ONLY
-// ==========================================
+// =====================================================
 
-export const requireSystemAdministrator = (
-  req,
-  res,
-  next
-) => {
-
+export const requireSystemAdministrator = (req, res, next) => {
   if (!req.user) {
-
     return res.status(401).json({
       success: false,
-      message:
-        "Authentication required.",
+      message: "Authentication required.",
     });
-
   }
 
-
-  if (
-    req.user.role !==
-    "System Administrator"
-  ) {
-
+  if (req.user.role !== "System Administrator") {
     return res.status(403).json({
       success: false,
-      message:
-        "System Administrator access required.",
+      message: "System Administrator access required.",
     });
-
   }
 
-
-  next();
-
+  return next();
 };
 
-
-// ==========================================
+// =====================================================
 // ADMINISTRATOR OR SYSTEM ADMINISTRATOR
-// ==========================================
+// =====================================================
 
-export const requireAdministrator = (
-  req,
-  res,
-  next
-) => {
-
+export const requireAdministrator = (req, res, next) => {
   if (!req.user) {
-
     return res.status(401).json({
       success: false,
-      message:
-        "Authentication required.",
+      message: "Authentication required.",
     });
-
   }
 
+  const allowedRoles = [
+    "Administrator",
+    "System Administrator",
+  ];
 
-  if (
-    req.user.role !==
-      "Administrator" &&
-    req.user.role !==
-      "System Administrator"
-  ) {
-
+  if (!allowedRoles.includes(req.user.role)) {
     return res.status(403).json({
       success: false,
-      message:
-        "Administrator access required.",
+      message: "Administrator access required.",
     });
-
   }
 
-
-  next();
-
+  return next();
 };
 
-
-// ==========================================
+// =====================================================
 // INSTRUCTOR ONLY
-// ==========================================
+// =====================================================
 
-export const requireInstructor = (
-  req,
-  res,
-  next
-) => {
-
+export const requireInstructor = (req, res, next) => {
   if (!req.user) {
-
     return res.status(401).json({
       success: false,
-      message:
-        "Authentication required.",
+      message: "Authentication required.",
     });
-
   }
 
-
-  if (
-    req.user.role !==
-    "Instructor"
-  ) {
-
+  if (req.user.role !== "Instructor") {
     return res.status(403).json({
       success: false,
-      message:
-        "Instructor access required.",
+      message: "Instructor access required.",
     });
-
   }
 
-
-  next();
-
+  return next();
 };
 
-
-// ==========================================
+// =====================================================
 // STUDENT ONLY
-// ==========================================
+// =====================================================
 
-export const requireStudent = (
-  req,
-  res,
-  next
-) => {
-
+export const requireStudent = (req, res, next) => {
   if (!req.user) {
-
     return res.status(401).json({
       success: false,
-      message:
-        "Student access required.",
+      message: "Student access required.",
     });
-
   }
 
-
-  if (
-    req.user.role !==
-    "Student"
-  ) {
-
+  if (req.user.role !== "Student") {
     return res.status(403).json({
       success: false,
-      message:
-        "Student access required.",
+      message: "Student access required.",
     });
-
   }
 
-
-  next();
-
+  return next();
 };
 
-
-// ==========================================
+// =====================================================
 // INSTRUCTOR OR ADMINISTRATOR
-// ==========================================
+// =====================================================
 
-export const requireInstructorOrAdministrator = (
-  req,
-  res,
-  next
-) => {
-
+export const requireInstructorOrAdministrator = (req, res, next) => {
   if (!req.user) {
-
     return res.status(401).json({
       success: false,
-      message:
-        "Authentication required.",
+      message: "Authentication required.",
     });
-
   }
-
 
   const allowedRoles = [
     "Instructor",
@@ -303,47 +188,27 @@ export const requireInstructorOrAdministrator = (
     "System Administrator",
   ];
 
-
-  if (
-    !allowedRoles.includes(
-      req.user.role
-    )
-  ) {
-
+  if (!allowedRoles.includes(req.user.role)) {
     return res.status(403).json({
       success: false,
-      message:
-        "Instructor or administrator access required.",
+      message: "Instructor or administrator access required.",
     });
-
   }
 
-
-  next();
-
+  return next();
 };
 
-
-// ==========================================
+// =====================================================
 // STUDENT OR ADMINISTRATOR
-// ==========================================
+// =====================================================
 
-export const requireStudentOrAdministrator = (
-  req,
-  res,
-  next
-) => {
-
+export const requireStudentOrAdministrator = (req, res, next) => {
   if (!req.user) {
-
     return res.status(401).json({
       success: false,
-      message:
-        "Authentication required.",
+      message: "Authentication required.",
     });
-
   }
-
 
   const allowedRoles = [
     "Student",
@@ -351,34 +216,21 @@ export const requireStudentOrAdministrator = (
     "System Administrator",
   ];
 
-
-  if (
-    !allowedRoles.includes(
-      req.user.role
-    )
-  ) {
-
+  if (!allowedRoles.includes(req.user.role)) {
     return res.status(403).json({
       success: false,
-      message:
-        "Student or administrator access required.",
+      message: "Student or administrator access required.",
     });
-
   }
 
-
-  next();
-
+  return next();
 };
-// ==========================================
-// SETTINGS ADMINISTRATOR ACCESS
-// ==========================================
 
-export const requireSettingsAdministrator = (
-  req,
-  res,
-  next
-) => {
+// =====================================================
+// SETTINGS ADMINISTRATOR ACCESS
+// =====================================================
+
+export const requireSettingsAdministrator = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -399,13 +251,14 @@ export const requireSettingsAdministrator = (
     });
   }
 
-  if (!Number.isInteger(Number(req.user.school_id)) ||
-      Number(req.user.school_id) < 1) {
+  const schoolId = Number(req.user.school_id);
+
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
     return res.status(403).json({
       success: false,
       message: "Your account is not linked to a valid school.",
     });
   }
 
-  next();
+  return next();
 };
