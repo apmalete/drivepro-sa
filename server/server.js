@@ -1,5 +1,5 @@
-
 import "dotenv/config";
+import whatsappWebhook from "./services/whatsappWebhook.js";
 
 import express from "express";
 import path from "path";
@@ -159,6 +159,7 @@ app.use(
 
 app.use("/webhooks/whatsapp", whatsappWebhook);
 
+app.use("/webhooks/whatsapp", whatsappWebhook);
 app.use(express.json());
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
