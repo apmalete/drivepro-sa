@@ -95,6 +95,18 @@ const createTables = (callback) => {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`,
 
+    `CREATE TABLE IF NOT EXISTS school_logo_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
+      logo_path TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Pending',
+      submitted_by INTEGER,
+      reviewed_by INTEGER,
+      submitted_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      reviewed_at TEXT,
+      rejection_reason TEXT
+    )`,
+
     `CREATE TABLE IF NOT EXISTS instructors (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -749,7 +761,9 @@ const createIndexes = (callback) => {
     "CREATE INDEX IF NOT EXISTS idx_lessons_student ON lessons(student)",
     "CREATE INDEX IF NOT EXISTS idx_lessons_instructor ON lessons(instructor)",
     "CREATE INDEX IF NOT EXISTS idx_lessons_date ON lessons(lesson_date)",
-    "CREATE INDEX IF NOT EXISTS idx_payments_student ON payments(studentId)"
+    "CREATE INDEX IF NOT EXISTS idx_payments_student ON payments(studentId)",
+    "CREATE INDEX IF NOT EXISTS idx_school_logo_requests_status ON school_logo_requests(status)",
+    "CREATE INDEX IF NOT EXISTS idx_school_logo_requests_school ON school_logo_requests(school_id)"
   ];
 
   let index = 0;

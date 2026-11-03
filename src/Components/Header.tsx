@@ -66,7 +66,10 @@ function Header({ title }: HeaderProps) {
           `${logoURL}${logoURL.includes("?") ? "&" : "?"}v=${Date.now()}`
         );
       } catch (error) {
-        console.error("Could not load the appropriate logo in Header:", error);
+        console.error(
+          "Could not load the appropriate logo in Header:",
+          error
+        );
 
         if (active) {
           setAppLogo(defaultLogo);
@@ -81,10 +84,12 @@ function Header({ title }: HeaderProps) {
     };
 
     window.addEventListener("appLogoChanged", handleLogoChanged);
+    window.addEventListener("schoolLogoChanged", handleLogoChanged);
 
     return () => {
       active = false;
       window.removeEventListener("appLogoChanged", handleLogoChanged);
+      window.removeEventListener("schoolLogoChanged", handleLogoChanged);
     };
   }, []);
 

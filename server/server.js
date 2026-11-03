@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 
 import express from "express";
@@ -135,6 +136,36 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// =====================================================
+// UPLOAD STORAGE
+// LOCAL: server/uploads
+// RAILWAY: /app/data/uploads (persistent volume)
+// =====================================================
+
+const uploadRoot =
+  process.env.NODE_ENV === "production"
+    ? "/app/data/uploads"
+    : path.join(__dirname, "uploads");
+
+const studentUploadDirectory = path.join(uploadRoot, "students");
+const schoolLogoUploadDirectory = path.join(uploadRoot, "schools");
+const appLogoUploadDirectory = path.join(uploadRoot, "app");
+
+for (const directory of [
+  uploadRoot,
+  studentUploadDirectory,
+  schoolLogoUploadDirectory,
+  appLogoUploadDirectory,
+]) {
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory, { recursive: true });
+  }
+}
+
+// =====================================================
+// CORS
+// =====================================================
+
 app.use(
   cors({
     origin: [
@@ -160,7 +191,9 @@ app.use("/webhooks/whatsapp", whatsappWebhook);
 
 app.use(express.json());
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Serve uploaded files from the selected storage directory.
+// Public URLs remain /uploads/...
+app.use("/uploads", express.static(uploadRoot));
 
 const frontendPath = path.join(__dirname, "..", "dist");
 
@@ -598,24 +631,6 @@ app.delete("/payments/:id", authenticateUser, deletePayment);
 app.get("/reports/financial", authenticateUser, getFinancialReport);
 
 // =====================================================
-// UPLOAD DIRECTORIES
-// =====================================================
-
-const studentUploadDirectory = path.join(__dirname, "uploads", "students");
-const schoolLogoUploadDirectory = path.join(__dirname, "uploads", "schools");
-const appLogoUploadDirectory = path.join(__dirname, "uploads", "app");
-
-for (const directory of [
-  studentUploadDirectory,
-  schoolLogoUploadDirectory,
-  appLogoUploadDirectory,
-]) {
-  if (!fs.existsSync(directory)) {
-    fs.mkdirSync(directory, { recursive: true });
-  }
-}
-
-// =====================================================
 // STUDENT PHOTO UPLOAD
 // =====================================================
 
@@ -803,5 +818,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
   console.log("WhatsApp configured: " + isWhatsAppConfigured());
+  console.log("Upload storage directory: " + uploadRoot);
+  console.log("Production storage: " + (process.env.NODE_ENV === "production"));
   startWhatsAppReminderScheduler();
 });

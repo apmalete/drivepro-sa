@@ -52,6 +52,15 @@ interface FixedLessonPackage {
   included_services: string[];
 }
 
+interface SchoolLogoRequest {
+  id: number;
+  logo_path: string;
+  status: string;
+  submitted_at: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+}
+
 const vehicleOptions = [
   { value: "code8", label: "Code 8" },
   { value: "code10", label: "Code 10" },
@@ -75,8 +84,6 @@ const defaultSettings: SettingsData = {
   defaultLessonPrice: 0,
 };
 
-// Keep the original service codes.
-// Only the customer-facing names are changed.
 const defaultLessonPackages: LessonPackagePrice[] = [
   {
     code: "manual_k53_test",
@@ -116,8 +123,6 @@ const defaultLessonPackages: LessonPackagePrice[] = [
   },
 ];
 
-// Update the old automatically generated package-name prefixes.
-// The rest of each package name is preserved.
 const legacyServiceNames: Record<string, string> = {
   manual_k53_test: "Manual refresher - K53 test",
   manual_code8_k53: "Manual refresher - Code 8 K53",
@@ -132,12 +137,12 @@ const updateLegacyPackageName = (
   serviceCode: string
 ) => {
   const oldName = legacyServiceNames[serviceCode];
+
   const newName = defaultLessonPackages.find(
     (item) => item.code === serviceCode
   )?.name;
 
   if (!oldName || !newName) return packageName;
-
   if (packageName === oldName) return newName;
 
   if (packageName.startsWith(`${oldName} - `)) {
@@ -162,6 +167,19 @@ const getLogoUrl = (logoPath: string) => {
 };
 
 export default function Settings() {
+  const isSystemAdministrator = (() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      return (
+        String(user.role || "").trim().toLowerCase() ===
+        "system administrator"
+      );
+    } catch {
+      return false;
+    }
+  })();
+
   const [settings, setSettings] =
     useState<SettingsData>(defaultSettings);
 
@@ -174,31 +192,50 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [schoolLogoUploading, setSchoolLogoUploading] = useState(false);
 
   const [appLogo, setAppLogo] = useState("");
   const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
 
+  const [schoolLogo, setSchoolLogo] = useState("");
+  const [selectedSchoolLogo, setSelectedSchoolLogo] =
+    useState<File | null>(null);
+  const [schoolLogoPreview, setSchoolLogoPreview] = useState("");
+
+  const [logoRequest, setLogoRequest] =
+    useState<SchoolLogoRequest | null>(null);
+
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // LOAD SETTINGS
+  // =====================================================
+  // LOAD SETTINGS AND LOGO INFORMATION
+  // =====================================================
+
   const loadSettings = async () => {
     try {
       setLoading(true);
       setErrorMessage("");
 
-      const [
-        settingsResponse,
-        logoResponse,
-        pricesResponse,
-        fixedPackagesResponse,
-      ] = await Promise.all([
+      const requests: Promise<any>[] = [
         api.get("/settings"),
-        api.get("/app-logo"),
         api.get("/settings/lesson-package-prices"),
         api.get("/settings/fixed-lesson-packages"),
-      ]);
+      ];
+
+      if (isSystemAdministrator) {
+        requests.push(api.get("/app-logo"));
+      } else {
+        requests.push(api.get("/my-school-logo"));
+        requests.push(api.get("/my-school-logo-request"));
+      }
+
+      const responses = await Promise.all(requests);
+
+      const settingsResponse = responses[0];
+      const pricesResponse = responses[1];
+      const fixedPackagesResponse = responses[2];
 
       if (settingsResponse.data) {
         setSettings({
@@ -207,7 +244,12 @@ export default function Settings() {
         });
       }
 
-      setAppLogo(logoResponse.data?.appLogo || "");
+      if (isSystemAdministrator) {
+        setAppLogo(responses[3]?.data?.appLogo || "");
+      } else {
+        setSchoolLogo(responses[3]?.data?.logo || "");
+        setLogoRequest(responses[4]?.data?.request || null);
+      }
 
       const savedPrices = Array.isArray(pricesResponse.data)
         ? pricesResponse.data
@@ -223,11 +265,7 @@ export default function Settings() {
             ...item,
             price: saved ? Number(saved.price) : 0,
             duration: saved
-              ? Number(
-                  saved.duration ??
-                  saved.lesson_duration ??
-                  60
-                )
+              ? Number(saved.duration ?? saved.lesson_duration ?? 60)
               : 60,
           };
         })
@@ -246,9 +284,7 @@ export default function Settings() {
                 typeof item.included_services === "string"
               ) {
                 try {
-                  const parsed = JSON.parse(
-                    item.included_services
-                  );
+                  const parsed = JSON.parse(item.included_services);
 
                   if (Array.isArray(parsed)) {
                     services = parsed;
@@ -281,7 +317,7 @@ export default function Settings() {
 
       setErrorMessage(
         error?.response?.data?.message ||
-        "Failed to load settings. Check your connection and permissions."
+          "Failed to load settings. Check your connection and permissions."
       );
     } finally {
       setLoading(false);
@@ -292,7 +328,10 @@ export default function Settings() {
     loadSettings();
   }, []);
 
-  // LOGO PREVIEW
+  // =====================================================
+  // LOGO PREVIEWS
+  // =====================================================
+
   useEffect(() => {
     if (!selectedLogo) {
       setPreviewUrl("");
@@ -305,7 +344,22 @@ export default function Settings() {
     return () => URL.revokeObjectURL(url);
   }, [selectedLogo]);
 
+  useEffect(() => {
+    if (!selectedSchoolLogo) {
+      setSchoolLogoPreview("");
+      return;
+    }
+
+    const url = URL.createObjectURL(selectedSchoolLogo);
+    setSchoolLogoPreview(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [selectedSchoolLogo]);
+
+  // =====================================================
   // GENERAL SETTINGS
+  // =====================================================
+
   const handleChange = (
     field: keyof SettingsData,
     value: string | number
@@ -316,7 +370,10 @@ export default function Settings() {
     }));
   };
 
+  // =====================================================
   // INDIVIDUAL SERVICE PRICES
+  // =====================================================
+
   const handleServiceChange = (
     code: string,
     field: "price" | "duration",
@@ -338,7 +395,10 @@ export default function Settings() {
     );
   };
 
+  // =====================================================
   // PACKAGE DETAILS
+  // =====================================================
+
   const handleFixedPackageChange = (
     index: number,
     field:
@@ -357,7 +417,10 @@ export default function Settings() {
     );
   };
 
+  // =====================================================
   // OPTIONAL PACKAGE SERVICES
+  // =====================================================
+
   const toggleIncludedService = (
     index: number,
     service: string,
@@ -379,7 +442,10 @@ export default function Settings() {
     );
   };
 
-  // ADD PACKAGE FOR A SELECTED VEHICLE
+  // =====================================================
+  // ADD PACKAGE
+  // =====================================================
+
   const addFixedPackage = (
     serviceCode: string,
     vehicleCode: string
@@ -413,14 +479,16 @@ export default function Settings() {
     ]);
   };
 
-  // REMOVE PACKAGE FROM THE SCREEN
   const removeFixedPackage = (index: number) => {
     setFixedPackages((previous) =>
       previous.filter((_, itemIndex) => itemIndex !== index)
     );
   };
 
+  // =====================================================
   // SAVE ALL SETTINGS
+  // =====================================================
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -503,42 +571,58 @@ export default function Settings() {
       });
 
       setMessage("Settings saved successfully!");
-
       await loadSettings();
     } catch (error: any) {
       console.error("Error saving settings:", error);
 
       setErrorMessage(
         error?.response?.data?.message ||
-        "Failed to save settings. Check the backend and try again."
+          "Failed to save settings. Check the backend and try again."
       );
     } finally {
       setSaving(false);
     }
   };
 
-  // UPLOAD LOGO
+  // =====================================================
+  // VALIDATE LOGO FILE
+  // =====================================================
+
+  const validateLogo = (file: File): string | null => {
+    if (
+      !["image/png", "image/jpeg", "image/webp"].includes(file.type)
+    ) {
+      return "Choose a PNG, JPG, JPEG or WebP image.";
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      return "The logo must be 2 MB or smaller.";
+    }
+
+    return null;
+  };
+
+  // =====================================================
+  // UPLOAD GLOBAL DRIVEPRO-SA LOGO
+  // =====================================================
+
   const handleLogoUpload = async () => {
+    if (!isSystemAdministrator) {
+      setErrorMessage(
+        "Only the System Administrator can change the main DrivePro-SA logo."
+      );
+      return;
+    }
+
     if (!selectedLogo) {
       setErrorMessage("Please select an image file first.");
       return;
     }
 
-    if (
-      !["image/png", "image/jpeg", "image/webp"].includes(
-        selectedLogo.type
-      )
-    ) {
-      setErrorMessage(
-        "Choose a PNG, JPG, JPEG or WebP image."
-      );
-      return;
-    }
+    const validationError = validateLogo(selectedLogo);
 
-    if (selectedLogo.size > 2 * 1024 * 1024) {
-      setErrorMessage(
-        "The logo must be 2 MB or smaller."
-      );
+    if (validationError) {
+      setErrorMessage(validationError);
       return;
     }
 
@@ -550,10 +634,7 @@ export default function Settings() {
       const formData = new FormData();
       formData.append("logo", selectedLogo);
 
-      const response = await api.post(
-        "/upload/app-logo",
-        formData
-      );
+      const response = await api.post("/upload/app-logo", formData);
 
       const uploadedPath = response.data?.path;
 
@@ -580,15 +661,82 @@ export default function Settings() {
 
       setErrorMessage(
         error?.response?.data?.message ||
-        error?.message ||
-        "Failed to upload the main logo."
+          error?.message ||
+          "Failed to upload the main logo."
       );
     } finally {
       setLogoUploading(false);
     }
   };
 
+  // =====================================================
+  // SUBMIT SCHOOL LOGO FOR APPROVAL
+  // =====================================================
+
+  const handleSchoolLogoSubmit = async () => {
+    if (isSystemAdministrator) {
+      setErrorMessage(
+        "The System Administrator manages the main platform logo, not school submissions."
+      );
+      return;
+    }
+
+    if (logoRequest?.status === "Pending") {
+      setErrorMessage(
+        "Your school already has a logo awaiting approval."
+      );
+      return;
+    }
+
+    if (!selectedSchoolLogo) {
+      setErrorMessage("Please select your school logo first.");
+      return;
+    }
+
+    const validationError = validateLogo(selectedSchoolLogo);
+
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
+    try {
+      setSchoolLogoUploading(true);
+      setMessage("");
+      setErrorMessage("");
+
+      const formData = new FormData();
+      formData.append("logo", selectedSchoolLogo);
+
+      const response = await api.post(
+        "/upload/my-school-logo",
+        formData
+      );
+
+      setSelectedSchoolLogo(null);
+
+      setMessage(
+        response.data?.message ||
+          "Your school logo has been submitted for approval."
+      );
+
+      await loadSettings();
+    } catch (error: any) {
+      console.error("School logo submission error:", error);
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          "Failed to submit your school logo."
+      );
+    } finally {
+      setSchoolLogoUploading(false);
+    }
+  };
+
+  // =====================================================
   // LOADING SCREEN
+  // =====================================================
+
   if (loading) {
     return (
       <Box
@@ -602,6 +750,10 @@ export default function Settings() {
       </Box>
     );
   }
+
+  // =====================================================
+  // MAIN SETTINGS SCREEN
+  // =====================================================
 
   return (
     <Box
@@ -635,110 +787,311 @@ export default function Settings() {
         </Alert>
       )}
 
-      {/* MAIN LOGO */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" fontWeight="bold">
-            Main DrivePro-SA Logo
-          </Typography>
+      {/* =================================================
+          GLOBAL PLATFORM LOGO - SYSTEM ADMIN ONLY
+      ================================================= */}
 
-          <Divider sx={{ my: 2 }} />
+      {isSystemAdministrator && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" fontWeight="bold">
+              Main DrivePro-SA Logo
+            </Typography>
 
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              flexWrap: "wrap",
-            }}
-          >
+            <Divider sx={{ my: 2 }} />
+
             <Box
               sx={{
-                width: 180,
-                height: 120,
-                border: "1px dashed",
-                borderColor: "divider",
-                borderRadius: 2,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                p: 1,
+                gap: 3,
+                flexWrap: "wrap",
               }}
             >
-              {(previewUrl || getLogoUrl(appLogo)) ? (
-                <Box
-                  component="img"
-                  src={previewUrl || getLogoUrl(appLogo)}
-                  alt="Main DrivePro-SA logo"
-                  sx={{
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    objectFit: "contain",
-                  }}
-                />
-              ) : (
-                <Typography color="text.secondary">
-                  No saved main logo
+              <Box
+                sx={{
+                  width: 180,
+                  height: 120,
+                  border: "1px dashed",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  p: 1,
+                }}
+              >
+                {(previewUrl || getLogoUrl(appLogo)) ? (
+                  <Box
+                    component="img"
+                    src={previewUrl || getLogoUrl(appLogo)}
+                    alt="Main DrivePro-SA logo"
+                    sx={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                ) : (
+                  <Typography color="text.secondary">
+                    No saved main logo
+                  </Typography>
+                )}
+              </Box>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                }}
+              >
+                <Button
+                  component="label"
+                  variant="outlined"
+                  startIcon={<CloudUploadIcon />}
+                >
+                  Choose Main Logo
+
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+
+                      if (file) {
+                        setSelectedLogo(file);
+                        setMessage("");
+                        setErrorMessage("");
+                      }
+
+                      event.target.value = "";
+                    }}
+                  />
+                </Button>
+
+                <Typography variant="body2" color="text.secondary">
+                  PNG, JPG, JPEG or WebP. Maximum 2 MB.
                 </Typography>
-              )}
+
+                {selectedLogo && (
+                  <Typography variant="body2">
+                    {selectedLogo.name}
+                  </Typography>
+                )}
+
+                <Button
+                  variant="contained"
+                  onClick={handleLogoUpload}
+                  disabled={!selectedLogo || logoUploading}
+                >
+                  {logoUploading
+                    ? "Uploading..."
+                    : "Upload and Save Main Logo"}
+                </Button>
+              </Box>
             </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* =================================================
+          SCHOOL LOGO - SCHOOL ADMINISTRATOR ONLY
+      ================================================= */}
+
+      {!isSystemAdministrator && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" fontWeight="bold">
+              My Driving School Logo
+            </Typography>
+
+            <Typography color="text.secondary" sx={{ mt: 1 }}>
+              Submit your school's logo. The System Administrator must approve it before it becomes your active school logo.
+            </Typography>
+
+            <Divider sx={{ my: 2 }} />
 
             <Box
               sx={{
                 display: "flex",
-                flexDirection: "column",
-                gap: 1,
+                alignItems: "center",
+                gap: 3,
+                flexWrap: "wrap",
               }}
             >
-              <Button
-                component="label"
-                variant="outlined"
-                startIcon={<CloudUploadIcon />}
+              <Box
+                sx={{
+                  width: 180,
+                  height: 120,
+                  border: "1px dashed",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  p: 1,
+                }}
               >
-                Choose Logo
-                <input
-                  hidden
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-
-                    if (file) {
-                      setSelectedLogo(file);
-                      setMessage("");
-                      setErrorMessage("");
+                {(schoolLogoPreview || getLogoUrl(schoolLogo)) ? (
+                  <Box
+                    component="img"
+                    src={
+                      schoolLogoPreview ||
+                      getLogoUrl(schoolLogo)
                     }
+                    alt="Current school logo"
+                    sx={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                ) : (
+                  <Typography color="text.secondary">
+                    No active school logo
+                  </Typography>
+                )}
+              </Box>
 
-                    event.target.value = "";
-                  }}
-                />
-              </Button>
-
-              <Typography variant="body2" color="text.secondary">
-                PNG, JPG, JPEG or WebP. Maximum 2 MB.
-              </Typography>
-
-              {selectedLogo && (
-                <Typography variant="body2">
-                  {selectedLogo.name}
-                </Typography>
-              )}
-
-              <Button
-                variant="contained"
-                onClick={handleLogoUpload}
-                disabled={!selectedLogo || logoUploading}
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                  flex: 1,
+                  minWidth: 220,
+                }}
               >
-                {logoUploading
-                  ? "Uploading..."
-                  : "Upload and Save Main Logo"}
-              </Button>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
+                <Button
+                  component="label"
+                  variant="outlined"
+                  startIcon={<CloudUploadIcon />}
+                  disabled={
+                    schoolLogoUploading ||
+                    logoRequest?.status === "Pending"
+                  }
+                >
+                  Choose School Logo
 
-      {/* SCHOOL INFORMATION */}
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+
+                      if (file) {
+                        const validationError = validateLogo(file);
+
+                        if (validationError) {
+                          setErrorMessage(validationError);
+                          setSelectedSchoolLogo(null);
+                        } else {
+                          setSelectedSchoolLogo(file);
+                          setMessage("");
+                          setErrorMessage("");
+                        }
+                      }
+
+                      event.target.value = "";
+                    }}
+                  />
+                </Button>
+
+                <Typography variant="body2" color="text.secondary">
+                  PNG, JPG, JPEG or WebP. Maximum 2 MB.
+                </Typography>
+
+                {selectedSchoolLogo && (
+                  <Typography variant="body2">
+                    Selected: {selectedSchoolLogo.name}
+                  </Typography>
+                )}
+
+                <Button
+                  variant="contained"
+                  onClick={handleSchoolLogoSubmit}
+                  disabled={
+                    !selectedSchoolLogo ||
+                    schoolLogoUploading ||
+                    logoRequest?.status === "Pending"
+                  }
+                >
+                  {schoolLogoUploading
+                    ? "Submitting..."
+                    : "Submit Logo for Approval"}
+                </Button>
+              </Box>
+            </Box>
+
+            <Divider sx={{ my: 3 }} />
+
+            <Typography fontWeight="bold" sx={{ mb: 1 }}>
+              Logo Approval Status
+            </Typography>
+
+            {!logoRequest ? (
+              <Alert severity="info">
+                You have not submitted a school logo for approval yet.
+              </Alert>
+            ) : (
+              <>
+                {logoRequest.status === "Pending" && (
+                  <Alert severity="warning">
+                    Your school logo is awaiting System Administrator approval.
+                    Your existing active logo will remain unchanged until approval.
+                  </Alert>
+                )}
+
+                {logoRequest.status === "Approved" && (
+                  <Alert severity="success">
+                    Your latest school logo submission has been approved.
+                  </Alert>
+                )}
+
+                {logoRequest.status === "Rejected" && (
+                  <Alert severity="error">
+                    Your latest school logo submission was rejected.
+                    {logoRequest.rejection_reason && (
+                      <Typography sx={{ mt: 1 }}>
+                        Reason: {logoRequest.rejection_reason}
+                      </Typography>
+                    )}
+                  </Alert>
+                )}
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  Submission date:{" "}
+                  {logoRequest.submitted_at
+                    ? new Date(logoRequest.submitted_at).toLocaleString()
+                    : "Not available"}
+                </Typography>
+
+                {logoRequest.reviewed_at && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                  >
+                    Review date:{" "}
+                    {new Date(logoRequest.reviewed_at).toLocaleString()}
+                  </Typography>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* =================================================
+          SCHOOL INFORMATION
+      ================================================= */}
+
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
@@ -757,7 +1110,9 @@ export default function Settings() {
                 fullWidth
                 label="Driving School Name"
                 value={settings.schoolName}
-                onChange={(e) => handleChange("schoolName", e.target.value)}
+                onChange={(e) =>
+                  handleChange("schoolName", e.target.value)
+                }
               />
             </Grid>
 
@@ -766,7 +1121,9 @@ export default function Settings() {
                 fullWidth
                 label="Business / Registration Number (Optional)"
                 value={settings.registrationNumber}
-                onChange={(e) => handleChange("registrationNumber", e.target.value)}
+                onChange={(e) =>
+                  handleChange("registrationNumber", e.target.value)
+                }
               />
             </Grid>
 
@@ -775,7 +1132,9 @@ export default function Settings() {
                 fullWidth
                 label="Phone Number (Optional)"
                 value={settings.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
+                onChange={(e) =>
+                  handleChange("phone", e.target.value)
+                }
               />
             </Grid>
 
@@ -785,7 +1144,9 @@ export default function Settings() {
                 type="email"
                 label="Email Address (Optional)"
                 value={settings.email}
-                onChange={(e) => handleChange("email", e.target.value)}
+                onChange={(e) =>
+                  handleChange("email", e.target.value)
+                }
               />
             </Grid>
 
@@ -796,14 +1157,19 @@ export default function Settings() {
                 minRows={3}
                 label="Business Address (Optional)"
                 value={settings.address}
-                onChange={(e) => handleChange("address", e.target.value)}
+                onChange={(e) =>
+                  handleChange("address", e.target.value)
+                }
               />
             </Grid>
           </Grid>
         </CardContent>
       </Card>
 
-      {/* DEFAULT LESSON SETTINGS */}
+      {/* =================================================
+          DEFAULT LESSON SETTINGS
+      ================================================= */}
+
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
@@ -823,7 +1189,12 @@ export default function Settings() {
                 type="number"
                 label="Default Lesson Duration (minutes)"
                 value={settings.defaultLessonDuration}
-                onChange={(e) => handleChange("defaultLessonDuration", Number(e.target.value))}
+                onChange={(e) =>
+                  handleChange(
+                    "defaultLessonDuration",
+                    Number(e.target.value)
+                  )
+                }
                 slotProps={{
                   htmlInput: { min: 15, max: 480, step: 15 },
                 }}
@@ -836,7 +1207,12 @@ export default function Settings() {
                 type="number"
                 label="Default Lesson Price (R)"
                 value={settings.defaultLessonPrice}
-                onChange={(e) => handleChange("defaultLessonPrice", Number(e.target.value))}
+                onChange={(e) =>
+                  handleChange(
+                    "defaultLessonPrice",
+                    Number(e.target.value)
+                  )
+                }
                 slotProps={{
                   htmlInput: { min: 0, max: 1000000, step: 50 },
                 }}
@@ -846,7 +1222,10 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* LESSON AND SERVICE PRICES */}
+      {/* =================================================
+          LESSON AND SERVICE PRICES
+      ================================================= */}
+
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
@@ -875,9 +1254,19 @@ export default function Settings() {
                           type="number"
                           label="Price per lesson (R)"
                           value={item.price}
-                          onChange={(e) => handleServiceChange(item.code, "price", e.target.value)}
+                          onChange={(e) =>
+                            handleServiceChange(
+                              item.code,
+                              "price",
+                              e.target.value
+                            )
+                          }
                           slotProps={{
-                            htmlInput: { min: 0, max: 1000000, step: 1 },
+                            htmlInput: {
+                              min: 0,
+                              max: 1000000,
+                              step: 1,
+                            },
                           }}
                         />
                       </Grid>
@@ -888,9 +1277,19 @@ export default function Settings() {
                           type="number"
                           label="Duration (minutes)"
                           value={item.duration}
-                          onChange={(e) => handleServiceChange(item.code, "duration", e.target.value)}
+                          onChange={(e) =>
+                            handleServiceChange(
+                              item.code,
+                              "duration",
+                              e.target.value
+                            )
+                          }
                           slotProps={{
-                            htmlInput: { min: 15, max: 480, step: 15 },
+                            htmlInput: {
+                              min: 15,
+                              max: 480,
+                              step: 15,
+                            },
                           }}
                         />
                       </Grid>
@@ -903,7 +1302,10 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* PACKAGE BUILDER */}
+      {/* =================================================
+          PACKAGE BUILDER
+      ================================================= */}
+
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
@@ -951,7 +1353,9 @@ export default function Settings() {
                         variant="outlined"
                         size="small"
                         startIcon={<AddIcon />}
-                        onClick={() => addFixedPackage(service.code, vehicle.value)}
+                        onClick={() =>
+                          addFixedPackage(service.code, vehicle.value)
+                        }
                       >
                         Add {vehicle.label}
                       </Button>
@@ -966,10 +1370,17 @@ export default function Settings() {
                 ) : (
                   <Grid container spacing={2}>
                     {packages.map((item) => (
-                      <Grid key={`${service.code}-${item.originalIndex}`} size={{ xs: 12 }}>
+                      <Grid
+                        key={`${service.code}-${item.originalIndex}`}
+                        size={{ xs: 12 }}
+                      >
                         <Card variant="outlined">
                           <CardContent>
-                            <Grid container spacing={2} alignItems="center">
+                            <Grid
+                              container
+                              spacing={2}
+                              alignItems="center"
+                            >
                               <Grid size={{ xs: 12, md: 6 }}>
                                 <TextField
                                   fullWidth
@@ -1000,7 +1411,10 @@ export default function Settings() {
                                   }
                                 >
                                   {vehicleOptions.map((vehicle) => (
-                                    <MenuItem key={vehicle.value} value={vehicle.value}>
+                                    <MenuItem
+                                      key={vehicle.value}
+                                      value={vehicle.value}
+                                    >
                                       {vehicle.label}
                                     </MenuItem>
                                   ))}
@@ -1027,7 +1441,9 @@ export default function Settings() {
                                     </MenuItem>
                                   ))}
 
-                                  {[5, 10, 15].includes(item.lesson_count) ? null : (
+                                  {[5, 10, 15].includes(
+                                    item.lesson_count
+                                  ) ? null : (
                                     <MenuItem value={item.lesson_count}>
                                       {item.lesson_count} lessons (existing package)
                                     </MenuItem>
@@ -1042,11 +1458,16 @@ export default function Settings() {
 
                                 <Grid container spacing={1}>
                                   {serviceOptions.map((option) => (
-                                    <Grid key={option.value} size={{ xs: 6, sm: 3 }}>
+                                    <Grid
+                                      key={option.value}
+                                      size={{ xs: 6, sm: 3 }}
+                                    >
                                       <FormControlLabel
                                         control={
                                           <Checkbox
-                                            checked={(item.included_services || []).includes(option.value)}
+                                            checked={(
+                                              item.included_services || []
+                                            ).includes(option.value)}
                                             onChange={(e) =>
                                               toggleIncludedService(
                                                 item.originalIndex,
@@ -1073,11 +1494,17 @@ export default function Settings() {
                                     handleFixedPackageChange(
                                       item.originalIndex,
                                       "total_price",
-                                      e.target.value === "" ? 0 : Number(e.target.value)
+                                      e.target.value === ""
+                                        ? 0
+                                        : Number(e.target.value)
                                     )
                                   }
                                   slotProps={{
-                                    htmlInput: { min: 0, max: 1000000, step: 1 },
+                                    htmlInput: {
+                                      min: 0,
+                                      max: 1000000,
+                                      step: 1,
+                                    },
                                   }}
                                 />
                               </Grid>
@@ -1093,7 +1520,9 @@ export default function Settings() {
                                 <IconButton
                                   color="error"
                                   aria-label="Remove package"
-                                  onClick={() => removeFixedPackage(item.originalIndex)}
+                                  onClick={() =>
+                                    removeFixedPackage(item.originalIndex)
+                                  }
                                 >
                                   <DeleteIcon />
                                 </IconButton>
@@ -1113,7 +1542,10 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* SAVE BUTTON */}
+      {/* =================================================
+          SAVE BUTTON
+      ================================================= */}
+
       <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 3 }}>
         <Button
           variant="contained"

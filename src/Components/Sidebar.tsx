@@ -33,14 +33,13 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [appLogo, setAppLogo] = useState(defaultLogo);
 
-  
   useEffect(() => {
     let active = true;
 
     const loadAppLogo = async () => {
       try {
         let savedLogo = "";
-        
+
         let storedUser: {
           role?: string;
           school_id?: number | string;
@@ -101,13 +100,14 @@ export default function Sidebar() {
     };
 
     window.addEventListener("appLogoChanged", handleLogoChanged);
+    window.addEventListener("schoolLogoChanged", handleLogoChanged);
 
     return () => {
       active = false;
       window.removeEventListener("appLogoChanged", handleLogoChanged);
+      window.removeEventListener("schoolLogoChanged", handleLogoChanged);
     };
   }, []);
-
 
   let user: {
     fullname?: string;
